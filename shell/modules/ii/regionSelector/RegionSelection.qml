@@ -27,8 +27,7 @@ PanelWindow {
     }
 
     // Modes
-    // TODO: Ask: sidebar AI
-    enum SnipAction { Copy, Edit, Search, CharRecognition, Record, RecordWithSound } 
+    enum SnipAction { Copy, Edit, Search, CharRecognition, Record, RecordWithSound, AskAi }
     enum SelectionMode { RectCorners, Circle }
     enum Phase { Select, Post }
     property var action: RegionSelection.SnipAction.Copy
@@ -259,6 +258,8 @@ PanelWindow {
                 return ScreenshotAction.Action.Record;
             case RegionSelection.SnipAction.RecordWithSound:
                 return ScreenshotAction.Action.RecordWithSound;
+            case RegionSelection.SnipAction.AskAi:
+                return ScreenshotAction.Action.AskAi;
             default:
                 console.warn("[Region Selector] Unknown snip action, skipping snip.");
                 root.dismiss();

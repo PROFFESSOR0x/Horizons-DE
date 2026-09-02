@@ -119,6 +119,24 @@ Toolbar {
             StyledToolTip { text: Translation.tr("OCR text recognition") }
         }
 
+        // Ask AI about this region
+        RippleButton {
+            implicitHeight: 32
+            implicitWidth: 32
+            buttonRadius: 16
+            colBackground: root.action === RegionSelection.SnipAction.AskAi ? Appearance.colors.colPrimaryContainer : "transparent"
+            colBackgroundHover: Appearance.colors.colLayer3
+            colRipple: Appearance.colors.colLayer3Active
+            onClicked: root.action = RegionSelection.SnipAction.AskAi
+            contentItem: MaterialSymbol {
+                anchors.centerIn: parent
+                text: "auto_awesome"
+                iconSize: 18
+                color: root.action === RegionSelection.SnipAction.AskAi ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer1
+            }
+            StyledToolTip { text: Translation.tr("Ask AI about this region") }
+        }
+
         // Record region
         RippleButton {
             implicitHeight: 32

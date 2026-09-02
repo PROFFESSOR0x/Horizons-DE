@@ -216,6 +216,19 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
         messageListView.positionViewAtEnd();
     }
 
+    // Entry point for "Ask AI" from the region selector (RegionSelection.qml): attach the
+    // captured region as an image and focus the input so the user can type their question,
+    // the same way pasting an image from the clipboard attaches without auto-sending.
+    IpcHandler {
+        target: "aiChat"
+
+        function askAboutImage(path: string): void {
+            GlobalStates.sidebarLeftOpen = true;
+            Ai.attachFile(path);
+            root.inputField.forceActiveFocus();
+        }
+    }
+
     Process {
         id: decodeImageAndAttachProc
         property string imageDecodePath: Directories.cliphistDecode

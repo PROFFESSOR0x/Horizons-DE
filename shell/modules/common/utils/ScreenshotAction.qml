@@ -19,7 +19,8 @@ Singleton {
         Search,
         CharRecognition,
         Record,
-        RecordWithSound
+        RecordWithSound,
+        AskAi
     }
 
     property string imageSearchEngineBaseUrl: Config.options.search.imageSearch.imageSearchEngineBaseUrl
@@ -119,6 +120,12 @@ Singleton {
             case ScreenshotAction.Action.RecordWithSound:
                 return ["bash", "-c",
                     `${Directories.recordScriptPath} --region '${slurpRegion}' --sound`
+                ]
+
+            case ScreenshotAction.Action.AskAi:
+                return ["bash", "-c",
+                    `${cropCmd} && ` +
+                    `${qsCmd} ipc call aiChat askAboutImage '${croppedTemp}'`
                 ]
 
             default:
