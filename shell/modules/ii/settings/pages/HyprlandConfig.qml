@@ -2242,6 +2242,7 @@ ContentPage {
                                     if (modelData.monitor) props.push("monitor:" + modelData.monitor)
                                     if (modelData.size) props.push("size:" + modelData.size)
                                     if (modelData.workspace) props.push("ws:" + modelData.workspace)
+                                    if (modelData.hyprglassTag) props.push("glass:" + modelData.hyprglassTag)
                                     return props.join("  ")
                                 }
                                 Layout.fillWidth: true
@@ -2282,7 +2283,8 @@ ContentPage {
                             { displayName: "Pin", value: "pinned" },
                             { displayName: "No Focus", value: "nofocus" },
                             { displayName: "No Shadow", value: "noshadow" },
-                            { displayName: "No Blur", value: "noblur" }
+                            { displayName: "No Blur", value: "noblur" },
+                            { displayName: "None", value: "" }
                         ]
                         textRole: "displayName"
                     }
@@ -2294,16 +2296,51 @@ ContentPage {
                             const action = newWrAction.model[newWrAction.currentIndex].value
                             let arr = Config.options.hyprland.general.windowRules.slice()
                             let rule = { class: cls }
-                            rule[action] = true
+                            if (action) rule[action] = true
+                            const glassTag = newWrGlassTag.model[newWrGlassTag.currentIndex].value
+                            if (glassTag === "preset") {
+                                const presetName = newWrGlassPreset.text.trim()
+                                if (presetName) rule.hyprglassTag = "hyprglass_preset_" + presetName
+                            } else if (glassTag) {
+                                rule.hyprglassTag = glassTag
+                            }
                             arr.push(rule)
                             Config.options.hyprland.general.windowRules = arr
                             newWrClass.text = ""
+                            newWrGlassPreset.text = ""
                             windowRulesSection.saveWindowRules()
                         }
                         colBackground: Appearance.colors.colPrimaryContainer
                     }
                 }
-                StyledText { Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Match by class name. Actions: Float, Pin, No Focus, No Shadow, No Blur. For advanced rules, use the Custom Rules textarea below.") }
+                // Hyprglass per-window tag row
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    MaterialSymbol { text: "water_drop"; iconSize: 18; color: Appearance.colors.colSubtext }
+                    StyledComboBox {
+                        id: newWrGlassTag
+                        Layout.preferredWidth: 150
+                        model: [
+                            { displayName: Translation.tr("No glass tag"), value: "" },
+                            { displayName: Translation.tr("Disable glass"), value: "hyprglass_disabled" },
+                            { displayName: Translation.tr("Force enable glass"), value: "hyprglass_enabled" },
+                            { displayName: Translation.tr("Force dark theme"), value: "hyprglass_theme_dark" },
+                            { displayName: Translation.tr("Force light theme"), value: "hyprglass_theme_light" },
+                            { displayName: Translation.tr("Custom preset..."), value: "preset" }
+                        ]
+                        textRole: "displayName"
+                    }
+                    Rectangle {
+                        visible: newWrGlassTag.model[newWrGlassTag.currentIndex].value === "preset"
+                        Layout.preferredWidth: 110; Layout.preferredHeight: 32
+                        radius: Appearance.rounding.small; color: Appearance.colors.colLayer2
+                        TextInput { id: newWrGlassPreset; anchors.fill: parent; anchors.margins: 6; verticalAlignment: TextInput.AlignVCenter; selectByMouse: true; color: Appearance.colors.colOnLayer1; font.pixelSize: Appearance.font.pixelSize.small }
+                        StyledText { visible: newWrGlassPreset.text.length===0; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 6; text: "preset name"; color: Appearance.colors.colSubtext; font.pixelSize: Appearance.font.pixelSize.small }
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                StyledText { Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Match by class name. Actions: Float, Pin, No Focus, No Shadow, No Blur. The glass tag row applies a hyprglass window tag (see Settings > Hyprglass) without hand-writing hyprctl dispatch tagwindow. For advanced rules, use the Custom Rules textarea below.") }
             }
             Process { id: saveWr2Proc; onExited: (code) => { wr2Status.text = code===0 ? Translation.tr("Saved") : Translation.tr("Failed"); clearWr2Status.restart() } }
             Timer { id: clearWr2Status; interval: 2000; onTriggered: wr2Status.text = "" }
@@ -2335,6 +2372,7 @@ ContentPage {
                     if (r.monitor) actionParts.push(`monitor = "${r.monitor}"`)
                     if (r.workspace) actionParts.push(`workspace = "${r.workspace}"`)
                     if (r.size) actionParts.push(`size = "${r.size}"`)
+                    if (r.hyprglassTag) actionParts.push(`tag = "+${r.hyprglassTag}"`)
                     lines.push(`{match={${matchParts.join(", ")}}, ${actionParts.join(", ")}}`)
                 }
                 const wrLines = lines.map(l => `hl.window_rule(${l})`).join("\n")
