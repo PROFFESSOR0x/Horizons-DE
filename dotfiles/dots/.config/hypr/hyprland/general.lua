@@ -137,7 +137,10 @@ hl.curve("emphasizedAccel", {
 })
 hl.curve("standardDecel", {
     type = "bezier",
-    points = {{0, 0}, {0, 1}}
+    -- Real Material Design "standard decelerate" curve is cubic-bezier(0, 0, 0.2, 1);
+    -- the second control point's x was previously 0 (a flat-then-vertical curve), not
+    -- the published value.
+    points = {{0, 0}, {0.2, 1}}
 })
 hl.curve("menu_decel", {
     type = "bezier",
