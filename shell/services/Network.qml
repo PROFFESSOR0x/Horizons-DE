@@ -90,15 +90,34 @@ Singleton {
     }
 
     function changePassword(network: WifiAccessPoint, password: string, username = ""): void {
-        // TODO: enterprise wifi with username
         network.askingPassword = false;
-        changePasswordProc.exec({
-            "environment": {
-                "PASSWORD": password,
-                "SSID": network.ssid
-            },
-            "command": ["bash", "-c", 'nmcli connection modify "$SSID" wifi-sec.psk "$PASSWORD"']
-        })
+        if (username.length > 0) {
+            // WPA/WPA2/WPA3-Enterprise (802.1x): needs an identity (username) in addition to the
+            // password. PEAP + MSCHAPv2 is the overwhelmingly common combination for the
+            // corporate/campus networks this is meant for (e.g. eduroam), so use that as the
+            // default EAP method rather than prompting for a full method picker.
+            changePasswordProc.exec({
+                "environment": {
+                    "PASSWORD": password,
+                    "USERNAME": username,
+                    "SSID": network.ssid
+                },
+                "command": ["bash", "-c", 'nmcli connection modify "$SSID" '
+                    + '802-11-wireless-security.key-mgmt wpa-eap '
+                    + '802-1x.eap peap '
+                    + '802-1x.phase2-auth mschapv2 '
+                    + '802-1x.identity "$USERNAME" '
+                    + '802-1x.password "$PASSWORD"']
+            })
+        } else {
+            changePasswordProc.exec({
+                "environment": {
+                    "PASSWORD": password,
+                    "SSID": network.ssid
+                },
+                "command": ["bash", "-c", 'nmcli connection modify "$SSID" wifi-sec.psk "$PASSWORD"']
+            })
+        }
     }
 
     Process {
