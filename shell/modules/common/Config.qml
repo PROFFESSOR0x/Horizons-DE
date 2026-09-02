@@ -972,6 +972,11 @@ Singleton {
                     { "type": "mic" },
                     { "type": "dnd" }
                 ]
+                // Empty until the hotspot toggle is first used; Hotspot.qml fills
+                // these in with a hostname-derived default the first time it needs
+                // them, and persists whatever the user edits in BarConfig.
+                property string hotspotSsid: ""
+                property string hotspotPassword: ""
             }
 
             property JsonObject infoStrip: JsonObject {
