@@ -24,7 +24,7 @@ STY_RST='\e[00m'
 declare -a TEMP_FILES_TO_CLEANUP=()
 
 # Used by install script
-BACKUP_DIR="${BACKUP_DIR:-$HOME/ii-original-dots-backup}"
-DOTS_CORE_CONFDIR="${XDG_CONFIG_HOME}/illogical-impulse"
+BACKUP_DIR="${BACKUP_DIR:-$HOME/horizons-original-dots-backup}"
+DOTS_CORE_CONFDIR="${XDG_CONFIG_HOME}/horizons"
 INSTALLED_LISTFILE="${DOTS_CORE_CONFDIR}/installed_listfile"
 FIRSTRUN_FILE="${DOTS_CORE_CONFDIR}/installed_true"
