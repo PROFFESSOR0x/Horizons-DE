@@ -1,6 +1,54 @@
 # End4-PXpC Monorepo Restructuring Plan
 
-Status: draft, awaiting go-ahead per phase.
+Status: Phase 0 + Phase 1 (structural move and identity rebrand) and Phase 2
+(installer consolidation) are done. Phases 3-6 are still draft/未着手.
+
+## Phase 1 (identity rebrand) + Phase 2 (installer) — done
+
+Decisions that were locked in and applied (superseding the "open question" below):
+- Display name everywhere user-facing: **آفاق | Horizons**.
+- Technical slug for paths/identifiers: **`horizons`** — replacing both
+  `illogical-impulse` and `end4-pC`/`ii`. New canonical paths:
+  `~/.config/horizons/` and `~/.config/quickshell/horizons/`; `qsConfig` value
+  `"horizons"`.
+- A migration shim (copy, not move) from the old paths to the new ones lives in
+  the new root `installer.sh` (`migrate_legacy_configs()`), and
+  `shell/scripts/keyring/try_lookup.sh` falls back to the old `illogical-impulse`
+  secret-service application name so existing stored secrets aren't lost.
+- Installer consolidated per Phase 2: `install/lib/distro.sh` (merged distro
+  detection) + root `installer.sh` (replaces `shell/installer.sh`), correctly
+  calling `dotfiles/setup install` (the old call to nonexistent
+  `dots-hyprland/install.sh`/`setup.sh` is fixed), building `shell/plugins/hyprglass`
+  from source via `make`, and installing `shell/` into
+  `~/.config/quickshell/horizons/`.
+
+Deviations from the plan as originally written:
+- The plan's target layout showed `install/` as "was dots-hyprland/sdata +
+  end4-pC installer logic, unified" — in practice `dotfiles/sdata` remains where
+  it is (it's `dotfiles/setup`'s own implementation detail) and `install/` only
+  holds the *shared* piece both installers needed (`install/lib/distro.sh`).
+  Duplicating/moving all of `sdata` into `install/` would have meant rewriting
+  `dotfiles/setup` itself, which was out of scope for this pass.
+- Left un-renamed, deliberately: real upstream AUR/ebuild package names under
+  `dotfiles/sdata/dist-arch/` and `dotfiles/sdata/dist-gentoo/`
+  (`illogical-impulse-*`) and `dotfiles/sdata/deps-info.md` documenting them —
+  these are literal external package identifiers the installer invokes via
+  pacman/yay/emerge; renaming them would break dependency installation. Also
+  left the installed icon filename and the `illogical-impulse-<font>` fonts
+  directory prefix in `dotfiles/sdata/subcmd-install/3.files*.sh` — cosmetic
+  local asset naming, tangential to the actual identity strings.
+- `dotfiles/sdata/subcmd-install/3.files-exp.sh` (experimental YAML installer)
+  was left untouched and is never called by the new root `installer.sh`, per
+  the plan.
+- The outer repo directory name `End4-PXpC` and the GitHub remote
+  (`github.com/PROFFESSOR0x/end4-pC`) were not renamed — out of scope, and the
+  self-update flow in `shell/modules/ii/settings/pages/About.qml` was pointed
+  at the real remote (it previously pointed at a stale/nonexistent
+  `github.com/pctrade/end4-pC`).
+
+---
+
+Status (original): draft, awaiting go-ahead per phase.
 Scope: merge `dots-hyprland/`, `end4-pC/`, `hyprglass/` into one coherent, closely-linked
 monorepo; fix the installer; resolve placeholders; expand Hyprland animations; deepen the
 hyprglass↔shell integration.
