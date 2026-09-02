@@ -101,42 +101,187 @@ def option_is_supported(key):
     _option_support_cache[key] = supported
     return supported
 
+
+# Each preset below is a self-consistent, complete set of curves + speeds for
+# every animation leaf Hyprland exposes (see the `order` list further down for
+# the authoritative leaf list, cross-checked against Hyprland's own
+# example/hyprland.lua and wiki). Bezier control points are taken from real,
+# named easing definitions (Material Design 2/3, easings.net) rather than
+# invented numbers, so the motion language is recognizable and each preset
+# reads as one coherent "feel" rather than a pile of unrelated tweaks.
+SNAPPY_PRESET = """\
+-- Preset: Snappy - minimal-latency, utilitarian motion. Short durations, no
+-- overshoot, no decorative extras (angle animations off). Curves are the
+-- textbook easeOutExpo/easeInExpo/easeOutQuart from easings.net.
+hl.curve("sn_out",  { type = "bezier", points = { {0.16, 1},   {0.3,  1}    } }) -- easeOutExpo: near-instant settle
+hl.curve("sn_in",   { type = "bezier", points = { {0.7,  0},   {0.84, 0}    } }) -- easeInExpo: quick, snappy exit
+hl.curve("sn_move", { type = "bezier", points = { {0.25, 1},   {0.5,  1}    } }) -- easeOutQuart: crisp drag/resize follow
+hl.animation({ leaf = "global",              enabled = true,  speed = 6,   bezier = "sn_out"                        })
+hl.animation({ leaf = "windows",             enabled = true,  speed = 2.2, bezier = "sn_out"                        })
+hl.animation({ leaf = "windowsIn",           enabled = true,  speed = 2,   bezier = "sn_out",  style = "popin 90%"  })
+hl.animation({ leaf = "windowsOut",          enabled = true,  speed = 1.4, bezier = "sn_in",   style = "popin 90%"  })
+hl.animation({ leaf = "windowsMove",         enabled = true,  speed = 2,   bezier = "sn_move"                       })
+hl.animation({ leaf = "layers",              enabled = true,  speed = 1.8, bezier = "sn_out"                        })
+hl.animation({ leaf = "layersIn",            enabled = true,  speed = 1.8, bezier = "sn_out",  style = "slide"      })
+hl.animation({ leaf = "layersOut",           enabled = true,  speed = 1.4, bezier = "sn_in",   style = "slide"      })
+hl.animation({ leaf = "fade",                enabled = true,  speed = 1.6, bezier = "sn_out"                        })
+hl.animation({ leaf = "fadeIn",              enabled = true,  speed = 1.4, bezier = "sn_out"                        })
+hl.animation({ leaf = "fadeOut",             enabled = true,  speed = 1.1, bezier = "sn_in"                         })
+hl.animation({ leaf = "fadeSwitch",          enabled = true,  speed = 1,   bezier = "sn_out"                        })
+hl.animation({ leaf = "fadeShadow",          enabled = true,  speed = 1.4, bezier = "sn_out"                        })
+hl.animation({ leaf = "fadeDim",             enabled = true,  speed = 1.2, bezier = "sn_out"                        })
+hl.animation({ leaf = "fadeLayersIn",        enabled = true,  speed = 1.6, bezier = "sn_out"                        })
+hl.animation({ leaf = "fadeLayersOut",       enabled = true,  speed = 1.2, bezier = "sn_in"                         })
+hl.animation({ leaf = "fadePopups",          enabled = true,  speed = 1.4, bezier = "sn_out"                        })
+hl.animation({ leaf = "fadePopupsIn",        enabled = true,  speed = 1.4, bezier = "sn_out"                        })
+hl.animation({ leaf = "fadePopupsOut",       enabled = true,  speed = 1.1, bezier = "sn_in"                         })
+hl.animation({ leaf = "fadeDpms",            enabled = true,  speed = 3,   bezier = "sn_out"                        })
+hl.animation({ leaf = "border",              enabled = true,  speed = 4,   bezier = "sn_out"                        })
+hl.animation({ leaf = "borderangle",         enabled = false                                                        })
+hl.animation({ leaf = "shadowangle",         enabled = false                                                        })
+hl.animation({ leaf = "glowangle",           enabled = false                                                        })
+hl.animation({ leaf = "workspaces",          enabled = true,  speed = 2.4, bezier = "sn_move", style = "slide"      })
+hl.animation({ leaf = "workspacesIn",        enabled = true,  speed = 2.2, bezier = "sn_out",  style = "slide"      })
+hl.animation({ leaf = "workspacesOut",       enabled = true,  speed = 1.6, bezier = "sn_in",   style = "slide"      })
+hl.animation({ leaf = "specialWorkspace",    enabled = true,  speed = 2.2, bezier = "sn_out",  style = "slidevert"  })
+hl.animation({ leaf = "specialWorkspaceIn",  enabled = true,  speed = 2.2, bezier = "sn_out",  style = "slidevert"  })
+hl.animation({ leaf = "specialWorkspaceOut", enabled = true,  speed = 1.6, bezier = "sn_in",   style = "slidevert"  })
+hl.animation({ leaf = "zoomFactor",          enabled = true,  speed = 3,   bezier = "sn_out"                        })
+"""
+SMOOTH_PRESET = """\
+-- Preset: Smooth (default) - Material Design "standard" easing family:
+-- balanced, everyday motion that neither rushes nor lingers. Good default
+-- for daily driving; angle animations (border/shadow/glow gradient spin)
+-- stay off since they're a decorative flourish, not part of the base feel.
+hl.curve("sm_standard", { type = "bezier", points = { {0.4, 0},   {0.2, 1}   } }) -- Material standard
+hl.curve("sm_decel",    { type = "bezier", points = { {0,   0},   {0.2, 1}   } }) -- Material standard decelerate
+hl.curve("sm_accel",    { type = "bezier", points = { {0.4, 0},   {1,   1}   } }) -- Material standard accelerate
+hl.curve("sm_linear",   { type = "bezier", points = { {0,   0},   {1,   1}   } }) -- for continuous angle loops
+hl.animation({ leaf = "global",              enabled = true,  speed = 10,  bezier = "sm_standard"                    })
+hl.animation({ leaf = "windows",             enabled = true,  speed = 4.2, bezier = "sm_standard"                    })
+hl.animation({ leaf = "windowsIn",           enabled = true,  speed = 3.6, bezier = "sm_decel",  style = "popin 85%" })
+hl.animation({ leaf = "windowsOut",          enabled = true,  speed = 2.6, bezier = "sm_accel",  style = "popin 85%" })
+hl.animation({ leaf = "windowsMove",         enabled = true,  speed = 4,   bezier = "sm_standard"                    })
+hl.animation({ leaf = "layers",              enabled = true,  speed = 3,   bezier = "sm_standard"                    })
+hl.animation({ leaf = "layersIn",            enabled = true,  speed = 3,   bezier = "sm_decel",  style = "slide"     })
+hl.animation({ leaf = "layersOut",           enabled = true,  speed = 2.4, bezier = "sm_accel",  style = "slide"     })
+hl.animation({ leaf = "fade",                enabled = true,  speed = 3,   bezier = "sm_standard"                    })
+hl.animation({ leaf = "fadeIn",              enabled = true,  speed = 3,   bezier = "sm_decel"                       })
+hl.animation({ leaf = "fadeOut",             enabled = true,  speed = 2.4, bezier = "sm_accel"                       })
+hl.animation({ leaf = "fadeSwitch",          enabled = true,  speed = 2,   bezier = "sm_standard"                    })
+hl.animation({ leaf = "fadeShadow",          enabled = true,  speed = 3,   bezier = "sm_standard"                    })
+hl.animation({ leaf = "fadeDim",             enabled = true,  speed = 3,   bezier = "sm_standard"                    })
+hl.animation({ leaf = "fadeLayersIn",        enabled = true,  speed = 2.6, bezier = "sm_decel"                       })
+hl.animation({ leaf = "fadeLayersOut",       enabled = true,  speed = 2.2, bezier = "sm_accel"                       })
+hl.animation({ leaf = "fadePopups",          enabled = true,  speed = 2.4, bezier = "sm_standard"                    })
+hl.animation({ leaf = "fadePopupsIn",        enabled = true,  speed = 2.4, bezier = "sm_decel"                       })
+hl.animation({ leaf = "fadePopupsOut",       enabled = true,  speed = 2,   bezier = "sm_accel"                       })
+hl.animation({ leaf = "fadeDpms",            enabled = true,  speed = 6,   bezier = "sm_standard"                    })
+hl.animation({ leaf = "border",              enabled = true,  speed = 6,   bezier = "sm_standard"                    })
+hl.animation({ leaf = "borderangle",         enabled = false, speed = 30,  bezier = "sm_linear", style = "loop"      })
+hl.animation({ leaf = "shadowangle",         enabled = false, speed = 30,  bezier = "sm_linear", style = "loop"      })
+hl.animation({ leaf = "glowangle",           enabled = false, speed = 30,  bezier = "sm_linear", style = "loop"      })
+hl.animation({ leaf = "workspaces",          enabled = true,  speed = 5,   bezier = "sm_standard", style = "slide"   })
+hl.animation({ leaf = "workspacesIn",        enabled = true,  speed = 4.5, bezier = "sm_decel",  style = "slide"     })
+hl.animation({ leaf = "workspacesOut",       enabled = true,  speed = 3.6, bezier = "sm_accel",  style = "slide"     })
+hl.animation({ leaf = "specialWorkspace",    enabled = true,  speed = 4,   bezier = "sm_standard", style = "slidevert" })
+hl.animation({ leaf = "specialWorkspaceIn",  enabled = true,  speed = 4,   bezier = "sm_decel",  style = "slidevert" })
+hl.animation({ leaf = "specialWorkspaceOut", enabled = true,  speed = 3,   bezier = "sm_accel",  style = "slidevert" })
+hl.animation({ leaf = "zoomFactor",          enabled = true,  speed = 6,   bezier = "sm_standard"                    })
+"""
+EXPRESSIVE_PRESET = """\
+-- Preset: Expressive - Material 3 "expressive" motion: pronounced overshoot
+-- on window/workspace open, an underdamped spring for a playful bounce.
+-- emphasizedDecel/emphasizedAccel are the real published M3 emphasized-easing
+-- values; easeOutBack (easings.net) supplies the overshoot on layers/popups;
+-- the spring is intentionally underdamped (stiffness >> critical damping) so
+-- the bounce is visible rather than just "springy-feeling".
+hl.curve("ex_emphDecel",  { type = "bezier", points = { {0.05, 0.7},  {0.1,  1}    } }) -- Material 3 emphasized decelerate
+hl.curve("ex_emphAccel",  { type = "bezier", points = { {0.3,  0},    {0.8,  0.15} } }) -- Material 3 emphasized accelerate
+hl.curve("ex_overshoot",  { type = "bezier", points = { {0.34, 1.56}, {0.64, 1}    } }) -- easeOutBack: visible overshoot then settle
+hl.curve("ex_bounce", { type = "spring", mass = 1, stiffness = 170, dampening = 12 }) -- underdamped spring: pronounced pop-in bounce
+hl.animation({ leaf = "global",              enabled = true,  speed = 10,  bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "windows",             enabled = true,  speed = 4.2, bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "windowsIn",           enabled = true,  speed = 4.6, spring = "ex_bounce",  style = "popin 70%"  })
+hl.animation({ leaf = "windowsOut",          enabled = true,  speed = 2.2, bezier = "ex_emphAccel", style = "popin 90%" })
+hl.animation({ leaf = "windowsMove",         enabled = true,  speed = 4,   bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "layers",              enabled = true,  speed = 3,   bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "layersIn",            enabled = true,  speed = 3.2, bezier = "ex_overshoot", style = "popin 85%" })
+hl.animation({ leaf = "layersOut",           enabled = true,  speed = 2.4, bezier = "ex_emphAccel", style = "popin 92%" })
+hl.animation({ leaf = "fade",                enabled = true,  speed = 3,   bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "fadeIn",              enabled = true,  speed = 3.4, bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "fadeOut",             enabled = true,  speed = 2.2, bezier = "ex_emphAccel"                     })
+hl.animation({ leaf = "fadeSwitch",          enabled = true,  speed = 2.4, bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "fadeShadow",          enabled = true,  speed = 3.4, bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "fadeDim",             enabled = true,  speed = 3,   bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "fadeLayersIn",        enabled = true,  speed = 2.8, bezier = "ex_overshoot"                     })
+hl.animation({ leaf = "fadeLayersOut",       enabled = true,  speed = 2.2, bezier = "ex_emphAccel"                     })
+hl.animation({ leaf = "fadePopups",          enabled = true,  speed = 2.6, bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "fadePopupsIn",        enabled = true,  speed = 2.6, bezier = "ex_overshoot"                     })
+hl.animation({ leaf = "fadePopupsOut",       enabled = true,  speed = 2,   bezier = "ex_emphAccel"                     })
+hl.animation({ leaf = "fadeDpms",            enabled = true,  speed = 6,   bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "border",              enabled = true,  speed = 8,   bezier = "ex_emphDecel"                     })
+hl.animation({ leaf = "borderangle",         enabled = true,  speed = 20,  bezier = "ex_emphDecel", style = "loop"     })
+hl.animation({ leaf = "shadowangle",         enabled = false                                                           })
+hl.animation({ leaf = "glowangle",           enabled = false                                                           })
+hl.animation({ leaf = "workspaces",          enabled = true,  speed = 9,   bezier = "ex_overshoot", style = "slide"    })
+hl.animation({ leaf = "workspacesIn",        enabled = true,  speed = 8,   bezier = "ex_overshoot", style = "slide"    })
+hl.animation({ leaf = "workspacesOut",       enabled = true,  speed = 5,   bezier = "ex_emphAccel", style = "slide"    })
+hl.animation({ leaf = "specialWorkspace",    enabled = true,  speed = 5,   bezier = "ex_overshoot", style = "slidevert" })
+hl.animation({ leaf = "specialWorkspaceIn",  enabled = true,  speed = 5,   bezier = "ex_overshoot", style = "slidevert" })
+hl.animation({ leaf = "specialWorkspaceOut", enabled = true,  speed = 3,   bezier = "ex_emphAccel", style = "slidevert" })
+hl.animation({ leaf = "zoomFactor",          enabled = true,  speed = 8,   bezier = "ex_emphDecel"                     })
+"""
+REDUCED_MOTION_PRESET = """\
+-- Preset: Reduced Motion (accessibility) - a genuine "prefers-reduced-motion"
+-- equivalent, not just a faster preset: parallax/slide/zoom/rotation leaves
+-- that can trigger vestibular discomfort are disabled outright (windowsMove,
+-- zoomFactor, borderangle/shadowangle/glowangle, fadeSwitch/fadeShadow/
+-- fadeDim), workspace/special-workspace transitions are forced to a short
+-- plain crossfade instead of sliding, and every remaining leaf uses a linear
+-- curve at ~100-200ms so state changes still register without motion cues.
+hl.curve("rm_linear", { type = "bezier", points = { {0, 0}, {1, 1} } }) -- plain, uninflected crossfade
+hl.animation({ leaf = "global",              enabled = true,  speed = 2, bezier = "rm_linear"                    })
+hl.animation({ leaf = "windows",             enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "windowsIn",           enabled = true,  speed = 1, bezier = "rm_linear", style = ""        })
+hl.animation({ leaf = "windowsOut",          enabled = true,  speed = 1, bezier = "rm_linear", style = ""        })
+hl.animation({ leaf = "windowsMove",         enabled = false                                                     })
+hl.animation({ leaf = "layers",              enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "layersIn",            enabled = true,  speed = 1, bezier = "rm_linear", style = ""        })
+hl.animation({ leaf = "layersOut",           enabled = true,  speed = 1, bezier = "rm_linear", style = ""        })
+hl.animation({ leaf = "fade",                enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "fadeIn",              enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "fadeOut",             enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "fadeSwitch",          enabled = false                                                     })
+hl.animation({ leaf = "fadeShadow",          enabled = false                                                     })
+hl.animation({ leaf = "fadeDim",             enabled = false                                                     })
+hl.animation({ leaf = "fadeLayersIn",        enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "fadeLayersOut",       enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "fadePopups",          enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "fadePopupsIn",        enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "fadePopupsOut",       enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "fadeDpms",            enabled = true,  speed = 2, bezier = "rm_linear"                    })
+hl.animation({ leaf = "border",              enabled = true,  speed = 1, bezier = "rm_linear"                    })
+hl.animation({ leaf = "borderangle",         enabled = false                                                     })
+hl.animation({ leaf = "shadowangle",         enabled = false                                                     })
+hl.animation({ leaf = "glowangle",           enabled = false                                                     })
+hl.animation({ leaf = "workspaces",          enabled = true,  speed = 1, bezier = "rm_linear", style = "fade"    })
+hl.animation({ leaf = "workspacesIn",        enabled = true,  speed = 1, bezier = "rm_linear", style = "fade"    })
+hl.animation({ leaf = "workspacesOut",       enabled = true,  speed = 1, bezier = "rm_linear", style = "fade"    })
+hl.animation({ leaf = "specialWorkspace",    enabled = true,  speed = 1, bezier = "rm_linear", style = "fade"    })
+hl.animation({ leaf = "specialWorkspaceIn",  enabled = true,  speed = 1, bezier = "rm_linear", style = "fade"    })
+hl.animation({ leaf = "specialWorkspaceOut", enabled = true,  speed = 1, bezier = "rm_linear", style = "fade"    })
+hl.animation({ leaf = "zoomFactor",          enabled = false                                                     })
+"""
+
 ANIM_PRESETS = {
-    "fast": """\
-hl.curve("pc_wobble", { type = "bezier", points = { {0.15, 1.15}, {0.35, 1.0}  } })
-hl.curve("pc_decel",  { type = "bezier", points = { {0.05, 0.9},  {0.1,  1.05} } })
-hl.curve("pc_accel",  { type = "bezier", points = { {0.3,  0},    {0.8,  0.15} } })
-hl.animation({ leaf = "windowsIn",           enabled = true, speed = 5, bezier = "pc_wobble", style = "slide"     })
-hl.animation({ leaf = "windowsOut",          enabled = true, speed = 5, bezier = "pc_accel",  style = "slide"     })
-hl.animation({ leaf = "windowsMove",         enabled = true, speed = 5, bezier = "pc_decel",  style = "slide"     })
-hl.animation({ leaf = "fadeIn",              enabled = true, speed = 4, bezier = "pc_decel"                       })
-hl.animation({ leaf = "fadeOut",             enabled = true, speed = 4, bezier = "pc_accel"                       })
-hl.animation({ leaf = "layersIn",            enabled = true, speed = 4, bezier = "pc_decel",  style = "slide"     })
-hl.animation({ leaf = "layersOut",           enabled = true, speed = 4, bezier = "pc_accel",  style = "slide"     })
-hl.animation({ leaf = "workspaces",          enabled = true, speed = 6, bezier = "pc_decel",  style = "slide"     })
-hl.animation({ leaf = "specialWorkspaceIn",  enabled = true, speed = 2, bezier = "pc_wobble", style = "slidevert" })
-hl.animation({ leaf = "specialWorkspaceOut", enabled = true, speed = 2, bezier = "pc_accel",  style = "slidevert" })
-""",
-    "normal": """\
-hl.curve("emphasizedDecel", { type = "bezier", points = { {0.05, 0.7},  {0.1,  1}    } })
-hl.curve("emphasizedAccel", { type = "bezier", points = { {0.3,  0},    {0.8,  0.15} } })
-hl.curve("menu_decel",      { type = "bezier", points = { {0.1,  1},    {0,    1}    } })
-hl.curve("menu_accel",      { type = "bezier", points = { {0.52, 0.03}, {0.72, 0.08} } })
-hl.curve("stall",           { type = "bezier", points = { {1,    -0.1}, {0.7,  0.85} } })
-hl.animation({ leaf = "windowsIn",           enabled = true, speed = 3,   bezier = "emphasizedDecel", style = "popin 80%" })
-hl.animation({ leaf = "windowsOut",          enabled = true, speed = 2,   bezier = "emphasizedDecel", style = "popin 90%" })
-hl.animation({ leaf = "windowsMove",         enabled = true, speed = 3,   bezier = "emphasizedDecel", style = "slide"     })
-hl.animation({ leaf = "fadeIn",              enabled = true, speed = 3,   bezier = "emphasizedDecel"  })
-hl.animation({ leaf = "fadeOut",             enabled = true, speed = 2,   bezier = "emphasizedDecel"  })
-hl.animation({ leaf = "border",              enabled = true, speed = 10,  bezier = "emphasizedDecel"  })
-hl.animation({ leaf = "layersIn",            enabled = true, speed = 2.7, bezier = "emphasizedDecel", style = "popin 93%" })
-hl.animation({ leaf = "layersOut",           enabled = true, speed = 2.4, bezier = "menu_accel",      style = "popin 94%" })
-hl.animation({ leaf = "fadeLayersIn",        enabled = true, speed = 0.5, bezier = "menu_decel"       })
-hl.animation({ leaf = "fadeLayersOut",       enabled = true, speed = 2.7, bezier = "stall"            })
-hl.animation({ leaf = "workspaces",          enabled = true, speed = 7,   bezier = "menu_decel",      style = "slide"     })
-hl.animation({ leaf = "specialWorkspaceIn",  enabled = true, speed = 2.8, bezier = "emphasizedDecel", style = "slidevert" })
-hl.animation({ leaf = "specialWorkspaceOut", enabled = true, speed = 1.2, bezier = "emphasizedAccel", style = "slidevert" })
-""",
+    "snappy": SNAPPY_PRESET,
+    "smooth": SMOOTH_PRESET,
+    "expressive": EXPRESSIVE_PRESET,
+    "reduced_motion": REDUCED_MOTION_PRESET,
+    # Back-compat aliases for configs that stored the old preset identifiers.
+    "fast": SNAPPY_PRESET,
+    "normal": SMOOTH_PRESET,
     "niri": """\
 hl.curve("niri_wobble", { type = "bezier", points = { {0.15, 1.15}, {0.35, 1.0}  } })
 hl.curve("niri_decel",  { type = "bezier", points = { {0.05, 0.9},  {0.1,  1.05} } })
@@ -278,7 +423,7 @@ def save_preset(anim_file, preset_name):
     if not content:
         print(f"Unknown preset '{preset_name}'")
         return
-    write_atomic(anim_file, content)
+    write_atomic(anim_file, "-- Generated by Horizons custom animations editor\n" + content)
     print(f"Wrote preset '{preset_name}' -> {anim_file}")
 
 
