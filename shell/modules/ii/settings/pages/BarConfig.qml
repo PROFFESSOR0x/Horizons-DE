@@ -68,9 +68,9 @@ ContentPage {
             ...Config.options.bar.layouts.leftLayout,
             ...Config.options.bar.layouts.middleLayout,
             ...Config.options.bar.layouts.rightLayout,
-            ...Config.options.topIsland.layouts.leftLayout,
-            ...Config.options.topIsland.layouts.middleLayout,
-            ...Config.options.topIsland.layouts.rightLayout
+            ...Config.options.mesoBar.layouts.leftLayout,
+            ...Config.options.mesoBar.layouts.middleLayout,
+            ...Config.options.mesoBar.layouts.rightLayout
         ]
         const multipleAllowed = ["visualizer", "divisor"]
         return allWidgets.filter(w => {
@@ -149,7 +149,7 @@ ContentPage {
                     onSelected: newValue => { Config.options.bar.barMode = newValue }
                     options: [
                         { displayName: Translation.tr("Classic"),      icon: "horizontal_rule",    value: "classic" },
-                        { displayName: Translation.tr("Top Island"),   icon: "dock",               value: "topIsland" },
+                        { displayName: Translation.tr("Mesobar (formerly Top Island)"), icon: "dock", value: "mesoBar" },
                         { displayName: Translation.tr("M3 Island"),    icon: "interests",          value: "m3Island" },
                         { displayName: Translation.tr("Tasklist"),     icon: "list",               value: "tasklistBar" },
                         { displayName: Translation.tr("Sys Monitor"),  icon: "monitoring",         value: "sysmonitorBar" },
@@ -277,34 +277,34 @@ ContentPage {
             }
         }
 
-        // ── 4. Top Island Layout (topIsland mode only) ────────────────────────
+        // ── 4. Mesobar Layout (mesoBar mode only) ─────────────────────────────
         ContentSection {
             icon: "dock"
             shape: MaterialShape.Shape.Cookie6Sided
-            visible: page.barMode === "topIsland"
-            title: Translation.tr("Top Island Layout")
+            visible: page.barMode === "mesoBar"
+            title: Translation.tr("Mesobar Layout")
 
             GroupedList {
                 LayoutSection {
                     sectionTitle: Translation.tr("Left")
-                    layout: Config.options.topIsland.layouts.leftLayout
+                    layout: Config.options.mesoBar.layouts.leftLayout
                     availableWidgets: page.availableFor()
                     getWidgetName: page.getWidgetName
-                    onUpdate: list => Config.options.topIsland.layouts.leftLayout = list
+                    onUpdate: list => Config.options.mesoBar.layouts.leftLayout = list
                 }
                 LayoutSection {
                     sectionTitle: Translation.tr("Center")
-                    layout: Config.options.topIsland.layouts.middleLayout
+                    layout: Config.options.mesoBar.layouts.middleLayout
                     availableWidgets: page.availableFor()
                     getWidgetName: page.getWidgetName
-                    onUpdate: list => Config.options.topIsland.layouts.middleLayout = list
+                    onUpdate: list => Config.options.mesoBar.layouts.middleLayout = list
                 }
                 LayoutSection {
                     sectionTitle: Translation.tr("Right")
-                    layout: Config.options.topIsland.layouts.rightLayout
+                    layout: Config.options.mesoBar.layouts.rightLayout
                     availableWidgets: page.availableFor()
                     getWidgetName: page.getWidgetName
-                    onUpdate: list => Config.options.topIsland.layouts.rightLayout = list
+                    onUpdate: list => Config.options.mesoBar.layouts.rightLayout = list
                 }
             }
         }
@@ -510,13 +510,13 @@ ContentPage {
                     ]
                 }
 
-                // Island-specific corner style
+                // Mesobar-specific corner style
                 ConfigSelectionArray {
-                    text: Translation.tr("Island style")
+                    text: Translation.tr("Mesobar style")
                     icon: "style"
-                    visible: page.barMode === "topIsland"
-                    currentValue: Config.options.topIsland.cornerStyle
-                    onSelected: newValue => { Config.options.topIsland.cornerStyle = newValue }
+                    visible: page.barMode === "mesoBar"
+                    currentValue: Config.options.mesoBar.cornerStyle
+                    onSelected: newValue => { Config.options.mesoBar.cornerStyle = newValue }
                     options: [
                         { displayName: Translation.tr("Hug"),     icon: "line_curve",  value: 0 },
                         { displayName: Translation.tr("Float"),   icon: "view_day",    value: 1 },
@@ -525,11 +525,32 @@ ContentPage {
                     ]
                 }
 
+                // Mesobar width policy
+                ConfigSelectionArray {
+                    text: Translation.tr("Width")
+                    icon: "width"
+                    visible: page.barMode === "mesoBar"
+                    currentValue: Config.options.mesoBar.widthMode
+                    onSelected: newValue => { Config.options.mesoBar.widthMode = newValue }
+                    options: [
+                        { displayName: Translation.tr("Fit content"), icon: "fit_screen", value: "content" },
+                        { displayName: Translation.tr("Percent"),     icon: "width",       value: "percent" }
+                    ]
+                }
+                ConfigSpinBox {
+                    icon: "width"
+                    text: Translation.tr("Width (% of screen)")
+                    visible: page.barMode === "mesoBar" && Config.options.mesoBar.widthMode === "percent"
+                    value: Config.options.mesoBar.widthPercent
+                    from: 20; to: 100; stepSize: 5
+                    onValueChanged: { Config.options.mesoBar.widthPercent = value }
+                }
+
                 // Shared corner style (all other modes)
                 ConfigSelectionArray {
                     text: Translation.tr("Bar style")
                     icon: "style"
-                    visible: page.barMode !== "topIsland" && page.barMode !== "m3Island"
+                    visible: page.barMode !== "mesoBar" && page.barMode !== "m3Island"
                     currentValue: Config.options.bar.cornerStyle
                     onSelected: newValue => { Config.options.bar.cornerStyle = newValue }
                     options: [
@@ -555,13 +576,13 @@ ContentPage {
                     ]
                 }
 
-                // Island group style (topIsland only)
+                // Mesobar group style
                 ConfigSelectionArray {
                     text: Translation.tr("Group style")
                     icon: "tab_group"
-                    visible: page.barMode === "topIsland"
-                    currentValue: Config.options.topIsland.borderless
-                    onSelected: newValue => { Config.options.topIsland.borderless = newValue }
+                    visible: page.barMode === "mesoBar"
+                    currentValue: Config.options.mesoBar.borderless
+                    onSelected: newValue => { Config.options.mesoBar.borderless = newValue }
                     options: [
                         { displayName: Translation.tr(""),          icon: "block",         value: "transparent" },
                         { displayName: Translation.tr("Pills"),     icon: "pill",          value: "pills" },
@@ -665,47 +686,47 @@ ContentPage {
             }
         }
 
-        // ── 6. Top Island — specific options ──────────────────────────────────
+        // ── 6. Mesobar — specific options ─────────────────────────────────────
         ContentSection {
             icon: "dock"
             shape: MaterialShape.Shape.Cookie6Sided
-            visible: page.barMode === "topIsland"
-            title: Translation.tr("Top Island Options")
+            visible: page.barMode === "mesoBar"
+            title: Translation.tr("Mesobar Options")
 
             GroupedList {
                 ConfigRow {
                     ConfigSwitch {
                         buttonIcon: "panorama_wide_angle"
                         text: Translation.tr("Show Frame")
-                        checked: Config.options.topIsland.showFrame
+                        checked: Config.options.mesoBar.showFrame
                         property bool switchReady: false
                         Component.onCompleted: Qt.callLater(() => switchReady = true)
                         onCheckedChanged: {
                             if (switchReady && checked) GlobalStates.refreshBar()
-                            Config.options.topIsland.showFrame = checked
+                            Config.options.mesoBar.showFrame = checked
                         }
                     }
                     ConfigSwitch {
                         buttonIcon: "colors"
-                        enabled: Config.options.topIsland.showFrame
+                        enabled: Config.options.mesoBar.showFrame
                         text: Translation.tr("Follow Frame Color")
-                        checked: Config.options.topIsland.followFrameColor
-                        onCheckedChanged: { Config.options.topIsland.followFrameColor = checked }
+                        checked: Config.options.mesoBar.followFrameColor
+                        onCheckedChanged: { Config.options.mesoBar.followFrameColor = checked }
                     }
                 }
                 ConfigSpinBox {
                     icon: "eraser_size_1"
                     text: Translation.tr("Frame thickness")
-                    value: Config.options.topIsland.frameThickness
+                    value: Config.options.mesoBar.frameThickness
                     from: 2; to: 10; stepSize: 1
-                    onValueChanged: { Config.options.topIsland.frameThickness = value }
+                    onValueChanged: { Config.options.mesoBar.frameThickness = value }
                 }
                 ColorSelectionArray {
                     icon: "imagesearch_roller"
                     text: Translation.tr("Frame Color")
                     options: ["primaryContainer", "secondaryContainer", "tertiaryContainer", "layer0", "black"]
-                    currentValue: Config.options.topIsland.frameColor
-                    onSelected: newValue => { Config.options.topIsland.frameColor = newValue }
+                    currentValue: Config.options.mesoBar.frameColor
+                    onSelected: newValue => { Config.options.mesoBar.frameColor = newValue }
                 }
             }
         }
@@ -1005,11 +1026,11 @@ ContentPage {
             }
         }
 
-        // ── 14. Utility Buttons (classic & topIsland) ─────────────────────────
+        // ── 14. Utility Buttons (classic & mesoBar) ────────────────────────────
         ContentSection {
             icon: "buttons_alt"
             shape: MaterialShape.Shape.SoftBurst
-            visible: page.barMode === "classic" || page.barMode === "topIsland"
+            visible: page.barMode === "classic" || page.barMode === "mesoBar"
             title: Translation.tr("Utility Buttons")
 
             GroupedList {
@@ -1076,11 +1097,11 @@ ContentPage {
             }
         }
 
-        // ── 15. Workspaces (classic & topIsland) ──────────────────────────────
+        // ── 15. Workspaces (classic & mesoBar) ─────────────────────────────────
         ContentSection {
             shape: MaterialShape.Shape.Cookie12Sided
             icon: "steppers"
-            visible: page.barMode === "classic" || page.barMode === "topIsland"
+            visible: page.barMode === "classic" || page.barMode === "mesoBar"
             title: Translation.tr("Workspaces")
 
             GroupedList {
@@ -1206,11 +1227,11 @@ ContentPage {
             }
         }
 
-        // ── 17. Media (classic & topIsland) ───────────────────────────────────
+        // ── 17. Media (classic & mesoBar) ──────────────────────────────────────
         ContentSection {
             icon: "music_note"
             shape: MaterialShape.Shape.Sunny
-            visible: page.barMode === "classic" || page.barMode === "topIsland"
+            visible: page.barMode === "classic" || page.barMode === "mesoBar"
             title: Translation.tr("Media")
 
             GroupedList {
