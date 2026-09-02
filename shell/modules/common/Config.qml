@@ -1116,8 +1116,20 @@ Singleton {
                 property bool useHyprlock: false
                 property bool launchOnStartup: false
                 property bool showWidgets: false
+                // Which background widgets (by their qs.modules.ii.background.widgets
+                // configEntryName, e.g. "clock", "weather", "todo") are allowed to show
+                // on the lock screen, independent of their desktop configuration. An
+                // empty list means "no restriction" (all desktop-enabled widgets may
+                // show, matching legacy behavior); a non-empty list is treated as the
+                // explicit allow-list. Only takes effect when showWidgets is true.
+                property list<string> enabledWidgets: []
                 property bool showMedia: true
                 property bool showToolbars: true
+                // Independent visibility for the left (username/media/keyboard) and
+                // right (battery/sleep/power) toolbars, on top of the showToolbars
+                // master switch.
+                property bool showLeftToolbar: true
+                property bool showRightToolbar: true
                 property JsonObject blur: JsonObject {
                     property bool enable: true
                     property real radius: 100

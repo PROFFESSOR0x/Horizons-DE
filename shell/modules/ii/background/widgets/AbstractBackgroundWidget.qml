@@ -15,7 +15,12 @@ AbstractWidget {
     required property int scaledScreenWidth
     required property int scaledScreenHeight
     required property real wallpaperScale
+    // Per-widget lock-screen visibility: an empty lock.enabledWidgets list means
+    // "no restriction" (every desktop-enabled widget may show, preserving legacy
+    // behavior), otherwise only widgets named in that list are allowed.
     property bool visibleWhenLocked: Config.options.lock.showWidgets
+        && (Config.options.lock.enabledWidgets.length === 0
+            || Config.options.lock.enabledWidgets.indexOf(configEntryName) !== -1)
     property var configEntry: Config.options.background.widgets[configEntryName]
     property string placementStrategy: configEntry.placementStrategy
     property real targetX: Math.max(0, Math.min(configEntry.x, scaledScreenWidth - width))

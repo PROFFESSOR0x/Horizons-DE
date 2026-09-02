@@ -29,7 +29,8 @@ AbstractBackgroundWidget {
     needsColText: clockStyle === "digital"
     x: forceCenter ? ((root.screenWidth - root.width) / 2) : targetX
     y: forceCenter ? ((root.screenHeight - root.height) / 2) : targetY
-    visibleWhenLocked: true
+    // Respects Config.options.lock.enabledWidgets like any other background
+    // widget now, so the clock can be selectively hidden on the lock screen too.
 
     function restoreXYBinding() {
         root.x = Qt.binding(() => root.forceCenter ? ((root.screenWidth - root.width) / 2) : root.targetX);
