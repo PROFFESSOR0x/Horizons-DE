@@ -56,7 +56,6 @@ Item {
     StyledDropShadow {
         id: glyphShadow
         target: glyphStage
-        visible: Config.options.background.widgets.enableShadows ?? false
     }
 
     Item {

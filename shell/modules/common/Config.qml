@@ -268,6 +268,10 @@ Singleton {
                 }
                 // A named starting point; each value remains editable afterwards.
                 property string builtInTheme: "adaptive" // adaptive | midnight | paper | aurora | mono
+                // Names of matugen templates (see SystemTheming.matugenTemplates) the
+                // user has disabled via Settings > Interface. Referenced by
+                // SystemTheming.templateEnabled()/setTemplateEnabled().
+                property list<string> matugenDisabled: []
             }
 
             property JsonObject audio: JsonObject {
