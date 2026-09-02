@@ -43,6 +43,40 @@ Singleton {
         obj[keys[keys.length - 1]] = convertedValue;
     }
 
+    // Back-compat shim for the "topIsland" -> "mesoBar" bar mode rename.
+    // Runs once per config load (see FileView.onLoaded below). Old configs
+    // saved before the rename have `bar.barMode === "topIsland"` and their
+    // island appearance/layout under the (now-deprecated) `options.topIsland`
+    // JsonObject; this remaps the mode string so the bar doesn't silently
+    // fall back to "classic", and copies the old island settings into
+    // `options.mesoBar` the first time only, so later user edits to mesoBar
+    // are never overwritten by this function again.
+    function migrateLegacyConfig() {
+        const opts = root.options;
+        const wasTopIsland = opts.bar.barMode === "topIsland";
+        if (wasTopIsland) {
+            opts.bar.barMode = "mesoBar";
+        }
+        if (wasTopIsland && !opts.mesoBar.legacyMigrated) {
+            const legacy = opts.topIsland;
+            opts.mesoBar.cornerStyle = legacy.cornerStyle;
+            opts.mesoBar.borderless = legacy.borderless;
+            opts.mesoBar.showFrame = legacy.showFrame;
+            opts.mesoBar.frameThickness = legacy.frameThickness;
+            opts.mesoBar.frameColor = legacy.frameColor;
+            opts.mesoBar.followFrameColor = legacy.followFrameColor;
+            opts.mesoBar.showBackground = legacy.showBackground;
+            opts.mesoBar.verbose = legacy.verbose;
+            opts.mesoBar.layouts.leftLayout = legacy.layouts.leftLayout;
+            opts.mesoBar.layouts.middleLayout = legacy.layouts.middleLayout;
+            opts.mesoBar.layouts.rightLayout = legacy.layouts.rightLayout;
+            // A migrated-over config keeps the old content-hugging look by
+            // default; the wider "percent" mode is opt-in for these users.
+            opts.mesoBar.widthMode = "content";
+            opts.mesoBar.legacyMigrated = true;
+        }
+    }
+
     Timer {
         id: fileReloadTimer
         interval: root.readWriteDelay
@@ -68,7 +102,10 @@ Singleton {
         blockWrites: root.blockWrites
         onFileChanged: fileReloadTimer.restart()
         onAdapterUpdated: fileWriteTimer.restart()
-        onLoaded: root.ready = true
+        onLoaded: {
+            root.migrateLegacyConfig();
+            root.ready = true;
+        }
         onLoadFailed: error => {
             if (error == FileViewError.FileNotFound) {
                 writeAdapter();
@@ -682,8 +719,12 @@ Singleton {
             property JsonObject bar: JsonObject {
                 // ── Bar Mode ─────────────────────────────────────────────────────────
                 // Selects which bar is active. All shared settings below apply to it.
-                // Values: "classic" | "topIsland" | "tasklistBar" | "sysmonitorBar"
+                // Values: "classic" | "mesoBar" | "tasklistBar" | "sysmonitorBar"
                 //         | "quickActionsBar" | "infoStrip" | "m3Island"
+                // NOTE: "mesoBar" was called "topIsland" before it grew into a real
+                // configurable-width bar (see Config.options.mesoBar below). An old
+                // config's literal "topIsland" value is remapped by
+                // Config.migrateLegacyConfig(), called once the config file loads.
                 property string barMode: "classic"
 
                 // ── Shared settings (apply to every barMode) ──────────────────────
@@ -789,21 +830,43 @@ Singleton {
                 }
             }
 
-            property JsonObject topIsland: JsonObject {
+            // "Meso-" (Greek μέσος, mesos = "middle") is the standard scientific
+            // prefix for something middle-sized or positioned in-between two
+            // extremes (mesosphere, mesoderm, mesophyll) - which is exactly what
+            // this bar mode is: a real bar, wider than a content-hugging pill but
+            // deliberately narrower than the edge-to-edge "classic" bar. "Median"
+            // was considered but rejected - it names a statistical midpoint of a
+            // data set, not a spatial middle, so it reads oddly for a UI element.
+            // This mode was called "topIsland" before it grew widget-spreading
+            // layout, width-percent sizing and bar-family autohide/corner support;
+            // see Config.migrateLegacyConfig() and the deprecated "topIsland"
+            // JsonObject below for the back-compat shim that carries old configs
+            // (and old barMode: "topIsland" values) over to this one.
+            property JsonObject mesoBar: JsonObject {
                 // ── Shared settings are in Config.options.bar ─────────────────────
-                // (autoHide, cornerStyle, bottom, showBackground, showFrame, etc.)
+                // (autoHide, bottom, showBackground, showFrame, etc.)
                 property bool showFrame: false
                 property real frameThickness: 4
                 property string frameColor: "black"
                 property bool followFrameColor: false
-                property int cornerStyle: 1
+                property int cornerStyle: 1 // 0: Hug | 1: Float | 2: Plain rectangle | 3: Material
                 property string borderless: "pills"
                 property bool showBackground: true
                 property bool verbose: true
+
+                // ── Width policy ────────────────────────────────────────────────
+                // "content": hug the widgets' content width (the old topIsland pill
+                //            behavior, kept as an option)
+                // "percent": span a configurable percentage of the screen width,
+                //            spreading the left/middle/right groups apart like a
+                //            real bar instead of gluing them together
+                property string widthMode: "percent"
+                property real widthPercent: 55 // 1-100, used when widthMode === "percent"
+
                 property JsonObject layouts: JsonObject {
-                    property list<string> leftLayout: ["workspaces"]
-                    property list<string> middleLayout: ["clockWidget"]
-                    property list<string> rightLayout: ["systemIcons", "powerButton"]
+                    property list<string> leftLayout: ["launcherButton", "workspaces", "activeWindow"]
+                    property list<string> middleLayout: ["media", "clockWidget"]
+                    property list<string> rightLayout: ["privacyIndicator", "resources", "sysTray", "systemIcons", "idleInhibitor", "powerButton"]
                 }
                 property JsonObject utilButtons: JsonObject {
                     property bool showScreenSnip: true
@@ -840,6 +903,34 @@ Singleton {
                     property bool onlyTitle: false
                     property int maxWidth: 280
                     property int minWidth: 100
+                }
+
+                // Set once Config.migrateLegacyConfig() has copied a pre-rename
+                // "topIsland" config's appearance/layout into this object, so that
+                // migration never runs twice and clobbers the user's own edits.
+                property bool legacyMigrated: false
+            }
+
+            // ── DEPRECATED - kept only for backward compatibility ──────────────────
+            // Before the "topIsland" -> "mesoBar" rename above, this was the live
+            // JsonObject for that bar mode. It is kept, unused, purely so that an
+            // old config file's top-level "topIsland" JSON object still has
+            // somewhere to bind to on load; Config.migrateLegacyConfig() reads the
+            // fields below once and copies recognized ones into "mesoBar". Nothing
+            // else in the codebase should read or write this property.
+            property JsonObject topIsland: JsonObject {
+                property bool showFrame: false
+                property real frameThickness: 4
+                property string frameColor: "black"
+                property bool followFrameColor: false
+                property int cornerStyle: 1
+                property string borderless: "pills"
+                property bool showBackground: true
+                property bool verbose: true
+                property JsonObject layouts: JsonObject {
+                    property list<string> leftLayout: ["workspaces"]
+                    property list<string> middleLayout: ["clockWidget"]
+                    property list<string> rightLayout: ["systemIcons", "powerButton"]
                 }
             }
 
