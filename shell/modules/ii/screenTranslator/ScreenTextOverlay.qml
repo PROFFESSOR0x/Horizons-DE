@@ -21,7 +21,11 @@ Item {
     property color textColor: "white"
     required property string screenshotPath
 
-    readonly property string wikiLink: "https://ii.clsty.link/en/ii-qs/02usage/#setting-it-up" // TODO: write a page for this
+    // No dedicated wiki page exists for this yet, so point at Google's own docs for the exact
+    // thing the error is about (creating/downloading a service account JSON key) rather than
+    // a dead in-repo anchor. The key itself is pasted in-app via ScreenTranslatorPanel's "Key
+    // input" field once the user has it.
+    readonly property string wikiLink: "https://cloud.google.com/iam/docs/keys-create-delete"
     readonly property string textColorDetectionScriptPath: Quickshell.shellPath("scripts/images/text-color-venv.sh")
 
     property bool loading: true
