@@ -22,7 +22,7 @@ import qs.modules.ii.sidebarLeft
 import qs.modules.ii.sidebarRight
 import qs.modules.ii.overlay
 import qs.modules.ii.verticalBar
-import qs.modules.ii.topIsland
+import qs.modules.ii.mesoBar
 import qs.modules.ii.tasklistBar
 import qs.modules.ii.sysmonitorBar
 import qs.modules.ii.quickActionsBar
@@ -36,7 +36,7 @@ import qs.modules.ii.frame
 Scope {
     // ── Active bar — only one is loaded based on barMode ─────────────────────
     // "classic"        → standard Bar (horizontal or vertical)
-    // "topIsland"      → floating island bar
+    // "mesoBar"        → floating, medium-width bar (formerly "topIsland")
     // "m3Island"       → M3 minimal island (clock center + hover/expand/launcher morph)
     // "tasklistBar"    → taskbar with pinned/open apps
     // "sysmonitorBar"  → system-monitor bar
@@ -44,7 +44,7 @@ Scope {
     // "infoStrip"      → slim info strip
     PanelLoader { extraCondition: Config.options.bar.barMode === "classic" && !Config.options.bar.vertical; component: Bar {} }
     PanelLoader { extraCondition: Config.options.bar.barMode === "classic" &&  Config.options.bar.vertical; component: VerticalBar {} }
-    PanelLoader { extraCondition: Config.options.bar.barMode === "topIsland";       component: TopIsland {} }
+    PanelLoader { extraCondition: Config.options.bar.barMode === "mesoBar";         component: MesoBar {} }
     PanelLoader { extraCondition: Config.options.bar.barMode === "m3Island";        component: M3Island {} }
     PanelLoader { extraCondition: Config.options.bar.barMode === "tasklistBar";     component: TasklistBar {} }
     PanelLoader { extraCondition: Config.options.bar.barMode === "sysmonitorBar";   component: SysmonitorBar {} }
