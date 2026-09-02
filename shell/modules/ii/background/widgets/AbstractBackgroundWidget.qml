@@ -74,11 +74,15 @@ AbstractWidget {
     Process {
         id: leastBusyRegionProc
         property string wallpaperPath: root.wallpaperPath
-        // TODO: make these less arbitrary
-        property int contentWidth: 300
-        property int contentHeight: 300
-        property int horizontalPadding: 200
-        property int verticalPadding: 200
+        // Sample a region sized like the widget itself (falling back to a reasonable default
+        // before its content has laid out) so "least/most busy region" detection reflects what
+        // will actually sit there, instead of a fixed guess that's wrong for most widgets.
+        // Keep the search away from the screen edges by roughly a widget's worth of space, in
+        // proportion to the screen size, so results don't hug a corner on very large/small displays.
+        property int contentWidth: root.width > 0 ? Math.round(root.width) : 300
+        property int contentHeight: root.height > 0 ? Math.round(root.height) : 300
+        property int horizontalPadding: Math.max(contentWidth, Math.round(root.scaledScreenWidth * 0.1))
+        property int verticalPadding: Math.max(contentHeight, Math.round(root.scaledScreenHeight * 0.1))
         command: [Quickshell.shellPath("scripts/images/least-busy-region-venv.sh") // Comments to force the formatter to break lines
             , "--screen-width", Math.round(root.scaledScreenWidth) //
             , "--screen-height", Math.round(root.scaledScreenHeight) //
