@@ -260,6 +260,28 @@ Singleton {
         }
     }
 
+    // ── Auto dark/light theme sync ──────────────────────────────────────
+    // Opt-in (hyprglass.autoThemeSync): pushes plugin:hyprglass:default_theme
+    // whenever the shell's own system theme (Appearance.m3colors.darkmode)
+    // flips, so users don't have to toggle "Default theme" by hand. Additive
+    // on top of the existing manual defaultTheme setting — never runs unless
+    // the user has explicitly turned the toggle on.
+    function syncThemeFromSystem() {
+        if (!Config.ready) return
+        const h = Config.options.appearance.hyprglass
+        if (!h || !h.autoThemeSync) return
+        const theme = Appearance.m3colors.darkmode ? "dark" : "light"
+        if (h.defaultTheme !== theme) {
+            h.defaultTheme = theme
+            applyTimer.restart()
+        }
+    }
+
+    Connections {
+        target: Appearance.m3colors
+        function onDarkmodeChanged() { root.syncThemeFromSystem() }
+    }
+
     // Auto-load hyprglass plugin if enabled but not yet loaded
     function ensurePluginLoaded() {
         const h = Config.options.appearance.hyprglass
@@ -285,12 +307,13 @@ Singleton {
 
     Component.onCompleted: {
         if (Config.ready) {
-            Qt.callLater(() => { root.apply(); root.ensurePluginLoaded() })
+            Qt.callLater(() => { root.syncThemeFromSystem(); root.apply(); root.ensurePluginLoaded() })
         } else {
             let once = false
             let conn = Config.onReadyChanged.connect(() => {
                 if (Config.ready && !once) {
                     once = true
+                    root.syncThemeFromSystem()
                     root.apply()
                     root.ensurePluginLoaded()
                 }

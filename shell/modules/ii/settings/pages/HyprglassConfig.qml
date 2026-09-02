@@ -55,8 +55,19 @@ ContentPage {
                     checked: page.h ? page.h.manageWindowBlur : true
                     onCheckedChanged: { page.h.manageWindowBlur = checked; Hyprglass.apply() }
                 }
-                ConfigSelectionArray {
+                ConfigSwitch {
                     enabled: page.h ? page.h.enabled : false
+                    buttonIcon: "sync"
+                    text: Translation.tr("Auto-sync with system dark/light theme")
+                    checked: page.h ? page.h.autoThemeSync : false
+                    onCheckedChanged: {
+                        page.h.autoThemeSync = checked
+                        Hyprglass.syncThemeFromSystem()
+                        Hyprglass.apply()
+                    }
+                }
+                ConfigSelectionArray {
+                    enabled: page.h ? (page.h.enabled && !page.h.autoThemeSync) : false
                     icon: "dark_mode"
                     text: Translation.tr("Default theme")
                     currentValue: page.h ? page.h.defaultTheme : "dark"
@@ -65,6 +76,14 @@ ContentPage {
                         { displayName: Translation.tr("Dark"), icon: "dark_mode", value: "dark" },
                         { displayName: Translation.tr("Light"), icon: "light_mode", value: "light" }
                     ]
+                }
+                StyledText {
+                    visible: page.h ? page.h.autoThemeSync : false
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("Following the shell's system theme. Turn off auto-sync to pick a theme manually — per-window hyprglass_theme_dark/_light tags still override this on individual windows.")
                 }
                 ConfigSelectionArray {
                     enabled: page.h ? page.h.enabled : false
@@ -400,6 +419,137 @@ ContentPage {
             }
         }
 
+        // ── Custom presets ──────────────────────────────────────────────
+        ContentSection {
+            id: customPresetsSection
+            icon: "auto_awesome_mosaic"
+            shape: MaterialShape.Shape.Bun
+            title: Translation.tr("Custom Presets")
+            GroupedList {
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("Define named presets (hg.preset()) on top of the 4 built-ins. Use them as the default preset, a layer preset, or a per-window hyprglass_preset_<name> tag.")
+                }
+                ConfigTextArea {
+                    enabled: page.h ? page.h.enabled : false
+                    buttonIcon: "palette"
+                    text: Translation.tr("Default preset (any built-in or custom name)")
+                    value: page.h ? page.h.defaultPreset : "default"
+                    placeholderText: "default | high_contrast | subtle | clear | glass | <custom name>"
+                    onValueChanged: { if (page.h) { page.h.defaultPreset = value; Hyprglass.apply() } }
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Repeater {
+                    model: page.h ? page.h.presets : []
+                    delegate: Rectangle {
+                        required property var modelData
+                        required property int index
+                        Layout.fillWidth: true
+                        implicitHeight: presetRow.implicitHeight + 12
+                        radius: Appearance.rounding.small
+                        color: Appearance.colors.colLayer1
+                        RowLayout {
+                            id: presetRow
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            spacing: 6
+                            StyledText {
+                                text: modelData.name || ""
+                                color: Appearance.colors.colOnLayer1
+                                Layout.preferredWidth: 110
+                                elide: Text.ElideRight
+                                font.pixelSize: Appearance.font.pixelSize.small
+                            }
+                            StyledText {
+                                text: {
+                                    let props = []
+                                    if (modelData.inherits) props.push("inherits:" + modelData.inherits)
+                                    if (modelData.shared) {
+                                        for (let k in modelData.shared) props.push(`${k}:${modelData.shared[k]}`)
+                                    }
+                                    return props.join("  ")
+                                }
+                                Layout.fillWidth: true
+                                color: Appearance.colors.colSubtext
+                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                elide: Text.ElideRight
+                            }
+                            Rectangle {
+                                implicitWidth: 28; implicitHeight: 28; radius: 14
+                                color: delPresetHover.containsMouse ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer2
+                                MaterialSymbol { anchors.centerIn: parent; text: "delete"; iconSize: 16; color: Appearance.colors.colOnLayer1 }
+                                MouseArea {
+                                    id: delPresetHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        let arr = page.h.presets.slice()
+                                        arr.splice(index, 1)
+                                        page.h.presets = arr
+                                        Hyprglass.apply()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // Add new preset row
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Rectangle {
+                        Layout.preferredWidth: 110; Layout.preferredHeight: 32
+                        radius: Appearance.rounding.small; color: Appearance.colors.colLayer2
+                        TextInput { id: newPresetName; anchors.fill: parent; anchors.margins: 6; verticalAlignment: TextInput.AlignVCenter; selectByMouse: true; color: Appearance.colors.colOnLayer1; font.pixelSize: Appearance.font.pixelSize.small }
+                        StyledText { visible: newPresetName.text.length===0; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 6; text: "name"; color: Appearance.colors.colSubtext; font.pixelSize: Appearance.font.pixelSize.small }
+                    }
+                    StyledText { text: Translation.tr("inherits"); color: Appearance.colors.colSubtext }
+                    StyledComboBox {
+                        id: newPresetInherits
+                        Layout.preferredWidth: 130
+                        model: [
+                            { displayName: Translation.tr("None"), value: "" },
+                            { displayName: "high_contrast", value: "high_contrast" },
+                            { displayName: "subtle", value: "subtle" },
+                            { displayName: "clear", value: "clear" },
+                            { displayName: "glass", value: "glass" }
+                        ]
+                        textRole: "displayName"
+                    }
+                    RippleButtonWithIcon {
+                        materialIcon: "add"; mainText: Translation.tr("Add")
+                        onClicked: {
+                            const name = newPresetName.text.trim()
+                            if (!name) return
+                            let arr = page.h.presets.slice()
+                            const inherits = newPresetInherits.model[newPresetInherits.currentIndex].value
+                            let preset = { name: name }
+                            if (inherits) preset.inherits = inherits
+                            arr.push(preset)
+                            page.h.presets = arr
+                            newPresetName.text = ""
+                            Hyprglass.apply()
+                        }
+                        colBackground: Appearance.colors.colPrimaryContainer
+                    }
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Appearance.colors.colSubtext
+                    text: Translation.tr("New presets start bare (or inheriting a built-in). Fine-tune values by editing shell/dots config directly, or extend this list programmatically — the shell writes them to shellOverrides/hyprglass.lua automatically.")
+                }
+            }
+        }
+
         // ── Per-window overrides info ──────────────────────────────────
         ContentSection {
             icon: "select_window"
@@ -411,7 +561,7 @@ ContentPage {
                     wrapMode: Text.Wrap
                     color: Appearance.colors.colSubtext
                     font.pixelSize: Appearance.font.pixelSize.small
-                    text: Translation.tr("Control per window via window tags/rules:")
+                    text: Translation.tr("Control per window via window tags/rules. Settings > Hyprland > Window Rules (Structured) has a \"glass tag\" picker that applies these without hand-writing Lua:")
                 }
                 StyledText {
                     Layout.fillWidth: true

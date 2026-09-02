@@ -136,6 +136,10 @@ Singleton {
                     property bool enabled: false
                     property bool manageWindowBlur: true
                     property string defaultTheme: "dark" // dark | light
+                    // Opt-in: when true, defaultTheme is pushed automatically from the shell's
+                    // system dark/light theme (Appearance.m3colors.darkmode) instead of being
+                    // set manually. Off by default so existing manual choices aren't overridden.
+                    property bool autoThemeSync: false
                     property string defaultPreset: "default" // default | high_contrast | subtle | clear | glass | custom
                     // Global overridables — defaults from GlobalDefaults + theme fallbacks
                     property real blurStrength: 2.0
