@@ -93,6 +93,11 @@ ContentPage {
         { id: "darkMode",   name: Translation.tr("Dark Mode"),    icon: "dark_mode" },
         { id: "mic",        name: Translation.tr("Microphone"),   icon: "mic" },
         { id: "dnd",        name: Translation.tr("Do Not Disturb"), icon: "do_not_disturb_on" },
+        { id: "airplane",   name: Translation.tr("Airplane Mode"), icon: "flight" },
+        { id: "rotation",   name: Translation.tr("Screen Rotation"), icon: "screen_rotation_alt" },
+        { id: "location",   name: Translation.tr("Location Services"), icon: "location_on" },
+        { id: "nfc",        name: Translation.tr("NFC"),          icon: "nfc" },
+        { id: "hotspot",    name: Translation.tr("Wi-Fi Hotspot"), icon: "wifi_tethering" },
     ]
 
     function getToggleTypeName(id) {
@@ -885,6 +890,42 @@ ContentPage {
                     availableWidgets: page.availableToggleTypes()
                     getWidgetName: page.getToggleTypeName
                     onUpdate: list => Config.options.quickActionsBar.toggles = list.map(t => ({ type: t }))
+                }
+
+                ConfigRow {
+                    visible: Config.options.quickActionsBar.toggles.some(t => t.type === "hotspot")
+                    uniform: true
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        StyledText {
+                            text: Translation.tr("Hotspot SSID")
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            color: Appearance.colors.colSubtext
+                        }
+                        MaterialTextField {
+                            Layout.fillWidth: true
+                            placeholderText: Hotspot.ssid
+                            text: Config.options.quickActionsBar.hotspotSsid
+                            onTextChanged: Config.options.quickActionsBar.hotspotSsid = text
+                        }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        StyledText {
+                            text: Translation.tr("Hotspot Password")
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            color: Appearance.colors.colSubtext
+                        }
+                        MaterialTextField {
+                            Layout.fillWidth: true
+                            placeholderText: Hotspot.password
+                            text: Config.options.quickActionsBar.hotspotPassword
+                            echoMode: TextInput.Password
+                            onTextChanged: Config.options.quickActionsBar.hotspotPassword = text
+                        }
+                    }
                 }
             }
         }

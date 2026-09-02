@@ -127,13 +127,45 @@ Item {
                 case "darkMode":   return Appearance.m3colors.darkmode
                 case "mic":        return !(Audio.source?.audio?.muted ?? true)
                 case "dnd":        return Notifications.silent
+                case "airplane":   return AirplaneMode.enabled
+                case "rotation":   return ScreenRotation.transform !== 0
+                case "location":   return LocationAgent.running
+                case "nfc":        return NfcStatus.enabled
+                case "hotspot":    return Hotspot.active
                 default:           return false
+            }
+        }
+
+        // Toggles backed by a system mechanism that may not be present on
+        // this machine (missing binary, no matching hardware, wrong
+        // compositor). Unavailable ones are dimmed and inert rather than
+        // silently failing on click.
+        readonly property bool available: {
+            switch (toggleType) {
+                case "airplane": return AirplaneMode.available
+                case "rotation": return ScreenRotation.available
+                case "location": return LocationAgent.available
+                case "nfc":      return NfcStatus.available
+                case "hotspot":  return Hotspot.available
+                default:         return true
+            }
+        }
+
+        readonly property string unavailableReason: {
+            switch (toggleType) {
+                case "airplane": return AirplaneMode.unavailableReason
+                case "rotation": return ScreenRotation.unavailableReason
+                case "location": return LocationAgent.unavailableReason
+                case "nfc":      return NfcStatus.unavailableReason
+                case "hotspot":  return Hotspot.unavailableReason
+                default:         return ""
             }
         }
 
         implicitWidth:  36
         implicitHeight: 36
         radius: Appearance.rounding.normal
+        opacity: toggleBtn.available ? 1 : 0.4
 
         color: toggleBtn.toggled
             ? Appearance.colors.colPrimaryContainer
@@ -145,14 +177,18 @@ Item {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
         }
 
-        StyledToolTip { text: toggleBtn.toggleType }
+        StyledToolTip {
+            text: toggleBtn.available
+                ? toggleBtn.toggleType
+                : `${toggleBtn.toggleType} (${toggleBtn.unavailableReason})`
+        }
 
         MouseArea {
             id: hoverMa
             anchors.fill: parent
             hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: toggleBtn.activate()
+            cursorShape: toggleBtn.available ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: if (toggleBtn.available) toggleBtn.activate()
         }
 
         MaterialSymbol {
@@ -173,6 +209,11 @@ Item {
                 case "darkMode":   return toggled ? "light_mode"          : "dark_mode"
                 case "mic":        return toggled ? "mic"                 : "mic_off"
                 case "dnd":        return toggled ? "do_not_disturb_off"  : "do_not_disturb_on"
+                case "airplane":   return toggled ? "flight" : "airplanemode_inactive"
+                case "rotation":   return "screen_rotation_alt"
+                case "location":   return toggled ? "location_on" : "location_off"
+                case "nfc":        return "nfc"
+                case "hotspot":    return toggled ? "wifi_tethering" : "wifi_tethering_off"
                 default:           return "toggle_on"
             }
         }
@@ -204,6 +245,21 @@ Item {
                     break
                 case "dnd":
                     Notifications.silent = !Notifications.silent
+                    break
+                case "airplane":
+                    AirplaneMode.toggle()
+                    break
+                case "rotation":
+                    ScreenRotation.toggle()
+                    break
+                case "location":
+                    LocationAgent.toggle()
+                    break
+                case "nfc":
+                    NfcStatus.toggle()
+                    break
+                case "hotspot":
+                    Hotspot.toggle()
                     break
                 default:
                     break
