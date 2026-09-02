@@ -140,20 +140,50 @@ parallel with the structural work).
   new presets + a live-preview using `hyprctl reload` diffing, so users A/B without
   restarting.
 
-## Phase 5 — Hyprglass ↔ shell integration
+## Phase 5 — Hyprglass ↔ shell integration — done
+
 Given the plugin has no IPC beyond Hyprland's own config/dispatch system, "closer
-integration" means:
-1. Make `HyprglassConfig.qml` settings page cover the full option set from the README
-   (it's close already — verify `adaptive_dim`, `adaptive_boost`, `lens_distortion`,
-   `vibrancy_darkness` are all exposed).
-2. Wire per-window tag controls (`hyprglass_disabled`, `hyprglass_theme_*`,
-   `hyprglass_preset_*`) into the shell's window-rule UI instead of requiring manual
-   `hyprctl dispatch tagwindow`.
-3. Auto dark/light theme sync: shell already tracks system theme — push
-   `plugin:hyprglass:default_theme` on theme change instead of requiring manual toggle.
-4. Stretch goal (bigger, separate effort): add a minimal IPC/socket to the plugin itself
-   (e.g. a unix socket emitting current per-window glass state) so the shell can show
-   live glass status instead of only writing config one-way.
+integration" meant deepening the config-authoring surface, not a new wire protocol.
+
+**Critical fix found and applied first:** `Hyprglass.qml`, `HyprglassConfig.qml`, and
+`Appearance.qml` all read/wrote `Config.options.hyprglass`, but the actual schema in
+`Config.qml` nests `hyprglass` inside `appearance`
+(`Config.options.appearance.hyprglass`) — the same place `appearance.glass` lives.
+This meant `page.h` was always `undefined`, every settings control was disabled,
+`Hyprglass.apply()` returned early on every call, and Appearance's
+`hyprglassEnabled`/`hyprglassTheme`/`hyprglassPreset`/`hyprglassOpacity` mirrors always
+fell back to their hardcoded defaults — i.e. the entire hyprglass↔shell integration was
+silently inert before this pass. Fixed by correcting the path in all three files.
+
+1. **Full option-set coverage** — audited `HyprglassConfig.qml` against the README's
+   option set; `adaptive_dim`, `adaptive_boost`, `lens_distortion`, `vibrancy_darkness`,
+   `blur_iterations`, `edge_thickness`, and the layer-surface whitelist/blacklist/preset/
+   per-namespace fields were already present (once the path bug above was fixed, they
+   actually work). Added the one real gap: a **Custom Presets** editor (add/remove
+   `hg.preset()` entries with name + optional `inherits` from a built-in) plus a
+   free-text "Default preset" field so a custom preset name can be set as the global
+   default, not just the 4 built-ins the quick-select buttons cover.
+2. **Per-window tag controls** — extended the existing "Window Rules (Structured)"
+   section in `HyprlandConfig.qml` with a glass-tag picker (disable / force-enable /
+   force dark theme / force light theme / custom preset name) that writes the
+   `tag = "+hyprglass_..."` clause onto the rule's `hl.window_rule()` line, so
+   `hyprctl dispatch tagwindow` no longer needs to be hand-typed.
+3. **Auto dark/light theme sync** — new opt-in `appearance.hyprglass.autoThemeSync`
+   option (default off). When enabled, `Hyprglass.syncThemeFromSystem()` pushes
+   `plugin:hyprglass:default_theme` whenever the shell's own system theme
+   (`Appearance.m3colors.darkmode`, set by `MaterialThemeLoader.qml`) flips, and once
+   at startup; the manual "Default theme" selector is disabled while auto-sync is on.
+   Purely additive — off by default, never overrides a manual choice unless the user
+   turns the toggle on.
+4. **Stretch goal (plugin IPC for live glass status) — deferred, not attempted.**
+   No Linux/Hyprland build environment was available in this pass to compile or test a
+   `hyprglass/src/*.cpp` change, and a incorrect `HyprlandAPI::` addition risks
+   destabilizing a real compositor plugin. Recommendation for a future pass: a small
+   unix socket in `GlassRenderer.cpp`/`main.cpp` that periodically writes current
+   per-window glass state (enabled/theme/preset per window address) as newline-delimited
+   JSON, polled from `Hyprglass.qml` via a `Socket`/`Process` — additive, and it should
+   ship behind its own plugin-config toggle (e.g. `status_socket_enabled`, default off)
+   so it can't regress anyone not using it.
 
 ## Open questions before implementation starts
 1. Identity rename: keep `illogical-impulse` as the legacy config-dir name, or do a
