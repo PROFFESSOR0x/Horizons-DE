@@ -34,11 +34,11 @@ Singleton {
     // Legacy shell glass (appearance.glass) + hyprglass compositor glass (appearance.hyprglass)
     property bool liquidGlassEnabled: Config?.options?.appearance?.glass?.enable ?? false
     property real glassOpacity: Math.max(0.35, Math.min(0.95, Config?.options?.appearance?.glass?.opacity ?? 0.78))
-    // Hyprglass plugin state — mirrors Config.options.hyprglass (see hyprglass/src/PluginConfig.hpp)
-    property bool hyprglassEnabled: Config?.options?.hyprglass?.enabled ?? false
-    property string hyprglassTheme: Config?.options?.hyprglass?.defaultTheme ?? "dark"
-    property string hyprglassPreset: Config?.options?.hyprglass?.defaultPreset ?? "default"
-    property real hyprglassOpacity: Math.max(0.0, Math.min(1.0, Config?.options?.hyprglass?.glassOpacity ?? 1.0))
+    // Hyprglass plugin state — mirrors Config.options.appearance.hyprglass (see hyprglass/src/PluginConfig.hpp)
+    property bool hyprglassEnabled: Config?.options?.appearance?.hyprglass?.enabled ?? false
+    property string hyprglassTheme: Config?.options?.appearance?.hyprglass?.defaultTheme ?? "dark"
+    property string hyprglassPreset: Config?.options?.appearance?.hyprglass?.defaultPreset ?? "default"
+    property real hyprglassOpacity: Math.max(0.0, Math.min(1.0, Config?.options?.appearance?.hyprglass?.glassOpacity ?? 1.0))
     // Effective glass: true if either legacy shell glass or hyprglass compositor is active.
     // When hyprglass is enabled, shell transparency follows hyprglass opacity so the
     // compositor glass shows through consistently.

@@ -5,7 +5,7 @@ import Quickshell.Io
 import qs.modules.common
 import qs.modules.common.functions
 
-// Hyprglass — bridges Config.options.hyprglass to Hyprland plugin:hyprglass:*
+// Hyprglass — bridges Config.options.appearance.hyprglass to Hyprland plugin:hyprglass:*
 // Mirrors hyprglass/src/PluginConfig.hpp (SPluginConfig + SOverridableConfig)
 // and hyprglass/src/BuiltInPresets.hpp.
 // Uses HyprlandConfig.set() which edits shellOverrides/main.lua via hl.config().
@@ -53,11 +53,11 @@ Singleton {
         return root.tintToDecimal(value)
     }
 
-    // Apply all current Config.options.hyprglass values to Hyprland.
+    // Apply all current Config.options.appearance.hyprglass values to Hyprland.
     // Called on startup and whenever the config changes (debounced).
     function apply() {
         if (!Config.ready) return
-        const h = Config.options.hyprglass
+        const h = Config.options.appearance.hyprglass
         if (!h) return
 
         let entries = {}
@@ -150,7 +150,7 @@ Singleton {
     readonly property string presetsFilePath: FileUtils.trimFileProtocol(`${Directories.config}/hypr/hyprland/shellOverrides/hyprglass.lua`)
 
     function writePresetsFile() {
-        const h = Config.options.hyprglass
+        const h = Config.options.appearance.hyprglass
         if (!h || !h.presets || h.presets.length === 0) {
             presetsFileView.setText("-- Hyprglass custom presets — none configured\n")
             return
@@ -203,7 +203,7 @@ Singleton {
     // Sync legacy appearance.glass -> hyprglass (one-way, on load)
     function syncLegacyGlass() {
         const g = Config.options.appearance?.glass
-        const h = Config.options.hyprglass
+        const h = Config.options.appearance.hyprglass
         if (!g || !h) return
         // Only sync if hyprglass hasn't been explicitly configured yet
         // (detect by checking if hyprglass.enabled was never set by user)
@@ -243,7 +243,7 @@ Singleton {
         function onEnableChanged() {
             if (!Config.ready) return
             const g = Config.options.appearance.glass
-            const h = Config.options.hyprglass
+            const h = Config.options.appearance.hyprglass
             if (h && g.enable !== h.enabled) {
                 h.enabled = g.enable
                 applyTimer.restart()
@@ -252,7 +252,7 @@ Singleton {
         function onOpacityChanged() {
             if (!Config.ready) return
             const g = Config.options.appearance.glass
-            const h = Config.options.hyprglass
+            const h = Config.options.appearance.hyprglass
             if (h && Math.abs(g.opacity - h.glassOpacity) > 0.001) {
                 h.glassOpacity = g.opacity
                 applyTimer.restart()
@@ -262,7 +262,7 @@ Singleton {
 
     // Auto-load hyprglass plugin if enabled but not yet loaded
     function ensurePluginLoaded() {
-        const h = Config.options.hyprglass
+        const h = Config.options.appearance.hyprglass
         if (!h || !h.enabled) return
         // Try hyprpm first, fall back to common manual paths
         pluginLoader.running = true

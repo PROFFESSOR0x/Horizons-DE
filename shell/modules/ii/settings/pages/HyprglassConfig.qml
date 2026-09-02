@@ -12,7 +12,7 @@ ContentPage {
     id: page
     forceWidth: true
 
-    readonly property var h: Config.options.hyprglass
+    readonly property var h: Config.options.appearance.hyprglass
 
     function tintDisplay(v) {
         if (!v || v === "" || v === "-1") return Translation.tr("Auto (theme default)")
