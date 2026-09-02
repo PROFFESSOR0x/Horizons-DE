@@ -58,6 +58,9 @@ ContentPage {
         { id: "hyprlandXkbIndicator", name: Translation.tr("Keyboard Layout"),  icon: "keyboard" },
         { id: "divisor",           name: Translation.tr("Divider"),              icon: "horizontal_distribute" },
         { id: "launcherButton",    name: Translation.tr("Launcher Button"),      icon: "search" },
+        { id: "idleInhibitor",     name: Translation.tr("Idle Inhibitor"),       icon: "coffee" },
+        { id: "uptime",            name: Translation.tr("Uptime"),               icon: "avg_pace" },
+        { id: "privacyIndicator",  name: Translation.tr("Privacy Indicator"),    icon: "shield_lock" },
     ]
 
     function availableFor() {
@@ -79,6 +82,39 @@ ContentPage {
     function getWidgetName(id) {
         const w = allWidgets.find(w => w.id === id)
         return w ? w.name : id
+    }
+
+    // Only toggle types that actually have real backing in
+    // QuickActionsBarContent.qml's QuickToggle component are selectable here.
+    property var allToggleTypes: [
+        { id: "wifi",       name: Translation.tr("Wi-Fi"),        icon: "wifi" },
+        { id: "bluetooth",  name: Translation.tr("Bluetooth"),    icon: "bluetooth" },
+        { id: "nightLight", name: Translation.tr("Night Light"),  icon: "bedtime" },
+        { id: "darkMode",   name: Translation.tr("Dark Mode"),    icon: "dark_mode" },
+        { id: "mic",        name: Translation.tr("Microphone"),   icon: "mic" },
+        { id: "dnd",        name: Translation.tr("Do Not Disturb"), icon: "do_not_disturb_on" },
+    ]
+
+    function getToggleTypeName(id) {
+        const t = allToggleTypes.find(t => t.id === id)
+        return t ? t.name : id
+    }
+
+    function availableToggleTypes() {
+        let used = Config.options.quickActionsBar.toggles.map(t => t.type)
+        return allToggleTypes.filter(t => !used.includes(t.id))
+    }
+
+    function pinnedAppName(id) {
+        const app = AppSearch.list.find(a => a.id === id)
+        return app ? app.name : id
+    }
+
+    function availablePinnableApps() {
+        let used = Config.options.tasklistBar.pinnedApps
+        return AppSearch.list
+            .filter(a => !used.includes(a.id))
+            .map(a => ({ id: a.id, name: a.name, icon: "apps" }))
     }
 
     function availableForM3() {
@@ -698,6 +734,13 @@ ContentPage {
                     from: 40; to: 400; stepSize: 10
                     onValueChanged: { Config.options.tasklistBar.maxButtonWidth = value }
                 }
+                LayoutSection {
+                    sectionTitle: Translation.tr("Pinned Apps")
+                    layout: Config.options.tasklistBar.pinnedApps
+                    availableWidgets: page.availablePinnableApps()
+                    getWidgetName: page.pinnedAppName
+                    onUpdate: list => Config.options.tasklistBar.pinnedApps = list
+                }
             }
         }
 
@@ -754,6 +797,41 @@ ContentPage {
                         onCheckedChanged: { Config.options.sysmonitorBar.showNetwork = checked }
                     }
                 }
+                ConfigSpinBox {
+                    icon: "memory"
+                    text: Translation.tr("RAM warning threshold (%)")
+                    value: Config.options.sysmonitorBar.memoryWarningThreshold
+                    from: 50; to: 100; stepSize: 1
+                    onValueChanged: { Config.options.sysmonitorBar.memoryWarningThreshold = value }
+                }
+                ConfigSpinBox {
+                    icon: "planner_review"
+                    text: Translation.tr("CPU warning threshold (%)")
+                    value: Config.options.sysmonitorBar.cpuWarningThreshold
+                    from: 50; to: 100; stepSize: 1
+                    onValueChanged: { Config.options.sysmonitorBar.cpuWarningThreshold = value }
+                }
+                ConfigSpinBox {
+                    icon: "thermostat"
+                    text: Translation.tr("Temperature warning threshold (°C)")
+                    value: Config.options.sysmonitorBar.tempWarningThreshold
+                    from: 50; to: 110; stepSize: 1
+                    onValueChanged: { Config.options.sysmonitorBar.tempWarningThreshold = value }
+                }
+                ConfigSpinBox {
+                    icon: "storage"
+                    text: Translation.tr("Disk warning threshold (%)")
+                    value: Config.options.sysmonitorBar.diskWarningThreshold
+                    from: 50; to: 100; stepSize: 1
+                    onValueChanged: { Config.options.sysmonitorBar.diskWarningThreshold = value }
+                }
+                ConfigSpinBox {
+                    icon: "swap_horiz"
+                    text: Translation.tr("Swap warning threshold (%)")
+                    value: Config.options.sysmonitorBar.swapWarningThreshold
+                    from: 50; to: 100; stepSize: 1
+                    onValueChanged: { Config.options.sysmonitorBar.swapWarningThreshold = value }
+                }
             }
         }
 
@@ -779,6 +857,13 @@ ContentPage {
                         checked: Config.options.quickActionsBar.showBrightnessSlider
                         onCheckedChanged: { Config.options.quickActionsBar.showBrightnessSlider = checked }
                     }
+                }
+                LayoutSection {
+                    sectionTitle: Translation.tr("Toggles")
+                    layout: Config.options.quickActionsBar.toggles.map(t => t.type)
+                    availableWidgets: page.availableToggleTypes()
+                    getWidgetName: page.getToggleTypeName
+                    onUpdate: list => Config.options.quickActionsBar.toggles = list.map(t => ({ type: t }))
                 }
             }
         }
