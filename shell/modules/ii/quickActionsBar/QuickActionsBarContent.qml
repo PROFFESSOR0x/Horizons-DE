@@ -116,7 +116,9 @@ Item {
         id: toggleBtn
         required property string toggleType
 
-        // Read state from real services
+        // Read state from real services. Unknown/legacy toggle types (e.g. a
+        // stale config value from before removal) fall through to the
+        // default rather than crashing.
         readonly property bool toggled: {
             switch (toggleType) {
                 case "wifi":       return Network.wifiEnabled
@@ -125,8 +127,6 @@ Item {
                 case "darkMode":   return Appearance.m3colors.darkmode
                 case "mic":        return !(Audio.source?.audio?.muted ?? true)
                 case "dnd":        return Notifications.silent
-                case "airplane":   return false   // no service yet
-                case "rotation":   return false
                 default:           return false
             }
         }
@@ -173,16 +173,13 @@ Item {
                 case "darkMode":   return toggled ? "light_mode"          : "dark_mode"
                 case "mic":        return toggled ? "mic"                 : "mic_off"
                 case "dnd":        return toggled ? "do_not_disturb_off"  : "do_not_disturb_on"
-                case "airplane":   return "airplane_ticket"
-                case "rotation":   return "screen_rotation"
-                case "location":   return "location_on"
-                case "nfc":        return "nfc"
-                case "hotspot":    return "wifi_tethering"
                 default:           return "toggle_on"
             }
         }
 
-        // Dispatch to real service
+        // Dispatch to real service. Unknown toggle types (e.g. a stale config
+        // value referencing a type that's no longer implemented) are ignored
+        // rather than crashing.
         function activate() {
             switch (toggleType) {
                 case "wifi":
@@ -207,6 +204,8 @@ Item {
                     break
                 case "dnd":
                     Notifications.silent = !Notifications.silent
+                    break
+                default:
                     break
             }
         }
