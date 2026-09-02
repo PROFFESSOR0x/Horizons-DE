@@ -1,0 +1,2 @@
+-- Custom window/workspace rules
+-- Example: hl.window_rule({match={class="kitty"}, float=true})

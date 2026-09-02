@@ -1,0 +1,9 @@
+# build artifacts
+*.o
+*.so
+/hyprglass/hyprglass.so
+/shell/plugins/hyprglass/hyprglass.so
+/shell/plugins/hyprglass/src/*.o
+
+# logs
+*.log
