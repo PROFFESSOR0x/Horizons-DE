@@ -82,13 +82,11 @@ PanelWindow {
             let fr = player.metaData.value(MediaMetaData.VideoFrameRate)
             if (fr && fr > 0) {
                 editorCanvas.fps = fr
-                console.log("[CaptureEditor] Detected FPS from metadata:", fr)
             }
             let w = player.metaData.value(MediaMetaData.Resolution)
             if (w) {
                 editorCanvas.videoNativeWidth = w.width
                 editorCanvas.videoNativeHeight = w.height
-                console.log("[CaptureEditor] Video resolution:", w.width, "x", w.height)
             }
         }
 
@@ -229,10 +227,8 @@ PanelWindow {
 
     function openImage(path) {
         if (!root.sc.autoOpenImage) {
-            console.log("[CaptureEditor] openImage skipped — autoOpenImage disabled:", path)
             return
         }
-        console.log("[CaptureEditor] openImage called with path:", path)
         if (player.playbackState === MediaPlayer.PlayingState) {
             player.pause()
         }
@@ -248,17 +244,14 @@ PanelWindow {
         root._dismissGuard = true
         root.visible = true
         editorContainer.forceActiveFocus()
-        console.log("[CaptureEditor] visible set to:", root.visible)
         editorCanvas.loadAnnotationImage(path)
         dismissGuardTimer.restart()
     }
 
     function openVideo(path) {
         if (!root.sc.autoOpenVideo) {
-            console.log("[CaptureEditor] openVideo skipped — autoOpenVideo disabled:", path)
             return
         }
-        console.log("[CaptureEditor] openVideo called with path:", path)
         player.stop()
         root.currentTool = root.sc.defaultTool || "pen"
         root.currentColor = root.sc.defaultColor || "#ff0000"
@@ -555,12 +548,10 @@ PanelWindow {
         target: "captureEditor"
 
         function openImage(path: string): void {
-            console.log("[CaptureEditor] IPC openImage received, path:", path)
             root.openImage(path)
         }
 
         function openVideo(path: string): void {
-            console.log("[CaptureEditor] IPC openVideo received, path:", path)
             root.openVideo(path)
         }
     }
