@@ -860,6 +860,9 @@ Singleton {
                 property bool showNetwork: true
                 property int memoryWarningThreshold: 95
                 property int cpuWarningThreshold: 90
+                property int tempWarningThreshold: 85
+                property int diskWarningThreshold: 90
+                property int swapWarningThreshold: 85
             }
 
             property JsonObject quickActionsBar: JsonObject {

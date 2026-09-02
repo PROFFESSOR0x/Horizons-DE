@@ -14,62 +14,10 @@ Item {
     implicitHeight: Appearance.sizes.barHeight
     width: parent.width
 
-    // ── Local network speed tracking (like NetworkSpeed.qml) ─────────────────
-    property real netDown: 0
-    property real netUp: 0
-    property real _prevRx: -1
-    property real _prevTx: -1
-    property real _prevTime: 0
-    property list<real> netDownHistory: []
-    property list<real> netUpHistory: []
-    readonly property int historyLen: Config?.options.resources.historyLength ?? 60
-
-    Process {
-        id: netProc
-        command: ["cat", "/proc/net/dev"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let rx = 0, tx = 0
-                const lines = text.split("\n")
-                for (const line of lines) {
-                    const sep = line.indexOf(":")
-                    if (sep < 0) continue
-                    const iface = line.slice(0, sep).trim()
-                    if (!iface || iface === "lo") continue
-                    const fields = line.slice(sep + 1).trim().split(/\s+/)
-                    if (fields.length < 9) continue
-                    rx += Number(fields[0]) || 0
-                    tx += Number(fields[8]) || 0
-                }
-                const now = Date.now()
-                if (root._prevTime > 0 && now > root._prevTime) {
-                    const dt = (now - root._prevTime) / 1000
-                    root.netDown = root._prevRx >= 0 ? Math.max(0, (rx - root._prevRx) / dt) : 0
-                    root.netUp   = root._prevTx >= 0 ? Math.max(0, (tx - root._prevTx) / dt) : 0
-                    const dh = [...root.netDownHistory, root.netDown]
-                    const uh = [...root.netUpHistory,   root.netUp]
-                    root.netDownHistory = dh.length > root.historyLen ? dh.slice(-root.historyLen) : dh
-                    root.netUpHistory   = uh.length > root.historyLen ? uh.slice(-root.historyLen) : uh
-                }
-                root._prevRx   = rx
-                root._prevTx   = tx
-                root._prevTime = now
-            }
-        }
-    }
-
-    Timer {
-        interval: Config?.options.resources.updateInterval ?? 3000
-        running: true
-        repeat: true
-        onTriggered: { netProc.running = false; netProc.running = true }
-    }
-
+    // Network speed comes from the shared qs.services.NetworkStats poller
+    // (also used by bar/NetworkSpeed.qml) rather than a local independent one.
     function formatRate(bytes) {
-        if (bytes < 1024)        return bytes.toFixed(0)  + " B/s"
-        if (bytes < 1048576)     return (bytes / 1024).toFixed(1) + " KB/s"
-        if (bytes < 1073741824)  return (bytes / 1048576).toFixed(1) + " MB/s"
-        return (bytes / 1073741824).toFixed(2) + " GB/s"
+        return NetworkStats.formatRate(bytes, false)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -116,7 +64,7 @@ Item {
                 label: "TEMP"
                 percentage: Math.min(ResourceUsage.cpuTemp / 100, 1)
                 valueText: Math.round(ResourceUsage.cpuTemp) + "°C"
-                warningThreshold: 85
+                warningThreshold: Config.options.sysmonitorBar.tempWarningThreshold
                 graphColor: Appearance.colors.colSecondary
                 history: []   // no history for temp in service
             }
@@ -140,7 +88,7 @@ Item {
                 label: "DISK"
                 percentage: ResourceUsage.diskUsedPercentage
                 valueText: Math.round(ResourceUsage.diskUsedPercentage * 100) + "%"
-                warningThreshold: 90
+                warningThreshold: Config.options.sysmonitorBar.diskWarningThreshold
                 graphColor: Appearance.colors.colError
                 history: ResourceUsage.diskUsageHistory
             }
@@ -152,7 +100,7 @@ Item {
                 label: "SWAP"
                 percentage: ResourceUsage.swapUsedPercentage
                 valueText: Math.round(ResourceUsage.swapUsedPercentage * 100) + "%"
-                warningThreshold: 85
+                warningThreshold: Config.options.sysmonitorBar.swapWarningThreshold
                 graphColor: Appearance.colors.colOutline
                 history: ResourceUsage.swapUsageHistory
             }
@@ -163,10 +111,10 @@ Item {
                 iconName: "download"
                 label: "NET ↓"
                 percentage: 0
-                valueText: root.formatRate(root.netDown)
+                valueText: root.formatRate(NetworkStats.downloadBytesPerSecond)
                 showGraph: false
                 graphColor: Appearance.colors.colPrimary
-                history: root.netDownHistory
+                history: NetworkStats.downloadHistory
             }
 
             // Network ↑
@@ -175,10 +123,10 @@ Item {
                 iconName: "upload"
                 label: "NET ↑"
                 percentage: 0
-                valueText: root.formatRate(root.netUp)
+                valueText: root.formatRate(NetworkStats.uploadBytesPerSecond)
                 showGraph: false
                 graphColor: Appearance.colors.colSecondary
-                history: root.netUpHistory
+                history: NetworkStats.uploadHistory
             }
 
             Item { Layout.fillWidth: true }
