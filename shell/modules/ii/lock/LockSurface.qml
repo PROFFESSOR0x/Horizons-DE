@@ -93,24 +93,6 @@ MouseArea {
         forceFieldFocus();
     }
 
-    // RippleButton {
-    //     anchors {
-    //         top: parent.top
-    //         left: parent.left
-    //         leftMargin: 10
-    //         topMargin: 10
-    //     }
-    //     implicitHeight: 40
-    //     colBackground: Appearance.colors.colLayer2
-    //     onClicked: {
-    //         context.unlocked(LockContext.ActionEnum.Unlock);
-    //         GlobalStates.screenLocked = false;
-    //     }
-    //     contentItem: StyledText {
-    //         text: "[[ DEBUG BYPASS ]]"
-    //     }
-    // }
-
     Loader {
         anchors.fill: parent
         z: -1
@@ -318,14 +300,26 @@ MouseArea {
     // Left toolbar
     Toolbar {
         id: leftIsland
-        visible: Config.options.lock.showToolbars
+        // When the password controls are anchored to the left edge, this toolbar
+        // can't sensibly sit further left (it would run off-screen), so it stacks
+        // above the main island on the same edge instead of flanking it.
+        readonly property bool stackedAboveMain: root.passwordPlacement === "left"
+        visible: Config.options.lock.showToolbars && Config.options.lock.showLeftToolbar
         anchors {
-            right: mainIsland.left
-            top: mainIsland.top
-            bottom: mainIsland.bottom
-            rightMargin: 10
+            left: stackedAboveMain ? mainIsland.left : undefined
+            right: stackedAboveMain ? undefined : mainIsland.left
+            top: stackedAboveMain ? undefined : mainIsland.top
+            bottom: stackedAboveMain ? mainIsland.top : mainIsland.bottom
+            rightMargin: stackedAboveMain ? 0 : 10
+            bottomMargin: stackedAboveMain ? 10 : 0
         }
-        scale: root.toolbarScale
+        Behavior on anchors.bottomMargin {
+            animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+        }
+        // Move and scale together with the main island so offsetX/offsetY/scale
+        // settings never pull the toolbars apart or make them overlap.
+        transform: Translate { x: Config.options.lock.layout.offsetX; y: Config.options.lock.layout.offsetY }
+        scale: root.toolbarScale * Config.options.lock.layout.scale
         opacity: root.toolbarOpacity
 
         // Username
@@ -505,15 +499,23 @@ MouseArea {
     // Right toolbar
     Toolbar {
         id: rightIsland
-        visible: Config.options.lock.showToolbars
+        // Mirror of leftIsland's logic: when the password controls hug the right
+        // edge, stack above main on that edge instead of flanking off-screen.
+        readonly property bool stackedAboveMain: root.passwordPlacement === "right"
+        visible: Config.options.lock.showToolbars && Config.options.lock.showRightToolbar
         anchors {
-            left: mainIsland.right
-            top: mainIsland.top
-            bottom: mainIsland.bottom
-            leftMargin: 10
+            right: stackedAboveMain ? mainIsland.right : undefined
+            left: stackedAboveMain ? undefined : mainIsland.right
+            top: stackedAboveMain ? undefined : mainIsland.top
+            bottom: stackedAboveMain ? mainIsland.top : mainIsland.bottom
+            leftMargin: stackedAboveMain ? 0 : 10
+            bottomMargin: stackedAboveMain ? 10 : 0
         }
-
-        scale: root.toolbarScale
+        Behavior on anchors.bottomMargin {
+            animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+        }
+        transform: Translate { x: Config.options.lock.layout.offsetX; y: Config.options.lock.layout.offsetY }
+        scale: root.toolbarScale * Config.options.lock.layout.scale
         opacity: root.toolbarOpacity
 
         IconAndTextPair {
