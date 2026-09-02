@@ -137,9 +137,7 @@ Item {
 
     // Helpers to resolve widget loader like TopIsland
     function getWidgetUrl(name) {
-        if (!name || typeof name !== "string") return "";
-        let formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-        return Qt.resolvedUrl("../bar/" + formattedName + ".qml");
+        return BarLayoutUtils.getWidgetUrl(name)
     }
 
     // Reused bar widgets normally read Config.options.bar. Give them an

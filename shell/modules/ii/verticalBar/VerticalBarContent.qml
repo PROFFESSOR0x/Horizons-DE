@@ -21,25 +21,12 @@ Item {
     readonly property bool trayHasItems: SystemTray.items.values.length > 0
 
     function filterLayout(layout) {
-        if (trayHasItems) return layout
-        return layout.filter(name => name !== "sysTray")
+        return BarLayoutUtils.filterLayout(layout, trayHasItems)
     }
 
     readonly property var effectiveLeftLayout:   filterLayout(Config.options.bar.layouts.leftLayout)
     readonly property var effectiveMiddleLayout: filterLayout(Config.options.bar.layouts.middleLayout)
-    readonly property bool autoShowXkb: WM.compositor === "hyprland" && (
-        (HyprlandXkb.layoutCodes.length > 1) || (Config.options.hyprland.input.kbLayout.split(",").map(s=>s.trim()).filter(s=>s.length>0).length > 1)
-    )
-    function withAutoXkb(layout) {
-        if (!autoShowXkb) return layout
-        if (layout.includes("hyprlandXkbIndicator")) return layout
-        let copy = layout.slice()
-        const idx = copy.indexOf("systemIcons")
-        if (idx !== -1) copy.splice(idx, 0, "hyprlandXkbIndicator")
-        else copy.push("hyprlandXkbIndicator")
-        return copy
-    }
-    readonly property var effectiveRightLayout:  filterLayout(withAutoXkb(Config.options.bar.layouts.rightLayout))
+    readonly property var effectiveRightLayout:  filterLayout(BarLayoutUtils.withAutoXkb(Config.options.bar.layouts.rightLayout, {trayFallback: false, fallback: "append"}))
 
     readonly property bool centerOnly: !root.isMaterial
         && root.effectiveLeftLayout.length === 0
@@ -47,44 +34,26 @@ Item {
     readonly property real centerPillY: centerPill.y
     readonly property real centerPillHeight: centerPill.height
 
+    readonly property var materialPillBlacklist: ["workspaces", "divisor", "powerButton", "media", "docktoPanel", "leftSidebarButton"]
+
     function shouldPaintMaterialPill(name) {
-        if (Config.options.bar.cornerStyle !== 3) return false;
-        const blacklist = ["workspaces", "divisor", "powerButton", "media", "docktoPanel", "leftSidebarButton"];
-        if (blacklist.includes(name)) {
-            return false;
-        }
-        return true;
+        return BarLayoutUtils.shouldPaintMaterialPill(name, materialPillBlacklist)
     }
 
     function getMaterialPillColor(name) {
-        if (Config.options.bar.cornerStyle !== 3) return Appearance.colors.colPrimaryContainer;
-        switch(name) {
-            case "media":
-            case "sysTray":
-                return Appearance.colors.colSecondaryContainer;
-            case "resources":
-                return Appearance.colors.colTertiaryContainer;
-            case "systemIcons":
-                return Appearance.colors.colPrimary; 
-            default:
-                return Appearance.colors.colPrimaryContainer;
-        }
+        return BarLayoutUtils.getMaterialPillColor(name)
     }
 
     function getWidgetUrl(name) {
-        if (!name) return "";
-        let formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-        return Qt.resolvedUrl("../bar/" + formattedName + ".qml");
+        return BarLayoutUtils.getWidgetUrl(name)
     }
 
     function getMirroredForIndex(layout, idx) {
-        const prevCount = layout.slice(0, idx).filter(w => w === "visualizer").length
-        return prevCount % 2 === 1
+        return BarLayoutUtils.getMirroredForIndex(layout, idx)
     }
 
     function configureVisualizer(item, widgetName, layout, index) {
-        if (item && widgetName === "visualizer")
-            item.mirrored = root.getMirroredForIndex(layout, index)
+        BarLayoutUtils.configureVisualizer(item, widgetName, layout, index)
     }
 
     property var screen: root.QsWindow.window?.screen

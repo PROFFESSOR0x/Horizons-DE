@@ -20,73 +20,35 @@ Item {
 
     readonly property bool trayHasItems: SystemTray.items.values.length > 0
 
+    readonly property var materialPillBlacklist: ["workspaces", "divisor", "powerButton", "docktoPanel", "leftSidebarButton", "activeWindow"]
+
     function filterLayout(layout) {
-        if (trayHasItems) return layout
-        return layout.filter(name => name !== "sysTray")
+        return BarLayoutUtils.filterLayout(layout, trayHasItems)
     }
 
-    readonly property bool autoShowXkb: WM.compositor === "hyprland" && (
-        (HyprlandXkb.layoutCodes.length > 1) || (Config.options.hyprland.input.kbLayout.split(",").map(s=>s.trim()).filter(s=>s.length>0).length > 1)
-    )
-    function withAutoXkb(layout, isRight) {
-        if (!isRight) return layout
-        if (!autoShowXkb) return layout
-        if (layout.includes("hyprlandXkbIndicator")) return layout
-        // Inject as standalone BEFORE systemIcons so it stays outside the wifi/volume pill
-        let copy = layout.slice()
-        const idx = copy.indexOf("systemIcons")
-        if (idx !== -1) copy.splice(idx, 0, "hyprlandXkbIndicator")
-        else if (copy.includes("sysTray")) {
-            const trayIdx = copy.indexOf("sysTray")
-            copy.splice(trayIdx+1, 0, "hyprlandXkbIndicator")
-        } else copy.unshift("hyprlandXkbIndicator")
-        return copy
-    }
     readonly property var effectiveLeftLayout:   filterLayout(Config.options.bar.layouts.leftLayout)
     readonly property var effectiveMiddleLayout: filterLayout(Config.options.bar.layouts.middleLayout)
-    readonly property var effectiveRightLayout:  filterLayout(withAutoXkb(Config.options.bar.layouts.rightLayout, true))
+    // Inject the xkb indicator as standalone BEFORE systemIcons so it stays outside the wifi/volume pill
+    readonly property var effectiveRightLayout:  filterLayout(BarLayoutUtils.withAutoXkb(Config.options.bar.layouts.rightLayout, {trayFallback: true, fallback: "prepend"}))
 
     function getWidgetUrl(name) {
-        if (!name) return "";
-        let formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-        return Qt.resolvedUrl("./" + formattedName + ".qml");
+        return BarLayoutUtils.getWidgetUrl(name)
     }
 
     function getMirroredForIndex(layout, idx) {
-        const prevCount = layout.slice(0, idx).filter(w => w === "visualizer").length
-        return prevCount % 2 === 1
+        return BarLayoutUtils.getMirroredForIndex(layout, idx)
     }
 
-    // Only Visualizer exposes a writable `mirrored` property. Several QtQuick
-    // items expose a read-only property with the same name, so probing every
-    // loaded widget caused a runtime TypeError on each bar rebuild.
     function configureVisualizer(item, widgetName, layout, index) {
-        if (item && widgetName === "visualizer")
-            item.mirrored = root.getMirroredForIndex(layout, index)
+        BarLayoutUtils.configureVisualizer(item, widgetName, layout, index)
     }
 
     function shouldPaintMaterialPill(name) {
-        if (Config.options.bar.cornerStyle !== 3) return false;
-        const blacklist = ["workspaces", "divisor", "powerButton", "docktoPanel", "leftSidebarButton", "activeWindow"];
-        if (blacklist.includes(name)) {
-            return false;
-        }
-        return true;
+        return BarLayoutUtils.shouldPaintMaterialPill(name, materialPillBlacklist)
     }
 
     function getMaterialPillColor(name) {
-        if (Config.options.bar.cornerStyle !== 3) return Appearance.colors.colPrimaryContainer;
-        switch(name) {
-            case "media":
-            case "sysTray":
-                return Appearance.colors.colSecondaryContainer;
-            case "resources":
-                return Appearance.colors.colTertiaryContainer;
-            case "systemIcons":
-                return Appearance.colors.colPrimary; 
-            default:
-                return Appearance.colors.colPrimaryContainer;
-        }
+        return BarLayoutUtils.getMaterialPillColor(name)
     }
 
     property var screen: root.QsWindow.window?.screen
