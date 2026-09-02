@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import qs.services
 
-// Shared helpers for the bar family (Bar, VerticalBar, M3Island, TopIsland).
+// Shared helpers for the bar family (Bar, VerticalBar, M3Island, MesoBar).
 // Consolidates logic that was previously duplicated near-identically across
 // BarContent.qml, VerticalBarContent.qml and (partially) M3IslandContent.qml.
 // Callers that had slightly different behavior (e.g. differing material-pill
@@ -80,16 +80,23 @@ Singleton {
     // blacklist: widget names that should never get a material pill drawn
     // around them, even in material (cornerStyle === 3) mode. Differs
     // slightly between callers, so it's passed in rather than hardcoded here.
-    function shouldPaintMaterialPill(name, blacklist) {
-        if (Config.options.bar.cornerStyle !== 3)
+    // isMaterial: optional override for "is this surface currently in
+    // material/cornerStyle-3 mode". Bar/VerticalBar share Config.options.bar's
+    // cornerStyle so they can omit it; a surface with its own cornerStyle
+    // knob (e.g. MesoBar's Config.options.mesoBar.cornerStyle) must pass its
+    // own computed boolean here instead.
+    function shouldPaintMaterialPill(name, blacklist, isMaterial) {
+        const material = (isMaterial !== undefined) ? isMaterial : (Config.options.bar.cornerStyle === 3);
+        if (!material)
             return false;
         if (blacklist && blacklist.includes(name))
             return false;
         return true;
     }
 
-    function getMaterialPillColor(name) {
-        if (Config.options.bar.cornerStyle !== 3)
+    function getMaterialPillColor(name, isMaterial) {
+        const material = (isMaterial !== undefined) ? isMaterial : (Config.options.bar.cornerStyle === 3);
+        if (!material)
             return Appearance.colors.colPrimaryContainer;
         switch (name) {
         case "media":
