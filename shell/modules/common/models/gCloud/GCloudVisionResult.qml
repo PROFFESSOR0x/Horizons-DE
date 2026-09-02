@@ -5,7 +5,12 @@ import ".."
 NestableObject {
     id: root
 
-    property real confidenceThreshold: 0.5 // TODO tune this
+    // Cloud Vision's DOCUMENT_TEXT_DETECTION block-level confidence is well calibrated for
+    // printed/screen text: genuine text blocks routinely score well above 0.8, while spurious
+    // detections (icons, texture, JPEG artifacts misread as glyphs) cluster below 0.5. 0.5 was
+    // letting most of that noise through into the translator overlay. 0.6 trims the noise while
+    // still keeping small/blurry-but-real text that a stricter cutoff (e.g. 0.8) would drop.
+    property real confidenceThreshold: 0.6
 
     property var rawData
     property var rawBlocks
