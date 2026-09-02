@@ -9,6 +9,46 @@ ContentPage {
     id: page
     forceWidth: true
 
+    // Background widget types that can be independently shown/hidden on the
+    // lock screen via Config.options.lock.enabledWidgets, keyed by their
+    // qs.modules.ii.background.widgets configEntryName.
+    readonly property var lockWidgetOptions: [
+        { name: "clock", label: Translation.tr("Clock"), icon: "schedule" },
+        { name: "weather", label: Translation.tr("Weather"), icon: "partly_cloudy_day" },
+        { name: "calendar", label: Translation.tr("Calendar"), icon: "calendar_month" },
+        { name: "worldClock", label: Translation.tr("World clock"), icon: "public" },
+        { name: "notes", label: Translation.tr("Notes"), icon: "sticky_note_2" },
+        { name: "todo", label: Translation.tr("To-do list"), icon: "checklist" },
+        { name: "userCard", label: Translation.tr("User card"), icon: "badge" },
+        { name: "media", label: Translation.tr("Media player"), icon: "music_note" },
+        { name: "timers", label: Translation.tr("Timers"), icon: "timer" },
+        { name: "images", label: Translation.tr("Images"), icon: "image" },
+        { name: "visualizer", label: Translation.tr("Audio visualizer"), icon: "graphic_eq" },
+        { name: "customImage", label: Translation.tr("Custom image"), icon: "photo" },
+        { name: "resources", label: Translation.tr("System resources"), icon: "monitoring" },
+        { name: "networkInfo", label: Translation.tr("Network info"), icon: "wifi" },
+        { name: "uptime", label: Translation.tr("Uptime"), icon: "hourglass_top" },
+        { name: "systemHistory", label: Translation.tr("System history graphs"), icon: "monitor_heart" }
+    ]
+
+    function isLockWidgetEnabled(name) {
+        const arr = Config.options.lock.enabledWidgets;
+        return arr.length === 0 || arr.indexOf(name) !== -1;
+    }
+
+    function setLockWidgetEnabled(name, on) {
+        const allNames = page.lockWidgetOptions.map(w => w.name);
+        let current = Config.options.lock.enabledWidgets.length === 0
+            ? allNames.slice()
+            : Config.options.lock.enabledWidgets.slice();
+        if (on) {
+            if (current.indexOf(name) === -1) current.push(name);
+        } else {
+            current = current.filter(n => n !== name);
+        }
+        Config.options.lock.enabledWidgets = current;
+    }
+
     function goTo(term) {
         const t = term.toLowerCase().trim()
 
@@ -915,11 +955,53 @@ ContentPage {
                     onCheckedChanged: { Config.options.lock.showToolbars = checked }
                 }
                 ConfigSwitch {
-                    buttonIcon: "music_note"
+                    buttonIcon: "left_panel_open"
                     enabled: Config.options.lock.showToolbars
+                    text: Translation.tr("Show left toolbar (username/media)")
+                    checked: Config.options.lock.showLeftToolbar
+                    onCheckedChanged: { Config.options.lock.showLeftToolbar = checked }
+                }
+                ConfigSwitch {
+                    buttonIcon: "right_panel_open"
+                    enabled: Config.options.lock.showToolbars
+                    text: Translation.tr("Show right toolbar (battery/power)")
+                    checked: Config.options.lock.showRightToolbar
+                    onCheckedChanged: { Config.options.lock.showRightToolbar = checked }
+                }
+                ConfigSwitch {
+                    buttonIcon: "music_note"
+                    enabled: Config.options.lock.showToolbars && Config.options.lock.showLeftToolbar
                     text: Translation.tr("Show media player info")
                     checked: Config.options.lock.showMedia
                     onCheckedChanged: { Config.options.lock.showMedia = checked }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Widgets shown when locked")
+                visible: WM.compositor !== "niri"
+
+                StyledText {
+                    Layout.fillWidth: true
+                    Layout.bottomMargin: 4
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    text: Translation.tr("Choose which desktop widgets are also allowed to appear on the lock screen. This only applies while \"Show Widgets\" above is on; a widget must also be enabled on the desktop (Background settings) to show up here.")
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Repeater {
+                        model: page.lockWidgetOptions
+                        ConfigSwitch {
+                            required property var modelData
+                            buttonIcon: modelData.icon
+                            enabled: Config.options.lock.showWidgets
+                            text: modelData.label
+                            checked: page.isLockWidgetEnabled(modelData.name)
+                            onCheckedChanged: page.setLockWidgetEnabled(modelData.name, checked)
+                        }
+                    }
                 }
             }
 
