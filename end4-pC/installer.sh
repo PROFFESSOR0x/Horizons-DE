@@ -82,20 +82,27 @@ run(){
   if [[ "$QUIET" == false ]]; then
     println "${DM}${IT}    ▸ $*${RST}"
   fi
-  if eval "$@"; then
+
+  # Execute the command as arguments instead of using eval.
+  # This preserves quoting and prevents shell syntax errors with
+  # commands containing quotes, regexes, pipes, etc.
+  if "$@"; then
     return 0
   fi
+
   local rc=$?
   err "Command failed (exit $rc): $*"
+
   if [[ "$FORCE" == true ]]; then
     warn "Force mode — continuing despite error."
     return 0
   fi
+
   while true; do
     printf "${Y}  [r]etry  [s]kip  [a]bort  ▸ ${RST}"
     read -r p
     case "$p" in
-      r|R) eval "$@" && return 0 || { err "Still failed."; } ;;
+      r|R) "$@" && return 0 || { err "Still failed."; } ;;
       s|S) warn "Skipped."; return 0 ;;
       a|A) die "Aborted by user." ;;
     esac
@@ -127,7 +134,7 @@ spin(){
   while kill -0 "$pid" 2>/dev/null; do
     printf "\r  ${C}${frames[$((i % ${#frames[@]}))]}${RST}  %s " "$msg"
     sleep 0.1
-    ((i++))
+    ((++i))
   done
   printf "\r  ${G}✔${RST}  %-50s\n" "$msg"
 }
@@ -138,7 +145,10 @@ progress(){
   local width=40
   local filled=$(( current * width / total ))
   local empty=$(( width - filled ))
-  local bar="${G}$(printf '%0.s█' $(seq 1 $filled))${DM}$(printf '%0.s░' $(seq 1 $empty))${RST}"
+  local filled_chars="" empty_chars=""
+  (( filled > 0 )) && filled_chars=$(printf '%0.s█' $(seq 1 "$filled"))
+  (( empty > 0 )) && empty_chars=$(printf '%0.s░' $(seq 1 "$empty"))
+  local bar="${G}${filled_chars}${DM}${empty_chars}${RST}"
   printf "\r  [%b] %3d%% %s" "$bar" "$(( current * 100 / total ))" "$label"
 }
 
@@ -200,10 +210,10 @@ check_requirements(){
     printf "  %-30s" "$label"
     if eval "$cmd" &>/dev/null; then
       printf "${G}✔ found${RST}\n"
-      ((ok_count++))
+      ((++ok_count))
     else
       printf "${R}✖ missing${RST}\n"
-      ((fail_count++))
+      ((++fail_count))
     fi
   }
 
@@ -345,7 +355,8 @@ configure_hyprland(){
   local current_qs="(not detected)"
 
   if [[ -f "$vars_file" ]]; then
-    current_qs=$(grep -oP 'qsConfig[^"]*"\K[^"]+' "$vars_file" 2>/dev/null || echo "not set")
+    current_qs=$(grep -oP 'hl\.env\("qsConfig",\s*"\K[^"]+' "$vars_file" 2>/dev/null | head -n1 || true)
+    current_qs="${current_qs:-not set}"
     info "Current qsConfig: ${BD}$current_qs${RST}"
   else
     warn "Hyprland variables.lua not found at $vars_file"
@@ -367,7 +378,7 @@ configure_hyprland(){
   if confirm "Change qsConfig to 'end4-pC'?"; then
     # Backup the file first
     run cp "$vars_file" "${vars_file}.bak"
-    run sed -i "s|hl.env(\"qsConfig\", \"[^\"]*\")|hl.env(\"qsConfig\", \"end4-pC\")|" "$vars_file"
+    run sed -i -E 's|hl\.env\("qsConfig",[[:space:]]*"[^"]*"\)|hl.env("qsConfig", "end4-pC")|' "$vars_file"
     ok "qsConfig updated to end4-pC."
     ok "Backup saved to: ${vars_file}.bak"
   else
