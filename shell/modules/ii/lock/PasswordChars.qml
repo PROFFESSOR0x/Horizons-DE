@@ -51,10 +51,48 @@ StyledFlickable {
         }
         spacing: 0
 
-        Repeater {
-            model: ScriptModel { // TODO: use proper custom object model to insert new char at the correct pos
-                values: Array(root.length)
+        // Backing model for the char dots. A plain ScriptModel over Array(root.length) has no
+        // identity per slot, so on every keystroke it could only tell "the count changed" -
+        // not *where* - meaning typing in the middle of the password (after moving the cursor)
+        // would misattribute the "new char" appear animation to the last dot and reshuffle
+        // every shape after it. A ListModel gives each dot real identity: we insert/remove rows
+        // at the actual cursor position, so only the genuinely new/removed dot is created or
+        // destroyed and the rest keep their index (and thus their shape) untouched.
+        ListModel {
+            id: charModel
+
+            property int lastLength: 0
+
+            function sync() {
+                const newLength = root.length;
+                const diff = newLength - lastLength;
+                if (diff > 0) {
+                    // Chars were just inserted; the cursor now sits right after them.
+                    const insertAt = Math.max(0, Math.min(root.cursorPosition - diff, lastLength));
+                    for (let i = 0; i < diff; i++) charModel.insert(insertAt + i, {});
+                } else if (diff < 0) {
+                    // Chars were just removed; the cursor now sits at the removal point
+                    // (works for both Backspace and forward Delete).
+                    const removeAt = Math.max(0, Math.min(root.cursorPosition, charModel.count));
+                    const removeCount = Math.min(-diff, charModel.count - removeAt);
+                    if (removeCount > 0) charModel.remove(removeAt, removeCount);
+                }
+                // Fallback safety net (e.g. selection paste/replace we couldn't infer precisely):
+                // force the count back in line so the view never desyncs from the real password.
+                while (charModel.count < newLength) charModel.append({});
+                while (charModel.count > newLength) charModel.remove(charModel.count - 1);
+                lastLength = newLength;
             }
+
+            Component.onCompleted: sync()
+        }
+        Connections {
+            target: root
+            function onLengthChanged() { charModel.sync() }
+        }
+
+        Repeater {
+            model: charModel
 
             delegate: Rectangle {
                 id: charItem
