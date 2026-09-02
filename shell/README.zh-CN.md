@@ -4,7 +4,7 @@
 
 <div align="center">
 
-# 💠 end4-pC
+# 💠 آفاق | Horizons
 
 **[illogical-impulse](https://github.com/end-4/dots-hyprland)（作者：[@end-4](https://github.com/end-4)）的个人分支**
 由 **pctrade** 定制并维护
@@ -48,9 +48,9 @@
 > 此分支会独立管理自己的配置文件夹，**不会**覆盖或修改任何现有设置。不过，它要求已安装并正在运行 [illogical-impulse](https://github.com/end-4/dots-hyprland)。
 
 ```bash
-cd ~/.config/quickshell/
-git clone https://github.com/pctrade/end4-pC.git
-killall qs 2>/dev/null; qs -c end4-pC > /dev/null 2>&1 & disown
+git clone https://github.com/PROFFESSOR0x/end4-pC.git End4-PXpC
+cd End4-PXpC
+./installer.sh
 ```
 
 ### 🔧 设为默认 shell（可选）
@@ -70,7 +70,7 @@ hl.env("qsConfig", "ii")
 改为：
 
 ```lua
-hl.env("qsConfig", "end4-pC")
+hl.env("qsConfig", "horizons")
 ```
 
 > [!TIP]

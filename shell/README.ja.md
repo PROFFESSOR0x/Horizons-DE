@@ -4,7 +4,7 @@
 
 <div align="center">
 
-# 💠 end4-pC
+# 💠 آفاق | Horizons
 
 **[illogical-impulse](https://github.com/end-4/dots-hyprland)（作者：[@end-4](https://github.com/end-4)）の個人フォーク**
 **pctrade** がカスタマイズおよびメンテナンス
@@ -48,9 +48,9 @@
 > このフォークは独自の設定フォルダーを個別に管理するため、既存の設定を上書きまたは変更することは**ありません**。ただし、[illogical-impulse](https://github.com/end-4/dots-hyprland) がインストールされ、実行中である必要があります。
 
 ```bash
-cd ~/.config/quickshell/
-git clone https://github.com/pctrade/end4-pC.git
-killall qs 2>/dev/null; qs -c end4-pC > /dev/null 2>&1 & disown
+git clone https://github.com/PROFFESSOR0x/end4-pC.git End4-PXpC
+cd End4-PXpC
+./installer.sh
 ```
 
 ### 🔧 デフォルトのシェルに設定する（任意）
@@ -70,7 +70,7 @@ hl.env("qsConfig", "ii")
 以下のように変更します。
 
 ```lua
-hl.env("qsConfig", "end4-pC")
+hl.env("qsConfig", "horizons")
 ```
 
 > [!TIP]

@@ -29,22 +29,23 @@ ContentPage {
             DIR="$HOME/.config/quickshell"
 
             # Download to temp first
-            rm -rf "$DIR/end4-pC-tmp"
-            git clone https://github.com/pctrade/end4-pC.git "$DIR/end4-pC-tmp"
+            rm -rf "$DIR/horizons-tmp"
+            git clone https://github.com/PROFFESSOR0x/end4-pC.git "$DIR/horizons-tmp"
 
             # Apply update
-            rm -rf "$DIR/end4-pC-old"
-            [ -d "$DIR/end4-pC" ] && mv "$DIR/end4-pC" "$DIR/end4-pC-old"
-            mv "$DIR/end4-pC-tmp" "$DIR/end4-pC"
+            rm -rf "$DIR/horizons-old"
+            [ -d "$DIR/horizons" ] && mv "$DIR/horizons" "$DIR/horizons-old"
+            mv "$DIR/horizons-tmp/shell" "$DIR/horizons"
+            rm -rf "$DIR/horizons-tmp"
 
             # Reload
             killall qs 2>/dev/null || true
             sleep 0.5
-            setsid qs -c end4-pC >/tmp/qs.log 2>&1 < /dev/null &
+            setsid qs -c horizons >/tmp/qs.log 2>&1 < /dev/null &
             disown
 
             # Cleanup
-            rm -rf "$DIR/end4-pC-old"
+            rm -rf "$DIR/horizons-old"
         `
 
         Quickshell.execDetached(["kitty", "--hold", "bash", "-c", updateScript])

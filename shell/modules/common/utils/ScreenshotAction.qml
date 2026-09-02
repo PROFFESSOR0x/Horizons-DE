@@ -38,7 +38,7 @@ Singleton {
         const ry = Math.round(y);
         const rw = Math.round(width);
         const rh = Math.round(height);
-        const qsCmd = shellPath ? `qs -p '${StringUtils.shellSingleQuoteEscape(shellPath)}'` : `qs -c end4-pC`;
+        const qsCmd = shellPath ? `qs -p '${StringUtils.shellSingleQuoteEscape(shellPath)}'` : `qs -c horizons`;
         // Crop to a unique temp file (unique per screenshot so editor detects new image)
         const format = Config.options.screenSnip.format === "jpg" ? "jpg" : "png"
         const scale = Math.max(25, Math.min(200, Config.options.screenSnip.scalePercent ?? 100))

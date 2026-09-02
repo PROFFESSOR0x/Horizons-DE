@@ -278,7 +278,8 @@ Singleton {
                 [ -f "$p" ] && hyprctl plugin load "$p" 2>/dev/null && exit 0
             done
             # Also try building from bundled source if available
-            if [ -f "$HOME/End4-PXpC/hyprglass/hyprglass.so" ]; then hyprctl plugin load "$HOME/End4-PXpC/hyprglass.so" 2>/dev/null; fi
+            if [ -f "$HOME/End4-PXpC/shell/plugins/hyprglass/hyprglass.so" ]; then hyprctl plugin load "$HOME/End4-PXpC/shell/plugins/hyprglass/hyprglass.so" 2>/dev/null; fi
+            if [ -f "$HOME/.config/quickshell/horizons/plugins/hyprglass/hyprglass.so" ]; then hyprctl plugin load "$HOME/.config/quickshell/horizons/plugins/hyprglass/hyprglass.so" 2>/dev/null; fi
         `]
     }
 

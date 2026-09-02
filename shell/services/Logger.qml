@@ -8,7 +8,7 @@ import qs.modules.common
 
 Singleton {
     id: root
-    property string logDir: Directories.cache + "/end4-pC/logs"
+    property string logDir: Directories.cache + "/horizons/logs"
     property string logFile: logDir + "/qs.log"
     property bool enabled: true
 

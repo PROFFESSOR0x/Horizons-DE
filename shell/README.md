@@ -4,7 +4,7 @@
 
 <div align="center">
 
-# 💠 end4-pC
+# 💠 آفاق | Horizons
 
 **A personal fork of [illogical-impulse](https://github.com/end-4/dots-hyprland) by [@end-4](https://github.com/end-4)**  
 Customized and maintained by **pctrade**
@@ -45,17 +45,21 @@ Customized and maintained by **pctrade**
 ## ⚡ Installation
 
 > [!NOTE]
-> This fork manages its own configuration folder independently — it does **not** overwrite or modify any existing setup. However, it does require [illogical-impulse](https://github.com/end-4/dots-hyprland) to be installed and running.
+> Horizons manages its own configuration folder (`~/.config/quickshell/horizons`) independently — it does **not** overwrite or modify any existing setup. It is a fork of, and requires, [illogical-impulse](https://github.com/end-4/dots-hyprland) (bundled here as `dotfiles/`) to be installed and running.
+
+Use the single installer at the repo root — it installs the dotfiles base, this Quickshell config, and builds the bundled `hyprglass` plugin in one pass:
 
 ```bash
-cd ~/.config/quickshell/
-git clone https://github.com/pctrade/end4-pC.git
-killall qs 2>/dev/null; qs -c end4-pC > /dev/null 2>&1 & disown
+git clone https://github.com/PROFFESSOR0x/end4-pC.git End4-PXpC
+cd End4-PXpC
+./installer.sh
 ```
+
+See [../installer.sh](../installer.sh) for flags (`--skip-deps`, `--skip-dots`, `--skip-qs`, `--uninstall`, etc.).
 
 ### 🔧 Set as your default shell (optional)
 
-If you like it and want it to load by default instead of `ii`, edit:
+The installer does this for you. To do it manually, edit:
 
 ```bash
 ~/.config/hypr/hyprland/variables.lua
@@ -70,8 +74,11 @@ hl.env("qsConfig", "ii")
 to:
 
 ```lua
-hl.env("qsConfig", "end4-pC")
+hl.env("qsConfig", "horizons")
 ```
+
+> [!TIP]
+> If you're migrating from an older `end4-pC` / `illogical-impulse` install, existing config under `~/.config/illogical-impulse` and `~/.config/quickshell/end4-pC` is copied automatically to the new `horizons` paths on first run of `installer.sh`.
 
 > [!TIP]
 > After saving, restart Hyprland or run `hyprctl reload` to apply the change.
