@@ -2415,10 +2415,31 @@ ContentPage {
                         saveAnimProc.running = true
                     }
                     options: [
-                        { displayName: Translation.tr("Elastic"),   icon: "move_selection_right", value: "fast"   },
-                        { displayName: Translation.tr("Normal"),    icon: "animation",            value: "normal" },
-                        { displayName: Translation.tr("Niri Like"), icon: "mobiledata_arrows",    value: "niri"   },
+                        { displayName: Translation.tr("Smooth"),         icon: "animation",             value: "smooth"         },
+                        { displayName: Translation.tr("Snappy"),         icon: "bolt",                  value: "snappy"         },
+                        { displayName: Translation.tr("Expressive"),     icon: "move_selection_right",  value: "expressive"     },
+                        { displayName: Translation.tr("Reduced Motion"), icon: "accessibility_new",     value: "reduced_motion" },
+                        { displayName: Translation.tr("Niri Like"),      icon: "mobiledata_arrows",     value: "niri"           },
                     ]
+                }
+                StyledText {
+                    visible: !Config.options.hyprland.animations.customEnabled
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 8
+                    Layout.rightMargin: 8
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Appearance.colors.colSubtext
+                    text: {
+                        switch (Config.options.hyprland.animations.animation) {
+                        case "smooth": return Translation.tr("Material Design standard easing — balanced, everyday motion. Recommended default.")
+                        case "snappy": return Translation.tr("Minimal-latency, no-frills motion — short durations, no overshoot, angle flourishes off.")
+                        case "expressive": return Translation.tr("Material 3 expressive motion — pronounced overshoot and a bouncy spring on window open.")
+                        case "reduced_motion": return Translation.tr("Accessibility preset — disables parallax/slide/zoom/rotation and uses short plain crossfades only.")
+                        case "niri": return Translation.tr("Mimics the niri scrollable-tiling compositor's motion language.")
+                        default: return ""
+                        }
+                    }
                 }
             }
 
@@ -2523,7 +2544,8 @@ ContentPage {
                                 RippleButtonWithIcon {
                                     materialIcon: "download"; mainText: Translation.tr("Load Preset Into Custom")
                                     onClicked: {
-                                        // load "normal" preset as example conversion into custom lists
+                                        // Seed the custom editor with the Material 3 emphasized curves
+                                        // (the same ones behind the "Expressive" preset) as a starting point.
                                         let curves = [
                                             {name:"emphasizedDecel", type:"bezier", points:[[0.05,0.7],[0.1,1]]},
                                             {name:"emphasizedAccel", type:"bezier", points:[[0.3,0],[0.8,0.15]]},
@@ -2673,8 +2695,8 @@ ContentPage {
                                     model: [
                                         {displayName:"global", value:"global"}, {displayName:"windows", value:"windows"}, {displayName:"windowsIn", value:"windowsIn"}, {displayName:"windowsOut", value:"windowsOut"}, {displayName:"windowsMove", value:"windowsMove"},
                                         {displayName:"layers", value:"layers"}, {displayName:"layersIn", value:"layersIn"}, {displayName:"layersOut", value:"layersOut"},
-                                        {displayName:"fade", value:"fade"}, {displayName:"fadeIn", value:"fadeIn"}, {displayName:"fadeOut", value:"fadeOut"}, {displayName:"fadeSwitch", value:"fadeSwitch"}, {displayName:"fadeShadow", value:"fadeShadow"}, {displayName:"fadeDim", value:"fadeDim"}, {displayName:"fadeLayers", value:"fadeLayers"}, {displayName:"fadeLayersIn", value:"fadeLayersIn"}, {displayName:"fadeLayersOut", value:"fadeLayersOut"}, {displayName:"fadePopupsIn", value:"fadePopupsIn"}, {displayName:"fadePopupsOut", value:"fadePopupsOut"},
-                                        {displayName:"border", value:"border"}, {displayName:"borderangle", value:"borderangle"}, {displayName:"workspaces", value:"workspaces"}, {displayName:"workspacesIn", value:"workspacesIn"}, {displayName:"workspacesOut", value:"workspacesOut"}, {displayName:"specialWorkspace", value:"specialWorkspace"}, {displayName:"specialWorkspaceIn", value:"specialWorkspaceIn"}, {displayName:"specialWorkspaceOut", value:"specialWorkspaceOut"}, {displayName:"zoomFactor", value:"zoomFactor"}, {displayName:"monitorAdded", value:"monitorAdded"}
+                                        {displayName:"fade", value:"fade"}, {displayName:"fadeIn", value:"fadeIn"}, {displayName:"fadeOut", value:"fadeOut"}, {displayName:"fadeSwitch", value:"fadeSwitch"}, {displayName:"fadeShadow", value:"fadeShadow"}, {displayName:"fadeDim", value:"fadeDim"}, {displayName:"fadeLayers", value:"fadeLayers"}, {displayName:"fadeLayersIn", value:"fadeLayersIn"}, {displayName:"fadeLayersOut", value:"fadeLayersOut"}, {displayName:"fadePopups", value:"fadePopups"}, {displayName:"fadePopupsIn", value:"fadePopupsIn"}, {displayName:"fadePopupsOut", value:"fadePopupsOut"}, {displayName:"fadeDpms", value:"fadeDpms"},
+                                        {displayName:"border", value:"border"}, {displayName:"borderangle", value:"borderangle"}, {displayName:"shadowangle", value:"shadowangle"}, {displayName:"glowangle", value:"glowangle"}, {displayName:"workspaces", value:"workspaces"}, {displayName:"workspacesIn", value:"workspacesIn"}, {displayName:"workspacesOut", value:"workspacesOut"}, {displayName:"specialWorkspace", value:"specialWorkspace"}, {displayName:"specialWorkspaceIn", value:"specialWorkspaceIn"}, {displayName:"specialWorkspaceOut", value:"specialWorkspaceOut"}, {displayName:"zoomFactor", value:"zoomFactor"}, {displayName:"monitorAdded", value:"monitorAdded"}
                                     ]; textRole: "displayName"
                                 }
                                 RippleButtonWithIcon {
@@ -2699,7 +2721,7 @@ ContentPage {
             NoticeBox {
                 Layout.fillWidth: true
                 Layout.topMargin: 15
-                text: Translation.tr("Animation presets require a require line in your hyprland.lua. Add the following line to enable presets:") + '\n\nrequire("hyprland/shellOverrides/animations")'
+                text: Translation.tr("New installs load this file automatically. If nothing changes when you pick a preset, your hyprland.lua predates that and needs this line added manually:") + '\n\nrequire("hyprland/shellOverrides/animations")'
 
                 Item { Layout.fillWidth: true }
 

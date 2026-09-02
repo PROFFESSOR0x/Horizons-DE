@@ -249,31 +249,33 @@ Singleton {
 
             property JsonObject hyprland: JsonObject {
                 property JsonObject animations: JsonObject {
-                    property string animation: "normal"
+                    property string animation: "smooth"
                     property bool enable: true
                     property bool workspaceWraparound: false
                     property bool customEnabled: false
                     // Custom curves: [{name, type:"bezier", points:[[0.23,1],[0.32,1]]}, {name, type:"spring", mass:1, stiffness:71, dampening:15}]
+                    // Defaults mirror the "Smooth" preset (Material Design standard easing)
+                    // shipped in shellOverrides/animations.lua, so opening the custom editor
+                    // for the first time starts from the same motion the user already has.
                     property list<var> customCurves: [
-                        { "name": "easeOutQuint", "type": "bezier", "points": [[0.23, 1], [0.32, 1]] },
-                        { "name": "easeInOutCubic", "type": "bezier", "points": [[0.65, 0.05], [0.36, 1]] },
-                        { "name": "linear", "type": "bezier", "points": [[0, 0], [1, 1]] },
-                        { "name": "almostLinear", "type": "bezier", "points": [[0.5, 0.5], [0.75, 1]] },
-                        { "name": "quick", "type": "bezier", "points": [[0.15, 0], [0.1, 1]] },
-                        { "name": "easy", "type": "spring", "mass": 1, "stiffness": 238.1191, "dampening": 24.21279333 }
+                        { "name": "sm_standard", "type": "bezier", "points": [[0.4, 0], [0.2, 1]] },
+                        { "name": "sm_decel", "type": "bezier", "points": [[0, 0], [0.2, 1]] },
+                        { "name": "sm_accel", "type": "bezier", "points": [[0.4, 0], [1, 1]] },
+                        { "name": "sm_linear", "type": "bezier", "points": [[0, 0], [1, 1]] }
                     ]
                     // Custom anims: [{leaf, enabled, speed, bezier/spring, style}]
                     // speed in ds (1ds=100ms), style like "popin 87%", "slide", "fade", "slide left"
                     property list<var> customAnims: [
-                        { "leaf": "global", "enabled": true, "speed": 10, "bezier": "default", "style": "" },
-                        { "leaf": "border", "enabled": true, "speed": 5.39, "bezier": "easeOutQuint", "style": "" },
-                        { "leaf": "windows", "enabled": true, "speed": 4.79, "spring": "easy", "style": "" },
-                        { "leaf": "windowsIn", "enabled": true, "speed": 4.1, "spring": "easy", "style": "popin 87%" },
-                        { "leaf": "windowsOut", "enabled": true, "speed": 1.49, "bezier": "linear", "style": "popin 87%" },
-                        { "leaf": "fadeIn", "enabled": true, "speed": 1.73, "bezier": "almostLinear", "style": "" },
-                        { "leaf": "fadeOut", "enabled": true, "speed": 1.46, "bezier": "almostLinear", "style": "" },
-                        { "leaf": "workspaces", "enabled": true, "speed": 1.94, "bezier": "almostLinear", "style": "fade" },
-                        { "leaf": "zoomFactor", "enabled": true, "speed": 7, "bezier": "quick", "style": "" }
+                        { "leaf": "global", "enabled": true, "speed": 10, "bezier": "sm_standard", "style": "" },
+                        { "leaf": "windows", "enabled": true, "speed": 4.2, "bezier": "sm_standard", "style": "" },
+                        { "leaf": "windowsIn", "enabled": true, "speed": 3.6, "bezier": "sm_decel", "style": "popin 85%" },
+                        { "leaf": "windowsOut", "enabled": true, "speed": 2.6, "bezier": "sm_accel", "style": "popin 85%" },
+                        { "leaf": "windowsMove", "enabled": true, "speed": 4, "bezier": "sm_standard", "style": "" },
+                        { "leaf": "fadeIn", "enabled": true, "speed": 3, "bezier": "sm_decel", "style": "" },
+                        { "leaf": "fadeOut", "enabled": true, "speed": 2.4, "bezier": "sm_accel", "style": "" },
+                        { "leaf": "border", "enabled": true, "speed": 6, "bezier": "sm_standard", "style": "" },
+                        { "leaf": "workspaces", "enabled": true, "speed": 5, "bezier": "sm_standard", "style": "slide" },
+                        { "leaf": "zoomFactor", "enabled": true, "speed": 6, "bezier": "sm_standard", "style": "" }
                     ]
                 }
                 property JsonObject autostartApps: JsonObject {
