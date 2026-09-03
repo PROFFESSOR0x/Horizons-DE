@@ -26,6 +26,10 @@ ContentPage {
     property string newParams: ""
     property string newComment: ""
     property string pendingDeleteComment: ""
+    // Set when the user clicks "Add shortcut" on an existing action instead of
+    // "New Keybind" — captures a second (or third...) real hl.bind line for the
+    // exact same dispatcher+params, only prompting for the new key combo.
+    property var duplicatingBind: null
 
     function goTo(term) {
         const t = term.toLowerCase().trim()
@@ -47,23 +51,16 @@ ContentPage {
         }
     }
 
+    // Flattening/formatting/search-matching now live on the HyprlandKeybinds
+    // singleton so the Super+/ cheat-sheet overlay can reuse the exact same
+    // logic without duplicating it. Kept as thin wrappers here so the rest of
+    // this file doesn't need to change every call site.
     function flatSections() {
-        const src = HyprlandKeybinds.keybinds
-        if (!src || !src.children) return []
-        let out = []
-        function collect(node) {
-            if (node.keybinds && node.keybinds.length > 0) out.push(node)
-            if (node.children) for (let c of node.children) collect(c)
-        }
-        for (let ch of src.children) collect(ch)
-        return out
+        return HyprlandKeybinds.flatSections()
     }
 
     function formatKeybind(mods, key) {
-        let arr = []
-        if (mods) for (let m of mods) arr.push(m)
-        if (key && key.length > 0) arr.push(key)
-        return arr.join(" + ")
+        return HyprlandKeybinds.formatKeybind(mods, key)
     }
 
     function isEditable(bind) {
@@ -150,13 +147,7 @@ ContentPage {
     }
 
     function matchesSearch(bind, q) {
-        if (!q || q.trim() === "") return true
-        const s = q.toLowerCase()
-        const kb = formatKeybind(bind.mods, bind.key).toLowerCase()
-        const c = (bind.comment ?? "").toLowerCase()
-        const d = (bind.dispatcher ?? "").toLowerCase()
-        const p = (bind.params ?? "").toLowerCase()
-        return kb.includes(s) || c.includes(s) || d.includes(s) || p.includes(s)
+        return HyprlandKeybinds.matchesSearch(bind, q)
     }
 
     function qtKeyToHyprland(key, text) {
@@ -254,7 +245,7 @@ ContentPage {
                 page.pendingNewMods = res.mods
                 page.pendingNewKey = res.key
                 page.pendingNewKeyStr = res.str
-                const excludeComment = page.creatingNew ? null : (page.selectedBind ? page.selectedBind.comment : null)
+                const excludeComment = (page.creatingNew || page.duplicatingBind) ? null : (page.selectedBind ? page.selectedBind.comment : null)
                 page.captureConflict = page.findConflict(res.mods, res.key, excludeComment)
                 page.conflictConfirmed = false
                 event.accepted = true
@@ -270,6 +261,7 @@ ContentPage {
                     MaterialSymbol { text: "keyboard"; iconSize: 20; color: Appearance.colors.colPrimary }
                     StyledText {
                         text: page.creatingNew ? Translation.tr("New keybind")
+                            : page.duplicatingBind ? (Translation.tr("Add shortcut: ") + (page.duplicatingBind.comment ?? ""))
                             : page.selectedBind ? (Translation.tr("Edit: ") + (page.selectedBind.comment ?? "")) : Translation.tr("Capture shortcut")
                         font.weight: Font.Medium
                         color: Appearance.colors.colOnLayer0
@@ -306,8 +298,10 @@ ContentPage {
                     wrapMode: Text.Wrap
                     font.pixelSize: Appearance.font.pixelSize.smaller
                     color: Appearance.colors.colSubtext
-                    text: page.selectedBind ? Translation.tr("Original: ") + formatKeybind(page.selectedBind.mods, page.selectedBind.key) + "  •  " + page.selectedBind.dispatcher : ""
-                    visible: !page.creatingNew && page.selectedBind !== null
+                    text: page.selectedBind ? Translation.tr("Original: ") + formatKeybind(page.selectedBind.mods, page.selectedBind.key) + "  •  " + page.selectedBind.dispatcher
+                        : page.duplicatingBind ? Translation.tr("Existing: ") + formatKeybind(page.duplicatingBind.mods, page.duplicatingBind.key) + "  •  " + page.duplicatingBind.dispatcher
+                        : ""
+                    visible: !page.creatingNew && (page.selectedBind !== null || page.duplicatingBind !== null)
                 }
 
                 // New-keybind form: dispatcher, params, description — only shown
@@ -439,9 +433,9 @@ ContentPage {
                         enabled: page.pendingNewKeyStr.length > 0
                             && !(page.captureConflict !== null && page.isEssentialBind(page.captureConflict))
                             && (page.captureConflict === null || page.conflictConfirmed)
-                            && (page.creatingNew ? page.effectiveDispatcher().length > 0 : page.selectedBind !== null)
+                            && (page.creatingNew ? page.effectiveDispatcher().length > 0 : (page.selectedBind !== null || page.duplicatingBind !== null))
                         materialIcon: "check"
-                        mainText: page.creatingNew ? Translation.tr("Create") : Translation.tr("Save")
+                        mainText: (page.creatingNew || page.duplicatingBind) ? Translation.tr("Create") : Translation.tr("Save")
                         onClicked: {
                             if (!page.pendingNewKeyStr) return
                             let line
@@ -453,6 +447,22 @@ ContentPage {
                                 if (!comment) comment = (disp + (params ? " " + params : "")).trim()
                                 const safeComment = comment.replace(/"/g, '\\"')
                                 line = `hl.bind("${page.pendingNewKeyStr}", ${disp}(${params}), { description = "${safeComment}" })`
+                            } else if (page.duplicatingBind) {
+                                // Adding a second (or third...) real hl.bind line for the
+                                // same logical action — reuses dispatcher/params/comment
+                                // verbatim from the bind being duplicated and just appends
+                                // a brand-new line, leaving every existing chord untouched.
+                                const b = page.duplicatingBind
+                                if (b.dispatcher === "comment") return
+                                if (b.rest && b.rest.length > 0) {
+                                    line = `hl.bind("${page.pendingNewKeyStr}", ${b.rest}`
+                                } else {
+                                    let disp = b.dispatcher
+                                    let params = b.params
+                                    let comment = b.comment
+                                    let safeComment = comment.replace(/"/g, '\\"')
+                                    line = `hl.bind("${page.pendingNewKeyStr}", ${disp}(${params}), { description = "${safeComment}" })`
+                                }
                             } else {
                                 if (!page.selectedBind) return
                                 if (page.selectedBind.dispatcher === "comment") return
@@ -472,11 +482,12 @@ ContentPage {
                             const escPath = customPath.replace(/'/g, "'\\''")
                             const escDir = customDir.replace(/'/g, "'\\''")
                             Quickshell.execDetached(["bash", "-c", `mkdir -p '${escDir}' && printf '%s\\n' '${escLine}' >> '${escPath}' && hyprctl reload 2>/dev/null; echo saved`])
-                            captureToast.text = (page.creatingNew ? Translation.tr("Created: ") : Translation.tr("Saved: ")) + page.pendingNewKeyStr
+                            captureToast.text = (page.creatingNew || page.duplicatingBind ? Translation.tr("Created: ") : Translation.tr("Saved: ")) + page.pendingNewKeyStr
                             captureToast.opacity = 1
                             hideToast.restart()
                             captureOverlay.visible = false
                             page.creatingNew = false
+                            page.duplicatingBind = null
                             page.newDispatcher = ""
                             page.newDispatcherCustom = ""
                             page.newParams = ""
@@ -543,6 +554,7 @@ ContentPage {
                     onClicked: {
                         page.creatingNew = true
                         page.selectedBind = null
+                        page.duplicatingBind = null
                         page.pendingNewMods = []
                         page.pendingNewKey = ""
                         page.pendingNewKeyStr = ""
@@ -611,14 +623,56 @@ ContentPage {
                     return false
                 }
                 ColumnLayout {
-                    spacing: 2
+                    spacing: 8
                     Layout.fillWidth: true
                     Repeater {
+                        // Grouped by logical action (dispatcher+params) so an action
+                        // bound to more than one key combo (e.g. SUPER+Q and
+                        // SUPER+Return both opening a terminal) renders as one linked
+                        // row with multiple chord chips instead of unrelated-looking
+                        // duplicate rows.
                         model: {
                             let arr = section.keybinds ?? []
                             if (page.searchQuery && page.searchQuery.trim() !== "") arr = arr.filter(b => page.matchesSearch(b, page.searchQuery))
-                            return arr
+                            return HyprlandKeybinds.groupKeybinds(arr)
                         }
+                        delegate: ColumnLayout {
+                            id: groupCol
+                            required property var modelData
+                            property var group: modelData
+                            property var repBind: group.binds[0]
+                            property bool multi: group.binds.length > 1
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            RowLayout {
+                                visible: groupCol.multi
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 6
+                                spacing: 4
+                                MaterialSymbol { text: "link"; iconSize: 14; color: Appearance.colors.colPrimary }
+                                StyledText {
+                                    text: Translation.tr("%1 shortcuts trigger this action").arg(groupCol.group.binds.length)
+                                    font.pixelSize: Appearance.font.pixelSize.smallest
+                                    font.weight: Font.Medium
+                                    color: Appearance.colors.colPrimary
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                color: groupCol.multi ? ColorUtils.transparentize(Appearance.colors.colPrimary, 0.94) : "transparent"
+                                radius: Appearance.rounding.unsharpenmore + 4
+                                border.width: groupCol.multi ? 1 : 0
+                                border.color: ColorUtils.transparentize(Appearance.colors.colPrimary, 0.75)
+                                implicitHeight: memberCol.implicitHeight + (groupCol.multi ? 8 : 0)
+                                ColumnLayout {
+                                    id: memberCol
+                                    anchors.fill: parent
+                                    anchors.margins: groupCol.multi ? 4 : 0
+                                    spacing: 2
+                                    Repeater {
+                        model: groupCol.group.binds
                         delegate: Rectangle {
                             required property var modelData
                             property var bind: modelData
@@ -724,6 +778,7 @@ ContentPage {
                                     mainText: Translation.tr("Edit")
                                     onClicked: {
                                         page.creatingNew = false
+                                        page.duplicatingBind = null
                                         page.selectedBind = bind
                                         page.pendingNewMods = []
                                         page.pendingNewKey = ""
@@ -749,22 +804,31 @@ ContentPage {
                                         return false
                                     }
                                     property bool isCustomOnly: !page.hasDefaultCounterpart(bind)
+                                    // Keyed by comment+key_str (not comment alone) so arming/
+                                    // confirming delete on one chord of a multi-chord action
+                                    // doesn't visually arm its sibling chords too.
+                                    property string identity: (bind.comment ?? "") + " " + (bind.key_str ?? "")
                                     visible: hasCustomEntry
                                     buttonText: {
                                         if (!isCustomOnly) return Translation.tr("Reset")
-                                        return page.pendingDeleteComment === bind.comment ? Translation.tr("Confirm delete?") : Translation.tr("Delete")
+                                        return page.pendingDeleteComment === identity ? Translation.tr("Confirm delete?") : Translation.tr("Delete")
                                     }
                                     onClicked: {
-                                        if (isCustomOnly && page.pendingDeleteComment !== bind.comment) {
+                                        if (isCustomOnly && page.pendingDeleteComment !== identity) {
                                             // First click on a permanent delete just arms confirmation.
-                                            page.pendingDeleteComment = bind.comment
+                                            page.pendingDeleteComment = identity
                                             deleteConfirmTimer.restart()
                                             return
                                         }
                                         page.pendingDeleteComment = ""
-                                        const escComment = bind.comment.replace(/'/g, "'\\''")
                                         const escPath = HyprlandConfig.customBindsPath.replace(/'/g, "'\\''")
-                                        Quickshell.execDetached(["bash", "-c", `tmp=$(mktemp); grep -vF '${escComment}' '${escPath}' > "$tmp" 2>/dev/null || true; mv "$tmp" '${escPath}'; hyprctl reload 2>/dev/null; echo reset`])
+                                        // Remove only the one line that matches BOTH this exact
+                                        // key combo and this comment — not every line sharing the
+                                        // comment — so deleting/resetting one chord of a
+                                        // multi-chord action leaves its sibling chords intact.
+                                        Quickshell.execDetached(["bash", "-c",
+                                            `awk -v k="$1" -v c="$2" 'index($0,k)>0 && index($0,c)>0{next}{print}' "$3" > "$3.kbtmp" 2>/dev/null && mv "$3.kbtmp" "$3"; hyprctl reload 2>/dev/null; echo reset`,
+                                            "_", bind.key_str ?? "", bind.comment, HyprlandConfig.customBindsPath])
                                     }
                                     StyledToolTip {
                                         text: resetDeleteBtn.isCustomOnly
@@ -778,6 +842,30 @@ ContentPage {
                                     iconSize: 16
                                     color: Appearance.colors.colSubtext
                                 }
+                            }
+                        }
+                                    }
+                                }
+                            }
+
+                            RippleButtonWithIcon {
+                                Layout.alignment: Qt.AlignRight
+                                visible: page.isEditable(groupCol.repBind)
+                                materialIcon: "add_circle"
+                                mainText: groupCol.multi ? Translation.tr("Add another shortcut") : Translation.tr("Add shortcut for this action")
+                                onClicked: {
+                                    page.creatingNew = false
+                                    page.selectedBind = null
+                                    page.duplicatingBind = groupCol.repBind
+                                    page.pendingNewMods = []
+                                    page.pendingNewKey = ""
+                                    page.pendingNewKeyStr = ""
+                                    page.captureConflict = null
+                                    page.conflictConfirmed = false
+                                    captureOverlay.visible = true
+                                    captureBox.forceActiveFocus()
+                                }
+                                StyledToolTip { text: Translation.tr("Bind another key combo to trigger the same action") }
                             }
                         }
                     }
