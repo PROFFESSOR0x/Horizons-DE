@@ -11,7 +11,6 @@ Item {
     property bool showDate: Config.options.m3Island.clockShowDate
     property bool showSeconds: Config.options.m3Island.clockShowSeconds
     property bool use24Hour: Config.options.m3Island.clockUse24h
-    property real wheelRemainder: 0
     implicitWidth: clockLoader.implicitWidth
     implicitHeight: Appearance.sizes.barHeight
 
@@ -44,27 +43,10 @@ Item {
         precision: root.showSeconds ? SystemClock.Seconds : SystemClock.Minutes
     }
 
-    // Keep volume scrolling on the clock only. A handler on the island used to
-    // change volume while scrolling a launcher, notification, or any widget.
-    WheelHandler {
-        enabled: Config.options.m3Island.scrollAction === "volume"
-        onWheel: event => {
-            const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.pixelDelta.y
-            if (delta === 0) return
-
-            root.wheelRemainder += delta
-            const threshold = event.angleDelta.y !== 0 ? 120 : 24
-            while (root.wheelRemainder >= threshold) {
-                Audio.incrementVolume()
-                root.wheelRemainder -= threshold
-            }
-            while (root.wheelRemainder <= -threshold) {
-                Audio.decrementVolume()
-                root.wheelRemainder += threshold
-            }
-            event.accepted = true
-        }
-    }
+    // Scroll handling (volume/mediaSeek/layoutCycle) is centralized in
+    // M3IslandContent's islandWheelHandler so it covers the whole pill, not
+    // just the clock, and so the three modes never compete for the same
+    // wheel event.
 
     // Reuse DateTime service
     Loader {

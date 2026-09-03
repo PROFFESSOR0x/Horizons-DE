@@ -236,11 +236,68 @@ Item {
     HoverHandler { id: hoverHandler }
     // Debounce hover to avoid flicker when mouse jitters at edge
     property bool hoveredDebounced: false
-    Timer { id: hoverDebounceIn; interval: 60; onTriggered: hoveredDebounced = true }
-    Timer { id: hoverDebounceOut; interval: 120; onTriggered: hoveredDebounced = false }
+    Timer { id: hoverDebounceIn; interval: Config.options.m3Island.hoverPeekDelayIn; onTriggered: hoveredDebounced = true }
+    Timer { id: hoverDebounceOut; interval: Config.options.m3Island.hoverPeekDelayOut; onTriggered: hoveredDebounced = false }
     onHoveredChanged: {
         if (hovered) { hoverDebounceOut.stop(); hoverDebounceIn.restart() }
         else { hoverDebounceIn.stop(); hoverDebounceOut.restart() }
+    }
+
+    // Bridges the m3Island IPC handler (in M3Island.qml, one level up and
+    // outside this per-screen content item) to the same helpers used by
+    // click/scroll/the right-click menu.
+    Connections {
+        target: M3IslandState
+        function onRequestExpand() { root.setExpanded(true) }
+        function onRequestCollapse() { root.setExpanded(false) }
+        function onRequestToggleExpand() { root.setExpanded(!root.isExpanded) }
+        function onRequestDismissNotification() { root.dismissCurrentNotification() }
+    }
+
+    // Island-wide scroll handling. Volume used to be handled locally inside
+    // M3ClockCenter (clock area only) - centralized here so it also covers
+    // the rest of the pill, and so mediaSeek/layoutCycle share the same wheel
+    // accounting instead of adding competing handlers that could double-fire
+    // on the same event.
+    property real wheelRemainder: 0
+    WheelHandler {
+        id: islandWheelHandler
+        target: root
+        enabled: !root.isLauncher && Config.options.m3Island.scrollAction !== "none"
+        onWheel: event => {
+            const action = Config.options.m3Island.scrollAction
+            const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.pixelDelta.y
+            if (delta === 0) return
+
+            if (action === "volume") {
+                root.wheelRemainder += delta
+                const threshold = event.angleDelta.y !== 0 ? 120 : 24
+                while (root.wheelRemainder >= threshold) {
+                    Audio.incrementVolume()
+                    root.wheelRemainder -= threshold
+                }
+                while (root.wheelRemainder <= -threshold) {
+                    Audio.decrementVolume()
+                    root.wheelRemainder += threshold
+                }
+            } else if (action === "mediaSeek") {
+                if (delta > 0) MprisController.next()
+                else if (delta < 0) MprisController.previous()
+            } else if (action === "layoutCycle") {
+                root.setExpanded(!root.isExpanded)
+            }
+            event.accepted = true
+        }
+    }
+
+    // Right-click quick-actions menu, anchored to this island's own window.
+    Loader {
+        id: contextMenuLoader
+        active: Config.options.m3Island.rightClickMenu
+        sourceComponent: M3ContextMenu {
+            hostWindow: root.panelWindow
+            entries: root.contextMenuEntries
+        }
     }
 
     // Background pill - morphs radius and hug corners
@@ -274,22 +331,26 @@ Item {
         visible: Config.options.m3Island.cornerStyle === 1
     }
 
-    // Tap to expand / collapse
+    // Tap to expand / collapse, right-click for the quick-actions menu
     MouseArea {
         id: clickArea
         anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         // Let hover pass through to HoverHandler, but handle click
-        // Use onClicked to toggle expanded (only when not launcher)
-        onClicked: {
+        onClicked: mouse => {
+            if (mouse.button === Qt.RightButton) {
+                if (!Config.options.m3Island.rightClickMenu || !contextMenuLoader.item) return
+                const pt = clickArea.mapToItem(null, mouse.x, mouse.y)
+                contextMenuLoader.item.showAt(pt.x, pt.y)
+                return
+            }
             if (root.isLauncher) return
             if (Config.options.m3Island.clickToExpand) {
-                root.expanded = !root.expanded
-                if (root.expanded) GlobalFocusGrab.addDismissable(root.panelWindow)
-                else GlobalFocusGrab.dismiss()
+                root.setExpanded(!root.expanded)
             }
         }
-        // Prevent stealing hover from children. Volume scrolling is handled by
-        // M3ClockCenter only, so scrollable content remains scrollable.
+        // Prevent stealing hover from children. Scroll is handled by
+        // islandWheelHandler above, so scrollable content remains scrollable.
         hoverEnabled: false
     }
 
@@ -442,6 +503,32 @@ Item {
                     }
                 }
             }
+            // Extra quick-toggle row, shown only while expanded and opted in.
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: root.islandSpacing
+                visible: Config.options.m3Island.showExpandedQuickToggles
+                    && Config.options.m3Island.expandedQuickToggles.length > 0
+                Repeater {
+                    model: Config.options.m3Island.expandedQuickToggles
+                    delegate: Item {
+                        required property var modelData
+                        required property int index
+                        implicitWidth: barGroup3.implicitWidth
+                        implicitHeight: barGroup3.implicitHeight
+                        Bar.BarGroup {
+                            id: barGroup3
+                            anchors.centerIn: parent
+                            currentIndex: index
+                            totalCount: Config.options.m3Island.expandedQuickToggles.length
+                            Loader {
+                                source: root.getWidgetUrl(modelData)
+                                onLoaded: root.configureM3Widget(item)
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Reuse the regular notification card inside the island. It retains the
@@ -468,13 +555,37 @@ Item {
                 time: root.pendingNotif.time
             }) : null
             Behavior on opacity { NumberAnimation { duration: 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedDecel } }
-            Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
+            Behavior on scale {
+                id: scaleBehavior
+                NumberAnimation { duration: 320; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
+            }
+            // Subtle overscale/overshoot spring on arrival, opt-in via
+            // Config.options.m3Island.expressiveNotifications. Reuses the same
+            // expressive spatial curve as the rest of the island's motion
+            // (just applied twice, out then back) instead of inventing new
+            // easing constants. Runs as an explicit animation instead of
+            // through the Behavior above so it can overshoot past 1.0 before
+            // settling; the Behavior is disabled for its duration so the two
+            // don't fight over the same property.
+            SequentialAnimation {
+                id: expressiveArrival
+                onStopped: scaleBehavior.enabled = true
+                NumberAnimation { target: notifContainer; property: "scale"; to: 1.08; duration: 150; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial }
+                NumberAnimation { target: notifContainer; property: "scale"; to: 1.0; duration: 190; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial }
+            }
             onExpandedChanged: {
                 root.notifHovered = expanded
                 if (expanded) notifTimer.stop()
                 else if (root.isNotification) notifTimer.restart()
             }
-            onVisibleChanged: if (!visible) { root.notifHovered = false; root.notifHoverEnabled = false }
+            onVisibleChanged: {
+                if (!visible) { root.notifHovered = false; root.notifHoverEnabled = false; return }
+                if (Config.options.m3Island.expressiveNotifications) {
+                    scaleBehavior.enabled = false
+                    notifContainer.scale = 0.92
+                    expressiveArrival.restart()
+                }
+            }
         }
 
         // Launcher - morphs from same pill
