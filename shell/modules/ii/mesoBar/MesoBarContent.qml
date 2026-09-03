@@ -68,7 +68,12 @@ Item {
     property var screen: root.QsWindow.window?.screen
     property real useShortenedForm: (Appearance.sizes.barHellaShortenScreenWidthThreshold >= screen?.width) ? 2 : (Appearance.sizes.barShortenScreenWidthThreshold >= screen?.width) ? 1 : 0
 
-    readonly property real islandSpacing: 4
+    // Mirrors BarContent.qml's borderless -> spacing mapping (transparent/segmented
+    // pull groups together, anything else keeps the normal breathing room),
+    // just against mesoBar's own borderless setting instead of the classic bar's.
+    readonly property real islandSpacing: Config.options.mesoBar.borderless === "transparent" ? -7
+        : Config.options.mesoBar.borderless === "segmented" ? -1
+        : 4
     readonly property real islandPadding: 6
 
     // Natural (content-hugging) width of each region plus padding/gaps -
@@ -97,13 +102,17 @@ Item {
         anchors.fill: parent
         anchors.margins: Config.options.mesoBar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0
         color: Config.options.bar.showBackground
-            ? (Config.options.bar.followFrameColor
-                ? Appearance.getColorFromName(Config.options.bar.frameColor)
+            ? (Config.options.mesoBar.followFrameColor
+                ? Appearance.getColorFromName(Config.options.mesoBar.frameColor)
                 : Appearance.colors.colLayer0)
             : "transparent"
         radius: Config.options.mesoBar.cornerStyle === 1 ? Appearance.rounding.windowRounding : (Config.options.mesoBar.cornerStyle === 0 ? Appearance.rounding.screenRounding : Appearance.rounding.normal)
-        border.width: Config.options.mesoBar.cornerStyle === 1 ? 1 : 0
-        border.color: Appearance.colors.colLayer0Border
+        border.width: Config.options.mesoBar.showFrame
+            ? Config.options.mesoBar.frameThickness
+            : (Config.options.mesoBar.cornerStyle === 1 ? 1 : 0)
+        border.color: Config.options.mesoBar.showFrame
+            ? Appearance.getColorFromName(Config.options.mesoBar.frameColor)
+            : Appearance.colors.colLayer0Border
 
         bottomLeftRadius:  Config.options.mesoBar.cornerStyle === 0 && !Config.options.bar.bottom ? Appearance.rounding.screenRounding : radius
         bottomRightRadius: Config.options.mesoBar.cornerStyle === 0 && !Config.options.bar.bottom ? Appearance.rounding.screenRounding : radius
