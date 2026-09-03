@@ -79,8 +79,16 @@ ContentPage {
         })
     }
 
+    // Island-only widgets - built specifically for the m3Island pill format,
+    // not resolvable through the shared bar/ widget pool, so kept out of
+    // allWidgets to avoid offering them on the classic/mesoBar pickers.
+    property var m3OnlyWidgets: [
+        { id: "m3MiniStats",   name: Translation.tr("Mini Stats (CPU/RAM)"),    icon: "monitoring" },
+        { id: "m3NotifStatus", name: Translation.tr("Notification Status"),     icon: "notifications" },
+    ]
+
     function getWidgetName(id) {
-        const w = allWidgets.find(w => w.id === id)
+        const w = allWidgets.find(w => w.id === id) || m3OnlyWidgets.find(w => w.id === id)
         return w ? w.name : id
     }
 
@@ -128,7 +136,7 @@ ContentPage {
             ...Config.options.m3Island.layouts.expandedLayout
         ]
         const multipleAllowed = ["visualizer", "divisor"]
-        return allWidgets.filter(w => {
+        return [...allWidgets, ...m3OnlyWidgets].filter(w => {
             if (w.id === "divisor" && Config.options.m3Island.borderless !== "transparent") return false
             return !used.includes(w.id) || multipleAllowed.includes(w.id)
         })
@@ -409,11 +417,17 @@ ContentPage {
                         onCheckedChanged: { Config.options.m3Island.verbose = checked }
                     }
                 }
-                ConfigSwitch {
-                    buttonIcon: "volume_up"
-                    text: Translation.tr("Scroll the clock to change volume")
-                    checked: Config.options.m3Island.scrollVolume
-                    onCheckedChanged: { Config.options.m3Island.scrollVolume = checked }
+                ConfigSelectionArray {
+                    text: Translation.tr("Scroll over island")
+                    icon: "mouse"
+                    currentValue: Config.options.m3Island.scrollAction
+                    onSelected: newValue => { Config.options.m3Island.scrollAction = newValue }
+                    options: [
+                        { displayName: Translation.tr("Volume"),      icon: "volume_up",  value: "volume" },
+                        { displayName: Translation.tr("Media seek"),  icon: "skip_next",  value: "mediaSeek" },
+                        { displayName: Translation.tr("Expand/collapse"), icon: "unfold_more", value: "layoutCycle" },
+                        { displayName: Translation.tr("Off"),         icon: "block",      value: "none" },
+                    ]
                 }
                 ConfigSpinBox {
                     icon: "height"
