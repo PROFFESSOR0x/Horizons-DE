@@ -109,6 +109,28 @@ Item {
         function onDismissed() { if (root.isExpanded) root.expanded = false }
     }
 
+    // Shared expand/collapse helper - used by click, scroll (layoutCycle),
+    // the right-click menu, and the m3Island IPC handler so they all agree
+    // on the focus-grab bookkeeping instead of duplicating it.
+    function setExpanded(value) {
+        if (root.isLauncher) return
+        const target = !!value
+        if (target === root.expanded) return
+        root.expanded = target
+        if (root.expanded) GlobalFocusGrab.addDismissable(root.panelWindow)
+        else GlobalFocusGrab.dismiss()
+    }
+
+    // Advances past whatever notification is currently pending/queued without
+    // waiting for its timeout. Used by the m3Island IPC dismissNotification().
+    function dismissCurrentNotification() {
+        if (root.pendingNotif) {
+            Notifications.discardNotification(root.pendingNotif.notificationId)
+        } else if (root.notificationQueue.length > 0) {
+            root.notificationQueue = root.notificationQueue.slice(1)
+        }
+    }
+
     property bool notifHovered: false
     implicitHeight: {
         if (isLauncher) return 52 + (LauncherSearch.query !== "" ? 328 : 0) + 12
@@ -135,10 +157,68 @@ Item {
         return clockCenter.implicitWidth + 16
     }
 
-    // Helpers to resolve widget loader like TopIsland
+    // Helpers to resolve widget loader like TopIsland. A couple of widget ids
+    // are island-only (built specifically for the pill format rather than
+    // reused from bar/), so resolve those locally before falling back to the
+    // shared bar/ widget pool.
     function getWidgetUrl(name) {
+        if (name === "m3MiniStats") return Qt.resolvedUrl("M3MiniStats.qml")
+        if (name === "m3NotifStatus") return Qt.resolvedUrl("M3NotifStatus.qml")
         return BarLayoutUtils.getWidgetUrl(name)
     }
+
+    // Animation duration multiplier driven by Config.options.m3Island.animationSpeed.
+    // Curves are left untouched - this only changes how fast the existing
+    // motion plays out.
+    readonly property real animScale: {
+        const speed = Config.options.m3Island.animationSpeed
+        if (speed === "slow") return 1.5
+        if (speed === "fast") return 0.6
+        return 1.0
+    }
+
+    // Right-click quick-actions menu contents. Kept as a plain reactive array
+    // so entries can hide themselves (e.g. no media player) without the menu
+    // component needing to know anything about island state.
+    readonly property var contextMenuEntries: [
+        {
+            icon: root.isExpanded ? "collapse_content" : "open_in_full",
+            label: root.isExpanded ? Translation.tr("Collapse") : Translation.tr("Expand"),
+            visible: !root.isLauncher && !root.isNotification,
+            action: () => root.setExpanded(!root.isExpanded)
+        },
+        {
+            icon: "schedule",
+            label: Translation.tr("Cycle clock style"),
+            visible: true,
+            action: () => {
+                const styles = ["m3", "minimal", "digital"]
+                const idx = styles.indexOf(Config.options.m3Island.clockStyle)
+                Config.options.m3Island.clockStyle = styles[(idx + 1) % styles.length]
+            }
+        },
+        {
+            icon: MprisController.isPlaying ? "pause" : "play_arrow",
+            label: MprisController.isPlaying ? Translation.tr("Pause media") : Translation.tr("Play media"),
+            visible: !!MprisController.activePlayer,
+            action: () => MprisController.togglePlaying()
+        },
+        {
+            icon: (Audio.sink?.audio.muted ?? false) ? "volume_off" : "volume_up",
+            label: (Audio.sink?.audio.muted ?? false) ? Translation.tr("Unmute audio") : Translation.tr("Mute audio"),
+            visible: true,
+            action: () => Audio.toggleMute()
+        },
+        {
+            icon: "settings",
+            label: Translation.tr("Island settings"),
+            visible: true,
+            action: () => {
+                GlobalStates.settingsOpen = true
+                GlobalStates.settingsPage = "bar:m3 island"
+            }
+        }
+    ]
 
     // Reused bar widgets normally read Config.options.bar. Give them an
     // explicit M3 scope instead of duplicating their implementation.

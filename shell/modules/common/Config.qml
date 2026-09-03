@@ -75,6 +75,16 @@ Singleton {
             opts.mesoBar.widthMode = "content";
             opts.mesoBar.legacyMigrated = true;
         }
+
+        // Back-compat shim for the m3Island "scrollVolume" bool -> "scrollAction"
+        // enum rename. Runs once; a config saved with scrollVolume disabled keeps
+        // scroll disabled instead of silently regaining volume control.
+        if (!opts.m3Island.scrollActionMigrated) {
+            if (opts.m3Island.scrollVolume === false) {
+                opts.m3Island.scrollAction = "none";
+            }
+            opts.m3Island.scrollActionMigrated = true;
+        }
     }
 
     Timer {
@@ -999,11 +1009,21 @@ Singleton {
                 property bool clockShowDate: true
                 property bool clockShowSeconds: false
                 property bool clockUse24h: true
+                // Deprecated - superseded by `scrollAction` below. Kept only so
+                // migrateLegacyConfig() can read a pre-existing user's value once;
+                // do not read this directly anywhere else.
                 property bool scrollVolume: true
+                // What scrolling over the island does. "volume" reproduces the
+                // old scrollVolume behavior (also extended to the whole pill, not
+                // just the clock). "mediaSeek" skips tracks via MprisController.
+                // "layoutCycle" expands/collapses the island. "none" disables it.
+                property string scrollAction: "volume" // "volume" | "mediaSeek" | "layoutCycle" | "none"
+                property bool scrollActionMigrated: false
                 // Interaction
                 property bool hoverPeek: true
                 property bool clickToExpand: true
                 property bool launcherHug: true
+                property bool rightClickMenu: true
                 property int expandedHeight: 72
                 // A value of 0 follows the global notification timeout.
                 property int notificationTimeout: 0
@@ -1011,6 +1031,17 @@ Singleton {
                 property real frameThickness: 4
                 property string frameColor: "black"
                 property bool followFrameColor: false
+                // Animation - scales the morph/transition durations used throughout
+                // the island. Curves are untouched, only speed changes.
+                property string animationSpeed: "normal" // "slow" | "normal" | "fast"
+                // Subtle overscale/overshoot spring on notification-card arrival.
+                property bool expressiveNotifications: true
+                // Debounce before/after entering hover-peek state (ms).
+                property int hoverPeekDelayIn: 60
+                property int hoverPeekDelayOut: 120
+                // Extra quick-toggle icon row shown only while expanded.
+                property bool showExpandedQuickToggles: false
+                property list<string> expandedQuickToggles: ["idleInhibitor", "privacyIndicator"]
                 // Layouts per state - reuse widget ids from bar
                 property JsonObject layouts: JsonObject {
                     property list<string> hoverLayout: ["media", "systemIcons"]

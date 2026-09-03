@@ -47,7 +47,7 @@ Item {
     // Keep volume scrolling on the clock only. A handler on the island used to
     // change volume while scrolling a launcher, notification, or any widget.
     WheelHandler {
-        enabled: Config.options.m3Island.scrollVolume
+        enabled: Config.options.m3Island.scrollAction === "volume"
         onWheel: event => {
             const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.pixelDelta.y
             if (delta === 0) return
