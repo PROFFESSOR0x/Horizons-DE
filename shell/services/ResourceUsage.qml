@@ -105,9 +105,10 @@ Singleton {
     }
 
     Timer {
-        interval: 1
+        interval: Config?.options.resources.updateInterval ?? 3000
         running: true
         repeat: true
+        triggeredOnStart: true
         onTriggered: {
             fileMeminfo.reload()
             fileStat.reload()
@@ -133,7 +134,6 @@ Singleton {
             }
 
             root.updateHistories()
-            interval = Config.options?.resources?.updateInterval ?? 3000
         }
     }
 

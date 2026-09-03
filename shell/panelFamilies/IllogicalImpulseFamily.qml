@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import qs.services
 
 import qs.modules.common
 import qs.modules.ii.background
@@ -36,76 +35,46 @@ import qs.modules.ii.dropover
 import qs.modules.ii.frame
 
 Scope {
-    // Wayland layer-shell is unavailable on X11/i3 (Xephyr). Those panels
-    // would spam `WlrLayershell` / `wl_display` warnings and LazyLoader
-    // failures (see screenshot). Keep only X11-safe panels there; full
-    // Wayland-only panels stay gated behind WM.capabilities.layerShell.
-    readonly property bool wayland: WM.capabilities.layerShell
-    readonly property bool useX11Fallback: !wayland
-
     // ── Active bar — only one is loaded based on barMode ─────────────────────
-    // On X11 the Bar's PanelWindow still needs layer-shell, so it is gated too.
-    // i3/X11 users get a minimal fallback via i3bar/polybar or FloatingWindow.
-    PanelLoader { extraCondition: wayland && Config.options.bar.barMode === "classic" && !Config.options.bar.vertical; component: Bar {} }
-    PanelLoader { extraCondition: wayland && Config.options.bar.barMode === "classic" &&  Config.options.bar.vertical; component: VerticalBar {} }
-    PanelLoader { extraCondition: wayland && Config.options.bar.barMode === "mesoBar";         component: MesoBar {} }
-    PanelLoader { extraCondition: wayland && Config.options.bar.barMode === "m3Island";        component: M3Island {} }
-    PanelLoader { extraCondition: wayland && Config.options.bar.barMode === "tasklistBar";     component: TasklistBar {} }
-    PanelLoader { extraCondition: wayland && Config.options.bar.barMode === "sysmonitorBar";   component: SysmonitorBar {} }
-    PanelLoader { extraCondition: wayland && Config.options.bar.barMode === "quickActionsBar"; component: QuickActionsBar {} }
-    PanelLoader { extraCondition: wayland && Config.options.bar.barMode === "infoStrip";       component: InfoStrip {} }
+    // "classic"        → standard Bar (horizontal or vertical)
+    // "mesoBar"        → floating, medium-width bar (formerly "topIsland")
+    // "m3Island"       → M3 minimal island (clock center + hover/expand/launcher morph)
+    // "tasklistBar"    → taskbar with pinned/open apps
+    // "sysmonitorBar"  → system-monitor bar
+    // "quickActionsBar"→ quick-actions / toggles bar
+    // "infoStrip"      → slim info strip
+    PanelLoader { extraCondition: Config.options.bar.barMode === "classic" && !Config.options.bar.vertical; component: Bar {} }
+    PanelLoader { extraCondition: Config.options.bar.barMode === "classic" &&  Config.options.bar.vertical; component: VerticalBar {} }
+    PanelLoader { extraCondition: Config.options.bar.barMode === "mesoBar";         component: MesoBar {} }
+    PanelLoader { extraCondition: Config.options.bar.barMode === "m3Island";        component: M3Island {} }
+    PanelLoader { extraCondition: Config.options.bar.barMode === "tasklistBar";     component: TasklistBar {} }
+    PanelLoader { extraCondition: Config.options.bar.barMode === "sysmonitorBar";   component: SysmonitorBar {} }
+    PanelLoader { extraCondition: Config.options.bar.barMode === "quickActionsBar"; component: QuickActionsBar {} }
+    PanelLoader { extraCondition: Config.options.bar.barMode === "infoStrip";       component: InfoStrip {} }
 
-    PanelLoader { extraCondition: wayland; component: Background {} }
-    PanelLoader { extraCondition: wayland && Config.options.dock.enable; component: Dock {} }
-    PanelLoader { extraCondition: wayland; component: Lock {} }
-    PanelLoader { extraCondition: wayland; component: MediaControls {} }
-    PanelLoader { extraCondition: wayland && Config.options.bar.barMode !== "m3Island"; component: NotificationPopup {} }
-    PanelLoader { extraCondition: wayland; component: OnScreenDisplay {} }
-    PanelLoader { extraCondition: wayland; component: OnScreenKeyboard {} }
-    PanelLoader { extraCondition: wayland; component: Overlay {} }
-    PanelLoader { extraCondition: wayland; component: Overview {} }
-    PanelLoader { extraCondition: wayland; component: Polkit {} }
-    PanelLoader { extraCondition: wayland; component: RegionSelector {} }
-    PanelLoader { extraCondition: wayland; component: CaptureEditor {} }
-    PanelLoader { extraCondition: wayland; component: ScreenCorners {} }
-    PanelLoader { extraCondition: wayland; component: ScreenTranslator {} }
-    PanelLoader { extraCondition: wayland; component: SessionScreen {} }
-    PanelLoader { extraCondition: wayland; component: SidebarLeft {} }
-    PanelLoader { extraCondition: wayland; component: SidebarRight {} }
-    PanelLoader { extraCondition: wayland; component: WallpaperSelector {} }
-    PanelLoader { extraCondition: wayland; component: Settings {} }
-    PanelLoader { extraCondition: wayland; component: KeybindsOverlay {} }
-    PanelLoader { extraCondition: wayland; component: DesktopMenu {} }
-    PanelLoader { extraCondition: wayland; component: DropShelfPanel {} }
-    PanelLoader { extraCondition: WM.compositor === "niri"; component: NiriBackdrop {} }
-    PanelLoader { extraCondition: wayland; component: ScreenFrame {} }
-    PanelLoader { extraCondition: wayland; component: WorkspacesHoverPreview {} }
-
-    // ── Minimal X11 fallback: plain FloatingWindows so Xephyr/i3 does not
-    // spam WARNs. Extend here with X11-native panels as needed.
-    PanelLoader {
-        extraCondition: useX11Fallback
-        component: Scope {
-            // Simple placeholder so the user sees the shell is running on X11.
-            // Replace with X11-specific Bar/FloatingWindow when ready.
-            Variants {
-                model: Quickshell.screens
-                LazyLoader {
-                    required property ShellScreen modelData
-                    active: true
-                    component: FloatingWindow {
-                        screen: modelData
-                        visible: true
-                        color: "transparent"
-                        // Centered notice – does not use WlrLayershell at all
-                        Text {
-                            anchors.centerIn: parent
-                            text: "Horizons (X11/i3) – Wayland panels disabled"
-                            color: "#88ffffff"
-                        }
-                    }
-                }
-            }
-        }
-    }
+    PanelLoader { component: Background {} }
+    PanelLoader { extraCondition: Config.options.dock.enable; component: Dock {} }
+    PanelLoader { component: Lock {} }
+    PanelLoader { component: MediaControls {} }
+    PanelLoader { extraCondition: Config.options.bar.barMode !== "m3Island"; component: NotificationPopup {} }
+    PanelLoader { component: OnScreenDisplay {} }
+    PanelLoader { component: OnScreenKeyboard {} }
+    PanelLoader { component: Overlay {} }
+    PanelLoader { component: Overview {} }
+    PanelLoader { component: Polkit {} }
+    PanelLoader { component: RegionSelector {} }
+    PanelLoader { component: CaptureEditor {} }
+    PanelLoader { extraCondition: (Config.options.appearance.fakeScreenRounding !== 0 || Config.options.sidebar.cornerOpen.enable); component: ScreenCorners {} }
+    PanelLoader { component: ScreenTranslator {} }
+    PanelLoader { component: SessionScreen {} }
+    PanelLoader { component: SidebarLeft {} }
+    PanelLoader { component: SidebarRight {} }
+    PanelLoader { component: WallpaperSelector {} }
+    PanelLoader { component: Settings {} }
+    PanelLoader { component: KeybindsOverlay {} }
+    PanelLoader { component: DesktopMenu {} }
+    PanelLoader { component: DropShelfPanel {} }
+    PanelLoader { component: NiriBackdrop {} }
+    PanelLoader { extraCondition: Config.options.bar.showFrame; component: ScreenFrame {} }
+    PanelLoader { component: WorkspacesHoverPreview {} }
 }
