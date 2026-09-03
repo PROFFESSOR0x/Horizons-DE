@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# install/horizons-update — Horizons standalone update protocol
+# This is a thin wrapper around install/lib/update.sh + install/lib/state.sh
+# Usage: horizons-update [check|pull|apply|full|rollback|status|timer] [options]
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Colours
+G=$'\e[32m'; Y=$'\e[33m'; R=$'\e[31m'; C=$'\e[36m'; BD=$'\e[1m'; RST=$'\e[0m'
+
+# Source libs
+source "$REPO_ROOT/install/lib/distro.sh"
+[[ -f "$REPO_ROOT/install/lib/state.sh" ]] && source "$REPO_ROOT/install/lib/state.sh"
+[[ -f "$REPO_ROOT/install/lib/update.sh" ]] && source "$REPO_ROOT/install/lib/update.sh"
+[[ -f "$REPO_ROOT/install/lib/build.sh" ]] && source "$REPO_ROOT/install/lib/build.sh"
+
+# Helpers (fallback if installer.sh not sourced)
+info(){ echo -e "${C}${BD}  ℹ  ${RST}${C}$*${RST}"; }
+ok(){ echo -e "${G}${BD}  ✔  ${RST}${G}$*${RST}"; }
+warn(){ echo -e "${Y}${BD}  ⚠  ${RST}${Y}$*${RST}"; }
+err(){ echo -e "${R}${BD}  ✖  ${RST}${R}$*${RST}"; }
+
+show_help(){
+cat <<EOF
+آفاق | Horizons — Update Protocol  (via horizons-update)
+
+Usage: $(basename "$0") [COMMAND] [OPTIONS]
+
+Commands:
+  check       Check for updates (git fetch + compare)
+  pull        Pull latest changes (git stash + pull --rebase)
+  apply       Re-apply installer (quick/smart/full)
+  full        check + pull + apply (default)
+  rollback    Undo last pull / restore backup
+  status      Show horizons identity (.horizons-meta.json)
+  timer       Manage auto-update systemd timer (install|remove|status)
+
+Options:
+  --rebase    Pull with --rebase (default)
+  --merge     Pull with --merge
+  --ff-only   Pull with --ff-only
+  --quick     Apply quick (skip deps+backup)
+  --smart     Apply smart (skip sysupdate, default)
+  --full-apply Apply full (everything)
+  --force     Non-interactive
+  -h, --help  Show this help
+
+State file:
+  ~/.config/horizons/.horizons-meta.json  (machine readable)
+  ~/.config/horizons/.horizons-info       (human readable)
+
+Examples:
+  ./install/horizons-update check
+  ./install/horizons-update full --rebase --smart
+  ./install/horizons-update pull && ./installer.sh --profile full --force
+  ./install/horizons-update rollback
+  ./install/horizons-update timer install   # daily auto-check
+
+EOF
+}
+
+CMD="full"
+STRATEGY="rebase"
+APPLY_MODE="smart"
+FORCE=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    check|pull|apply|full|rollback|status|timer) CMD="$1"; shift ;;
+    install|remove) # for timer subcommand
+        CMD="timer"; TIMER_OP="$1"; shift ;;
+    --rebase) STRATEGY="rebase"; shift ;;
+    --merge) STRATEGY="merge"; shift ;;
+    --ff-only) STRATEGY="ff-only"; shift ;;
+    --quick) APPLY_MODE="quick"; shift ;;
+    --smart) APPLY_MODE="smart"; shift ;;
+    --full-apply) APPLY_MODE="full"; shift ;;
+    -f|--force) FORCE=true; shift ;;
+    -h|--help) show_help; exit 0 ;;
+    *) echo -e "${R}Unknown option: $1${RST}"; show_help; exit 1 ;;
+  esac
+done
+
+case "$CMD" in
+  check)
+    horizons_update_check; exit $? ;;
+  pull)
+    horizons_update_pull "$STRATEGY"; exit $? ;;
+  apply)
+    horizons_update_apply "$APPLY_MODE"; exit $? ;;
+  full)
+    # full = check then pull then apply if needed
+    if horizons_update_check; then
+        ok "Already up-to-date. Re-apply anyway? (use 'apply' command to force)"
+        exit 0
+    else
+        rc=$?
+        if [[ $rc -eq 1 ]]; then
+            horizons_update_pull "$STRATEGY" || exit 1
+            horizons_update_apply "$APPLY_MODE"
+        else
+            warn "Check returned $rc (offline/unknown) — not pulling automatically."
+            exit $rc
+        fi
+    fi
+    ;;
+  rollback)
+    horizons_update_rollback; exit $? ;;
+  status)
+    if declare -f horizons_state_status &>/dev/null; then horizons_state_status; else
+        cat "${XDG_CONFIG_HOME:-$HOME/.config}/horizons/.horizons-meta.json" 2>/dev/null || echo "Not installed"
+    fi
+    ;;
+  timer)
+    op="${TIMER_OP:-status}"
+    case "$op" in
+      install) horizons_update_install_timer ;;
+      remove) horizons_update_remove_timer ;;
+      status)
+        systemctl --user status horizons-update.timer 2>/dev/null || echo "Timer not installed. Run: $0 timer install"
+        ;;
+      *) show_help; exit 1 ;;
+    esac
+    ;;
+  *) show_help; exit 1 ;;
+esac
