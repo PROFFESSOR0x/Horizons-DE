@@ -151,6 +151,21 @@ ContentPage {
                     from: 1; to: 10; stepSize: 1
                     onValueChanged: Config.options.notifications.maxVisible = value
                 }
+                ConfigSwitch {
+                    buttonIcon: "unfold_more"
+                    text: Translation.tr("Expand notifications on hover")
+                    checked: Config.options.notifications.expandOnHover
+                    onCheckedChanged: Config.options.notifications.expandOnHover = checked
+                }
+                ConfigSlider {
+                    buttonIcon: "timer"
+                    text: Translation.tr("Hover expand delay (ms)")
+                    enabled: Config.options.notifications.expandOnHover
+                    value: Config.options.notifications.hoverExpandDelay
+                    from: 0; to: 1000; stepSize: 20
+                    usePercentTooltip: false
+                    onValueChanged: Config.options.notifications.hoverExpandDelay = value
+                }
                 ConfigRow {
                     uniform: true
                     ConfigSwitch {

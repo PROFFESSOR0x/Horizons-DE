@@ -9,6 +9,10 @@ import Quickshell
 StyledListView { // Scrollable window
     id: root
     property bool popup: false
+    // Hovering a card briefly expands it. Defaults to the shared Config option
+    // so the main popup/history surfaces stay consistent with the M3 island.
+    property bool expandOnHover: Config.options.notifications.expandOnHover ?? false
+    property int hoverExpandDelay: Config.options.notifications.hoverExpandDelay ?? 180
 
     spacing: 3
 
@@ -22,8 +26,10 @@ StyledListView { // Scrollable window
         required property int index
         required property var modelData
         popup: root.popup
+        expandOnHover: root.expandOnHover
+        hoverExpandDelay: root.hoverExpandDelay
         width: ListView.view.width // https://doc.qt.io/qt-6/qml-qtquick-listview.html
-        notificationGroup: popup ? 
+        notificationGroup: popup ?
             Notifications.popupGroupsByAppName[modelData] :
             Notifications.groupsByAppName[modelData]
     }

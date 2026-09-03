@@ -1222,6 +1222,10 @@ Singleton {
                 property int maxVisible: 4
                 property bool pauseOnHover: true
                 property bool showCriticalWhenQuiet: true
+                // Hovering a notification card briefly expands it, mirroring the
+                // M3 island's embedded card behavior on the main popup/history surfaces.
+                property bool expandOnHover: false
+                property int hoverExpandDelay: 180
                 // Optional per-app policy: [{ match: "discord", mode: "history",
                 // timeout: 12000 }]. Modes are toast, history, and silent.
                 property list<var> appRules: []
