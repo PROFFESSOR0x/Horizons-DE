@@ -87,6 +87,8 @@ if [[ -f "$REPO_ROOT/install/lib/state.sh" ]]; then source "$REPO_ROOT/install/l
 if [[ -f "$REPO_ROOT/install/lib/profiles.sh" ]]; then source "$REPO_ROOT/install/lib/profiles.sh"; fi
 # shellcheck source=install/lib/build.sh
 if [[ -f "$REPO_ROOT/install/lib/build.sh" ]]; then source "$REPO_ROOT/install/lib/build.sh"; fi
+# shellcheck source=install/lib/requirements.sh
+if [[ -f "$REPO_ROOT/install/lib/requirements.sh" ]]; then source "$REPO_ROOT/install/lib/requirements.sh"; fi
 # shellcheck source=install/lib/update.sh
 if [[ -f "$REPO_ROOT/install/lib/update.sh" ]]; then source "$REPO_ROOT/install/lib/update.sh"; fi
 
@@ -555,6 +557,12 @@ is_pkg_installed(){
 
 # Are all horizons meta deps already installed? (arch only — other distros fallback to binary check)
 are_horizons_deps_installed(){
+  # The i3/existing-desktop targets do not use the Hyprland meta packages.
+  # Their complete requirement set is the lightweight target-aware bootstrap.
+  if [[ "${HORIZONS_WINDOW_MANAGER:-hyprland}" != "hyprland" || "${DO_DOTS:-true}" != true ]]; then
+    declare -f horizons_target_requirements_installed >/dev/null 2>&1 && horizons_target_requirements_installed
+    return $?
+  fi
   if [[ "${PKG_GROUP:-unknown}" != "arch" ]]; then
     # Fallback: check core binaries exist
     command -v quickshell &>/dev/null || command -v qs &>/dev/null || return 1
@@ -685,8 +693,10 @@ check_requirements(){
   _chk "curl"              "command -v curl"
   _chk "sudo"              "command -v sudo"
   _chk "quickshell (qs)"  "command -v qs || command -v quickshell"
-  _chk "hyprctl"          "command -v hyprctl"
-  _chk "Hyprland running" "hyprctl version"
+  case "$HORIZONS_WINDOW_MANAGER" in
+    hyprland) _chk "hyprctl" "command -v hyprctl" ;;
+    i3)       _chk "i3-msg" "command -v i3-msg" ;;
+  esac
   _chk "dotfiles/ present" "[[ -d '$DOTS_REPO' ]]"
   if [[ "$DO_BUILD" == true ]]; then
       _chk "make"           "command -v make"
@@ -713,8 +723,8 @@ check_requirements(){
     fi
   fi
 
-  # ── Dotfiles/hypr detection ───────────────────────────────────────────────
-  if [[ -d "$XDG_CONFIG_HOME/hypr" ]]; then
+  # ── Dotfiles/Hyprland detection (only meaningful for the Hyprland target) ─
+  if [[ "$HORIZONS_WINDOW_MANAGER" == "hyprland" && -d "$XDG_CONFIG_HOME/hypr" ]]; then
     if is_horizons_hypr; then
       printf "  ${G}✔ hypr config is already Horizons${RST}\n"
       if ! dotfiles_need_update; then
@@ -726,7 +736,7 @@ check_requirements(){
       printf "  ${Y}${BD}⚠ hypr config found BUT NOT from Horizons (qsConfig ≠ horizons)${RST}\n"
       printf "  ${Y}  → Will be REPLACED (backed up to $BACKUP_DIR)${RST}\n"
     fi
-  else
+  elif [[ "$HORIZONS_WINDOW_MANAGER" == "hyprland" ]]; then
     printf "  ${DM}○ No hypr config yet — fresh install${RST}\n"
   fi
 
@@ -1155,6 +1165,7 @@ configure_keybind(){
   # i3 gets its own IPC bindings from i3/horizons.conf. Do not create a
   # Hyprland configuration directory merely because this installer was run
   # inside an X11 session.
+  [[ "$HORIZONS_WINDOW_MANAGER" == "hyprland" ]] || return 0
   [[ -f "$XDG_CONFIG_HOME/hypr/hyprland/variables.lua" ]] || return 0
   step "$(L "Settings keybind" "اختصار الإعدادات")"
   local keybind_line='hl.bind("SUPER + escape", hl.dsp.global("quickshell:settingsToggle"), {description = "Toggle settings"})'
@@ -1453,6 +1464,7 @@ fi
 
 # Dynamic steps total based on profile (use +=1 to avoid set -e exit on 0++)
 STEPS_TOTAL=0
+((STEPS_TOTAL+=1)) # target requirements
 ((STEPS_TOTAL+=1)) # check
 ((STEPS_TOTAL+=1)) # migrate
 [[ "$DO_BACKUP" == true ]] && ((STEPS_TOTAL+=1)) || true
@@ -1471,6 +1483,7 @@ STEPS_TOTAL=0
 STEPS_DONE=0
 _done(){ ((STEPS_DONE++)) || true; progress "$STEPS_DONE" "$STEPS_TOTAL" ""; printf "\n"; }
 
+install_target_requirements; _done
 check_requirements;      _done
 migrate_legacy_configs;  _done
 if [[ "$DO_BACKUP" == true ]]; then do_backup; _done; fi

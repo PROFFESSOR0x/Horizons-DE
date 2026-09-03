@@ -52,6 +52,20 @@ ContentPage {
         HyprlandConfig.set("general:col.inactive_border", h.colInactiveBorder)
     }
 
+    function restoreConfiguredBorders() {
+        if (WM.compositor !== "hyprland") return
+        // Generated colours are written as explicit shell overrides. Removing
+        // those overrides is the only reliable way to return to the user's
+        // normal Hyprland border settings when this toggle is switched off.
+        const h = Config.options.hyprland.general
+        h.colActiveBorder = ""
+        h.colInactiveBorder = ""
+        HyprlandConfig.resetMany([
+            "general:col.active_border",
+            "general:col.inactive_border"
+        ])
+    }
+
     ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
@@ -218,6 +232,7 @@ ContentPage {
                     onCheckedChanged: {
                         Config.options.hyprland.general.autoThemeBorders = checked
                         if (checked) page.applyThemeBorders()
+                        else page.restoreConfiguredBorders()
                     }
                 }
                 ConfigRow {

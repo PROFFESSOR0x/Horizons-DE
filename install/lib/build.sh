@@ -80,30 +80,42 @@ hz_build_quickshell() {
 
     case "${PKG_GROUP:-unknown}" in
         arch)
+            # First use a configured AUR helper. Unlike makepkg, this can
+            # resolve the AUR dependency chain of current quickshell-git.
+            if command -v yay &>/dev/null; then
+                _build_info "Installing quickshell-git through yay…"
+                if yay -S --needed --noconfirm quickshell-git \
+                    && { command -v quickshell &>/dev/null || command -v qs &>/dev/null; }; then
+                    _build_ok "QuickShell installed through yay."
+                    return 0
+                fi
+                _build_warn "yay could not install quickshell-git; trying the bundled PKGBUILD."
+            elif command -v paru &>/dev/null; then
+                _build_info "Installing quickshell-git through paru…"
+                if paru -S --needed --noconfirm quickshell-git \
+                    && { command -v quickshell &>/dev/null || command -v qs &>/dev/null; }; then
+                    _build_ok "QuickShell installed through paru."
+                    return 0
+                fi
+                _build_warn "paru could not install quickshell-git; trying the bundled PKGBUILD."
+            fi
+
             if [[ ! -d "$pkgdir" ]]; then
-                _build_warn "Quickshell PKGBUILD not found at $pkgdir — skipping."
+                _build_warn "Quickshell PKGBUILD not found at $pkgdir."
+                return 1
+            fi
+            if ! command -v makepkg &>/dev/null; then
+                _build_warn "makepkg is unavailable. Install base-devel or use yay/paru, then retry."
+                return 1
+            fi
+            _build_info "Building the bundled QuickShell PKGBUILD…"
+            if (cd "$pkgdir" && makepkg -sfi --noconfirm) \
+                && { command -v quickshell &>/dev/null || command -v qs &>/dev/null; }; then
+                _build_ok "QuickShell built from the bundled PKGBUILD."
                 return 0
             fi
-            _build_info "Building quickshell from PKGBUILD (arch)…"
-            if command -v yay &>/dev/null; then
-                if (cd "$pkgdir" && makepkg -Afsi --noconfirm); then
-                    _build_ok "quickshell built via PKGBUILD + yay."
-                    return 0
-                fi
-            elif command -v paru &>/dev/null; then
-                if (cd "$pkgdir" && makepkg -Afsi --noconfirm); then
-                    _build_ok "quickshell built via PKGBUILD + paru."
-                    return 0
-                fi
-            else
-                _build_warn "yay/paru not found — trying makepkg directly (deps must be installed)."
-                if (cd "$pkgdir" && makepkg -Afsi --noconfirm); then
-                    _build_ok "quickshell built via makepkg."
-                    return 0
-                fi
-            fi
-            _build_warn "Quickshell PKGBUILD build failed. Try installing yay first."
-            return 0
+            _build_warn "QuickShell PKGBUILD build failed; no working QuickShell executable was installed."
+            return 1
             ;;
         *)
             _build_info "Non-Arch distro ($PKG_GROUP) — quickshell build from source via cmake (experimental)…"
@@ -112,16 +124,17 @@ hz_build_quickshell() {
             if [[ ! -d "$qs_src/.git" ]]; then
                 git clone https://git.outfoxxed.me/quickshell/quickshell.git "$qs_src" 2>/dev/null || \
                 git clone https://github.com/quickshell-mirror/quickshell.git "$qs_src" 2>/dev/null || {
-                    _build_warn "Failed to clone quickshell source — skipping."
-                    return 0
+                _build_warn "Failed to clone QuickShell source."
+                    return 1
                 }
             fi
-            if (cd "$qs_src" && cmake -GNinja -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr && cmake --build build && sudo cmake --install build); then
-                _build_ok "quickshell built from source (cmake)."
+            if (cd "$qs_src" && cmake -GNinja -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr && cmake --build build && sudo cmake --install build) \
+                && { command -v quickshell &>/dev/null || command -v qs &>/dev/null; }; then
+                _build_ok "QuickShell built from source (cmake)."
                 return 0
             else
-                _build_warn "Quickshell cmake build failed — see output above."
-                return 0
+                _build_warn "QuickShell cmake build failed or installed no executable — see output above."
+                return 1
             fi
             ;;
     esac

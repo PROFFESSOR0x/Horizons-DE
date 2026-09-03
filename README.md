@@ -21,8 +21,8 @@ cd End4-PXpC
 ./installer.sh --dry-run --profile ultra # preview what would be done
 ```
 
-The unified installer (`installer.sh` + `install/lib/*`) does in order: pre-flight
-checks, legacy migration (`illogical-impulse`/`end4-pC` → `horizons`), optional backup,
+The unified installer (`installer.sh` + `install/lib/*`) does in order: a target-aware
+runtime bootstrap, pre-flight checks, legacy migration (`illogical-impulse`/`end4-pC` → `horizons`), optional backup,
 optional full system upgrade, the `dotfiles/setup install` base, optional quickshell
 build from source, `hyprglass` plugin build (`make`), optional bundled extras
 (Rubik/Gabarito/Bibata/GoogleSans), the `shell/` Quickshell config into
@@ -57,6 +57,15 @@ that stored target. Use `--fresh-install` only when you explicitly want to run a
 new installation flow. i3 integration installs `~/.config/i3/horizons.conf` and
 adds one reversible include after making a backup; it does not modify existing i3
 rules or bindings.
+
+Before modifying configuration, the installer audits the selected target and installs
+only missing runtime capabilities. It tries the distribution's normal repositories
+first, then safe alternatives (including an Arch AUR fallback where an existing
+`yay` or `paru` is available), and finally offers a QuickShell source build with its
+build dependencies when no package is available. Hyprland installs its Wayland
+runtime helpers; i3 installs i3, X.Org, and X11 clipboard support. `--skip-deps`
+is an explicit opt-out: it leaves the installer in audit-only mode and reports what
+is still missing.
 
 ### Identity marker & update protocol
 
