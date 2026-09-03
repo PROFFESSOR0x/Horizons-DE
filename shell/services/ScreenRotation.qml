@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.modules.common
 import qs.services
 
 /**
@@ -93,9 +94,14 @@ Singleton {
         id: applyProc
     }
 
+    // Only QuickActionsBarContent.qml reads root.transform, and it only
+    // exists while barMode is "quickActionsBar" (see PanelLoader in
+    // IllogicalImpulseFamily.qml). Polling hyprctl every 4s for a value
+    // nothing displays wastes a subprocess spawn; toggle()/refresh() still
+    // update immediately on demand and after every user action either way.
     Timer {
         interval: 4000
-        running: root.available
+        running: root.available && Config.options.bar.barMode === "quickActionsBar"
         repeat: true
         onTriggered: root.refresh()
     }

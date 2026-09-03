@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.modules.common
 
 /**
  * NFC toggle via rfkill. Most laptops/desktops have no NFC rfkill switch at
@@ -68,9 +69,14 @@ Singleton {
         onExited: root.refresh()
     }
 
+    // Only QuickActionsBarContent.qml reads root.enabled, and it only exists
+    // while barMode is "quickActionsBar" (see PanelLoader in
+    // IllogicalImpulseFamily.qml). Polling rfkill every 5s for a value
+    // nothing displays wastes a subprocess spawn; toggle()/refresh() still
+    // update immediately on demand either way.
     Timer {
         interval: 5000
-        running: root.rfkillAvailable
+        running: root.rfkillAvailable && Config.options.bar.barMode === "quickActionsBar"
         repeat: true
         onTriggered: root.refresh()
     }

@@ -133,9 +133,14 @@ Singleton {
         command: ["nmcli", "connection", "delete", root.connectionName]
     }
 
+    // Only QuickActionsBarContent.qml reads root.active, and it only exists
+    // while barMode is "quickActionsBar" (see PanelLoader in
+    // IllogicalImpulseFamily.qml). Polling nmcli every 5s for a value
+    // nothing displays wastes two subprocess spawns; toggle()/refresh() still
+    // update immediately on demand and after every user action either way.
     Timer {
         interval: 5000
-        running: root.available
+        running: root.available && Config.options.bar.barMode === "quickActionsBar"
         repeat: true
         onTriggered: root.refresh()
     }
