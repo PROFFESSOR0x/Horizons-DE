@@ -18,6 +18,14 @@ ContentPage {
     property string pendingNewKeyStr: ""
     property var pendingNewMods: []
     property string pendingNewKey: ""
+    property var captureConflict: null
+    property bool conflictConfirmed: false
+    property bool creatingNew: false
+    property string newDispatcher: ""
+    property string newDispatcherCustom: ""
+    property string newParams: ""
+    property string newComment: ""
+    property string pendingDeleteComment: ""
 
     function goTo(term) {
         const t = term.toLowerCase().trim()
@@ -64,6 +72,81 @@ ContentPage {
         // function binds are now editable thanks to rest field
         if (!bind.comment || bind.comment.length === 0) return false
         return true
+    }
+
+    // A small denylist of dispatchers/commands whose loss would be disruptive
+    // (closing/killing windows, exiting the session). Binding a new chord onto
+    // one of these keys doesn't remove the essential bind — Hyprland would just
+    // register both — but it means the chord may no longer reliably do the
+    // essential thing, so we treat conflicts with these specially.
+    function isEssentialBind(bind) {
+        if (!bind) return false
+        const d = bind.dispatcher ?? ""
+        const p = bind.params ?? ""
+        if (d === "hl.dsp.window.close") return true
+        if (d === "hl.dsp.exec_cmd" && /hyprctl\s+kill|wlogout|poweroff/i.test(p)) return true
+        if (d === "hl.dsp.global" && /sessionToggle/i.test(p)) return true
+        return false
+    }
+
+    function findDefaultBindByComment(comment) {
+        if (!comment) return null
+        const src = HyprlandKeybinds.defaultKeybinds
+        if (!src || !src.children) return null
+        function search(node) {
+            if (node.keybinds) for (let kb of node.keybinds) if (kb.comment === comment) return kb
+            if (node.children) for (let c of node.children) {
+                let r = search(c)
+                if (r) return r
+            }
+            return null
+        }
+        for (let ch of src.children) {
+            let r = search(ch)
+            if (r) return r
+        }
+        return null
+    }
+
+    function hasDefaultCounterpart(bind) {
+        return !!findDefaultBindByComment(bind?.comment)
+    }
+
+    // Finds an existing bind (anywhere in the merged default+custom list) that
+    // already uses the exact same modifier+key combination. excludeComment lets
+    // callers skip the bind currently being edited (its default/override pair
+    // share the same comment).
+    function findConflict(mods, key, excludeComment) {
+        if (!key) return null
+        const wantMods = (mods ?? []).slice().sort().join("+")
+        for (let section of flatSections()) {
+            for (let b of (section.keybinds ?? [])) {
+                if (b.dispatcher === "comment") continue
+                if (excludeComment && b.comment === excludeComment) continue
+                const bMods = (b.mods ?? []).slice().sort().join("+")
+                if (bMods === wantMods && (b.key ?? "") === key) return b
+            }
+        }
+        return null
+    }
+
+    // Live list of dispatchers actually seen in the parsed keybinds, so the
+    // "new keybind" dispatcher picker never hand-types an incomplete list.
+    function allDispatchers() {
+        let set = {}
+        for (let section of flatSections()) {
+            for (let b of (section.keybinds ?? [])) {
+                const d = b.dispatcher
+                if (!d || d === "comment" || d === "function") continue
+                set[d] = true
+            }
+        }
+        return Object.keys(set).sort()
+    }
+
+    function effectiveDispatcher() {
+        if (page.newDispatcher === "__custom__") return page.newDispatcherCustom.trim()
+        return page.newDispatcher
     }
 
     function matchesSearch(bind, q) {
@@ -141,6 +224,11 @@ ContentPage {
         id: reloadBindsProc
         command: ["bash", "-c", `hyprctl reload 2>/dev/null; echo reloaded`]
     }
+    Timer {
+        id: deleteConfirmTimer
+        interval: 3000
+        onTriggered: page.pendingDeleteComment = ""
+    }
 
     Rectangle {
         id: captureOverlay
@@ -166,6 +254,9 @@ ContentPage {
                 page.pendingNewMods = res.mods
                 page.pendingNewKey = res.key
                 page.pendingNewKeyStr = res.str
+                const excludeComment = page.creatingNew ? null : (page.selectedBind ? page.selectedBind.comment : null)
+                page.captureConflict = page.findConflict(res.mods, res.key, excludeComment)
+                page.conflictConfirmed = false
                 event.accepted = true
             }
             Keys.onReleased: (event) => { event.accepted = true }
@@ -178,7 +269,8 @@ ContentPage {
                     Layout.fillWidth: true
                     MaterialSymbol { text: "keyboard"; iconSize: 20; color: Appearance.colors.colPrimary }
                     StyledText {
-                        text: page.selectedBind ? (Translation.tr("Edit: ") + (page.selectedBind.comment ?? "")) : Translation.tr("Capture shortcut")
+                        text: page.creatingNew ? Translation.tr("New keybind")
+                            : page.selectedBind ? (Translation.tr("Edit: ") + (page.selectedBind.comment ?? "")) : Translation.tr("Capture shortcut")
                         font.weight: Font.Medium
                         color: Appearance.colors.colOnLayer0
                         Layout.fillWidth: true
@@ -215,8 +307,126 @@ ContentPage {
                     font.pixelSize: Appearance.font.pixelSize.smaller
                     color: Appearance.colors.colSubtext
                     text: page.selectedBind ? Translation.tr("Original: ") + formatKeybind(page.selectedBind.mods, page.selectedBind.key) + "  •  " + page.selectedBind.dispatcher : ""
-                    visible: page.selectedBind !== null
+                    visible: !page.creatingNew && page.selectedBind !== null
                 }
+
+                // New-keybind form: dispatcher, params, description — only shown
+                // when creating a brand-new bind rather than re-keying an existing one.
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    visible: page.creatingNew
+                    StyledText {
+                        text: Translation.tr("Dispatcher")
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        color: Appearance.colors.colSubtext
+                    }
+                    StyledComboBox {
+                        id: newDispatcherCombo
+                        Layout.fillWidth: true
+                        model: page.allDispatchers().map(d => ({ displayName: d, value: d }))
+                            .concat([{ displayName: Translation.tr("Custom…"), value: "__custom__" }])
+                        textRole: "displayName"
+                        onCurrentIndexChanged: {
+                            if (currentIndex >= 0 && model[currentIndex]) page.newDispatcher = model[currentIndex].value
+                        }
+                        Component.onCompleted: {
+                            if (currentIndex >= 0 && model[currentIndex]) page.newDispatcher = model[currentIndex].value
+                        }
+                    }
+                    MaterialTextField {
+                        Layout.fillWidth: true
+                        visible: page.newDispatcher === "__custom__"
+                        placeholderText: Translation.tr("e.g. hl.dsp.exec_cmd")
+                        text: page.newDispatcherCustom
+                        onTextChanged: page.newDispatcherCustom = text
+                    }
+                    StyledText {
+                        text: Translation.tr("Params")
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        color: Appearance.colors.colSubtext
+                    }
+                    MaterialTextField {
+                        Layout.fillWidth: true
+                        placeholderText: Translation.tr("e.g. \"kitty\"")
+                        text: page.newParams
+                        onTextChanged: page.newParams = text
+                    }
+                    StyledText {
+                        text: Translation.tr("Description")
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        color: Appearance.colors.colSubtext
+                    }
+                    MaterialTextField {
+                        Layout.fillWidth: true
+                        placeholderText: Translation.tr("What does this bind do? (auto-filled if left blank)")
+                        text: page.newComment
+                        onTextChanged: page.newComment = text
+                    }
+                }
+
+                // Conflict warning — shown for both edit and new-bind flows once a
+                // combo that's already in use is captured.
+                Rectangle {
+                    Layout.fillWidth: true
+                    visible: page.captureConflict !== null
+                    implicitHeight: conflictCol.implicitHeight + 16
+                    radius: Appearance.rounding.small
+                    color: page.isEssentialBind(page.captureConflict) ? ColorUtils.transparentize(Appearance.colors.colError, 0.85) : ColorUtils.transparentize(Appearance.colors.colSecondary, 0.85)
+                    border.width: 1
+                    border.color: page.isEssentialBind(page.captureConflict) ? Appearance.colors.colError : Appearance.colors.colSecondary
+                    ColumnLayout {
+                        id: conflictCol
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        spacing: 6
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            MaterialSymbol {
+                                text: "warning"
+                                iconSize: 18
+                                color: page.isEssentialBind(page.captureConflict) ? Appearance.colors.colError : Appearance.colors.colOnLayer0
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                font.weight: Font.Medium
+                                color: page.isEssentialBind(page.captureConflict) ? Appearance.colors.colError : Appearance.colors.colOnLayer0
+                                text: page.captureConflict
+                                    ? Translation.tr("Already used by: ") + (page.captureConflict.comment || page.captureConflict.dispatcher) + "  (" + page.captureConflict.dispatcher + ")"
+                                    : ""
+                            }
+                        }
+                        StyledText {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            color: Appearance.colors.colSubtext
+                            text: page.captureConflict && page.isEssentialBind(page.captureConflict)
+                                ? Translation.tr("This combo is used by an essential system bind (closing windows / exiting the session). Binding it again won't remove that bind — both would fire — so this key combo is blocked. Choose a different combo.")
+                                : Translation.tr("Hyprland doesn't replace the old bind — both would be registered on this combo, and which one actually fires depends on Hyprland's own resolution order. Confirm below if you still want to proceed.")
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            visible: page.captureConflict !== null && !page.isEssentialBind(page.captureConflict)
+                            StyledSwitch {
+                                id: conflictConfirmSwitch
+                                checked: page.conflictConfirmed
+                                onCheckedChanged: page.conflictConfirmed = checked
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                color: Appearance.colors.colOnLayer0
+                                text: Translation.tr("I understand, save anyway")
+                            }
+                        }
+                    }
+                }
+
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -226,21 +436,35 @@ ContentPage {
                         onClicked: captureOverlay.visible = false
                     }
                     RippleButtonWithIcon {
-                        enabled: page.pendingNewKeyStr.length > 0 && page.selectedBind !== null
+                        enabled: page.pendingNewKeyStr.length > 0
+                            && !(page.captureConflict !== null && page.isEssentialBind(page.captureConflict))
+                            && (page.captureConflict === null || page.conflictConfirmed)
+                            && (page.creatingNew ? page.effectiveDispatcher().length > 0 : page.selectedBind !== null)
                         materialIcon: "check"
-                        mainText: Translation.tr("Save")
+                        mainText: page.creatingNew ? Translation.tr("Create") : Translation.tr("Save")
                         onClicked: {
-                            if (!page.selectedBind || !page.pendingNewKeyStr) return
-                            if (page.selectedBind.dispatcher === "comment") return
+                            if (!page.pendingNewKeyStr) return
                             let line
-                            if (page.selectedBind.rest && page.selectedBind.rest.length > 0) {
-                                line = `hl.bind("${page.pendingNewKeyStr}", ${page.selectedBind.rest}`
-                            } else {
-                                let disp = page.selectedBind.dispatcher
-                                let params = page.selectedBind.params
-                                let comment = page.selectedBind.comment
-                                let safeComment = comment.replace(/"/g, '\\"')
+                            if (page.creatingNew) {
+                                const disp = page.effectiveDispatcher()
+                                if (!disp) return
+                                const params = page.newParams ?? ""
+                                let comment = (page.newComment ?? "").trim()
+                                if (!comment) comment = (disp + (params ? " " + params : "")).trim()
+                                const safeComment = comment.replace(/"/g, '\\"')
                                 line = `hl.bind("${page.pendingNewKeyStr}", ${disp}(${params}), { description = "${safeComment}" })`
+                            } else {
+                                if (!page.selectedBind) return
+                                if (page.selectedBind.dispatcher === "comment") return
+                                if (page.selectedBind.rest && page.selectedBind.rest.length > 0) {
+                                    line = `hl.bind("${page.pendingNewKeyStr}", ${page.selectedBind.rest}`
+                                } else {
+                                    let disp = page.selectedBind.dispatcher
+                                    let params = page.selectedBind.params
+                                    let comment = page.selectedBind.comment
+                                    let safeComment = comment.replace(/"/g, '\\"')
+                                    line = `hl.bind("${page.pendingNewKeyStr}", ${disp}(${params}), { description = "${safeComment}" })`
+                                }
                             }
                             const customPath = HyprlandConfig.customBindsPath
                             const customDir = FileUtils.trimFileProtocol(Directories.config) + "/hypr/custom"
@@ -248,10 +472,15 @@ ContentPage {
                             const escPath = customPath.replace(/'/g, "'\\''")
                             const escDir = customDir.replace(/'/g, "'\\''")
                             Quickshell.execDetached(["bash", "-c", `mkdir -p '${escDir}' && printf '%s\\n' '${escLine}' >> '${escPath}' && hyprctl reload 2>/dev/null; echo saved`])
-                            captureToast.text = Translation.tr("Saved: ") + page.pendingNewKeyStr
+                            captureToast.text = (page.creatingNew ? Translation.tr("Created: ") : Translation.tr("Saved: ")) + page.pendingNewKeyStr
                             captureToast.opacity = 1
                             hideToast.restart()
                             captureOverlay.visible = false
+                            page.creatingNew = false
+                            page.newDispatcher = ""
+                            page.newDispatcherCustom = ""
+                            page.newParams = ""
+                            page.newComment = ""
                         }
                     }
                 }
@@ -309,6 +538,26 @@ ContentPage {
                     onTextChanged: page.searchQuery = text
                 }
                 RippleButtonWithIcon {
+                    materialIcon: "add"
+                    mainText: Translation.tr("New Keybind")
+                    onClicked: {
+                        page.creatingNew = true
+                        page.selectedBind = null
+                        page.pendingNewMods = []
+                        page.pendingNewKey = ""
+                        page.pendingNewKeyStr = ""
+                        page.captureConflict = null
+                        page.conflictConfirmed = false
+                        page.newDispatcher = ""
+                        page.newDispatcherCustom = ""
+                        page.newParams = ""
+                        page.newComment = ""
+                        captureOverlay.visible = true
+                        captureBox.forceActiveFocus()
+                    }
+                    StyledToolTip { text: Translation.tr("Create a brand-new keybind from scratch") }
+                }
+                RippleButtonWithIcon {
                     materialIcon: "refresh"
                     mainText: Translation.tr("Reload")
                     onClicked: reloadBindsProc.running = true
@@ -320,11 +569,22 @@ ContentPage {
                     StyledToolTip { text: Translation.tr("Clears ~/.config/hypr/custom/keybinds.lua") }
                 }
             }
-            StyledText {
+            RowLayout {
                 Layout.fillWidth: true
-                font.pixelSize: Appearance.font.pixelSize.smaller
-                color: Appearance.colors.colSubtext
-                text: Translation.tr("%1 sections • %2 total binds").arg(flatSections().length).arg(flatSections().reduce((a,s)=>a+(s.keybinds?.length??0),0))
+                spacing: 12
+                StyledText {
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Appearance.colors.colSubtext
+                    text: Translation.tr("%1 sections • %2 total binds").arg(flatSections().length).arg(flatSections().reduce((a,s)=>a+(s.keybinds?.length??0),0))
+                }
+                Item { Layout.fillWidth: true }
+                RowLayout {
+                    spacing: 4
+                    Rectangle { width: 10; height: 10; radius: 3; color: Appearance.colors.colSecondaryContainer }
+                    StyledText { font.pixelSize: Appearance.font.pixelSize.smallest; color: Appearance.colors.colSubtext; text: Translation.tr("modifier") }
+                    Rectangle { width: 10; height: 10; radius: 3; color: Appearance.colors.colPrimary; Layout.leftMargin: 8 }
+                    StyledText { font.pixelSize: Appearance.font.pixelSize.smallest; color: Appearance.colors.colSubtext; text: Translation.tr("key") }
+                }
             }
         }
 
@@ -422,14 +682,17 @@ ContentPage {
                                                 implicitWidth: lab.implicitWidth + 10
                                                 implicitHeight: 20
                                                 radius: 6
-                                                color: Appearance.colors.colPrimary
+                                                // Modifier chips use a distinct (secondary) fill from the
+                                                // final key chip below, so the combo reads at a glance as
+                                                // "modifiers" + "key" instead of one undifferentiated blob.
+                                                color: Appearance.colors.colSecondaryContainer
                                                 StyledText {
                                                     id: lab
                                                     anchors.centerIn: parent
                                                     text: modelData
                                                     font.pixelSize: Appearance.font.pixelSize.smallest
                                                     font.weight: Font.Bold
-                                                    color: Appearance.colors.colOnPrimary
+                                                    color: Appearance.colors.colOnSecondaryContainer
                                                 }
                                             }
                                         }
@@ -460,17 +723,21 @@ ContentPage {
                                     materialIcon: "edit"
                                     mainText: Translation.tr("Edit")
                                     onClicked: {
+                                        page.creatingNew = false
                                         page.selectedBind = bind
                                         page.pendingNewMods = []
                                         page.pendingNewKey = ""
                                         page.pendingNewKeyStr = ""
+                                        page.captureConflict = null
+                                        page.conflictConfirmed = false
                                         captureOverlay.visible = true
                                         captureBox.forceActiveFocus()
                                     }
                                     StyledToolTip { text: Translation.tr("Capture new shortcut automatically") }
                                 }
                                 RippleButton {
-                                    visible: {
+                                    id: resetDeleteBtn
+                                    property bool hasCustomEntry: {
                                         if (!isEditable(bind) || !HyprlandKeybinds.userKeybinds || !HyprlandKeybinds.userKeybinds.children) return false
                                         let all = []
                                         const ch = HyprlandKeybinds.userKeybinds.children
@@ -481,13 +748,29 @@ ContentPage {
                                         for (let n=0;n<all.length;n++) if (all[n].comment === bind.comment) return true
                                         return false
                                     }
-                                    buttonText: Translation.tr("Reset")
+                                    property bool isCustomOnly: !page.hasDefaultCounterpart(bind)
+                                    visible: hasCustomEntry
+                                    buttonText: {
+                                        if (!isCustomOnly) return Translation.tr("Reset")
+                                        return page.pendingDeleteComment === bind.comment ? Translation.tr("Confirm delete?") : Translation.tr("Delete")
+                                    }
                                     onClicked: {
+                                        if (isCustomOnly && page.pendingDeleteComment !== bind.comment) {
+                                            // First click on a permanent delete just arms confirmation.
+                                            page.pendingDeleteComment = bind.comment
+                                            deleteConfirmTimer.restart()
+                                            return
+                                        }
+                                        page.pendingDeleteComment = ""
                                         const escComment = bind.comment.replace(/'/g, "'\\''")
                                         const escPath = HyprlandConfig.customBindsPath.replace(/'/g, "'\\''")
                                         Quickshell.execDetached(["bash", "-c", `tmp=$(mktemp); grep -vF '${escComment}' '${escPath}' > "$tmp" 2>/dev/null || true; mv "$tmp" '${escPath}'; hyprctl reload 2>/dev/null; echo reset`])
                                     }
-                                    StyledToolTip { text: Translation.tr("Remove custom override for this action") }
+                                    StyledToolTip {
+                                        text: resetDeleteBtn.isCustomOnly
+                                            ? Translation.tr("Permanently delete this custom keybind (no default to fall back to)")
+                                            : Translation.tr("Remove custom override — the default bind returns. Hyprland's Lua config here has no unbind/suppress mechanism, so a default-backed bind can't be truly deleted, only reset.")
+                                    }
                                 }
                                 MaterialSymbol {
                                     visible: !isEditable(bind)
