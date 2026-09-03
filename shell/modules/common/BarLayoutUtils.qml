@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+import Quickshell
 import qs.services
 
 // Shared helpers for the bar family (Bar, VerticalBar, M3Island, MesoBar).
