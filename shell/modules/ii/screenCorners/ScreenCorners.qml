@@ -24,7 +24,14 @@ Scope {
         id: cornerPanelWindow
         property var brightnessMonitor: Brightness.getMonitorForScreen(screen)
         property bool fullscreen
-        visible: (Config.options.appearance.fakeScreenRounding === 1 || (Config.options.appearance.fakeScreenRounding === 2 && !fullscreen))
+        // Decorative rounding and the hover-to-open-sidebar corner zone are independent
+        // features that happen to share this window. Only the decoration should be gated
+        // by fakeScreenRounding; the hover zone must stay alive whenever cornerOpen.enable
+        // is on, regardless of the decoration setting, or the window (and the MouseArea it
+        // hosts) never gets mapped and hovering the corner does nothing.
+        readonly property bool showRounding: (Config.options.appearance.fakeScreenRounding === 1 || (Config.options.appearance.fakeScreenRounding === 2 && !fullscreen))
+        readonly property bool hoverZoneEnabled: Config.options.sidebar.cornerOpen.enable && !fullscreen
+        visible: showRounding || hoverZoneEnabled
         property var corner
 
         exclusionMode: ExclusionMode.Ignore
@@ -53,6 +60,9 @@ Scope {
             id: cornerWidget
             anchors.fill: parent
             corner: cornerPanelWindow.corner
+            // Only paint the decorative corner fill when the decoration itself is
+            // wanted; the window may still be mapped purely to host the hover zone.
+            showFill: cornerPanelWindow.showRounding
             rightVisualMargin: (Config.options.interactions.deadPixelWorkaround.enable && cornerPanelWindow.anchors.right) * 1
             bottomVisualMargin: (Config.options.interactions.deadPixelWorkaround.enable && cornerPanelWindow.anchors.bottom) * 1
 

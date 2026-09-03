@@ -14,6 +14,9 @@ Item {
 
     property int implicitSize: 25
     property color color: "#000000"
+    // Lets a consumer keep this Item (and any children anchored to it, e.g. an
+    // interaction MouseArea) alive/visible while hiding just the decorative fill.
+    property bool showFill: true
 
     implicitWidth: implicitSize
     implicitHeight: implicitSize
@@ -29,6 +32,7 @@ Item {
 
     Shape {
         id: shape
+        visible: root.showFill
         anchors {
             top: root.isTop ? parent.top : undefined
             bottom: root.isBottom ? parent.bottom : undefined
