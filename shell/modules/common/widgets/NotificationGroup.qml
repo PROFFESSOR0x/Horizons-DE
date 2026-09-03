@@ -2,6 +2,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.functions
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Notifications
@@ -331,9 +332,9 @@ MouseArea { // Notification group area
                                 color: Appearance.colors.colOnLayer2
                             }
 
-                            StyledToolTip {
-                                text: Translation.tr("Dismiss")
-                            }
+                            ToolTip.visible: quickDismissButton.hovered
+                            ToolTip.delay: 0
+                            ToolTip.text: Translation.tr("Dismiss")
                         }
 
                         NotificationGroupExpandButton {

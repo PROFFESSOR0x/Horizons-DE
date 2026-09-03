@@ -12,10 +12,59 @@ NestableObject {
 
     Component.onCompleted: fetchProc.running = true
 
+    // Indices touched by the most recent updateMonitor() call: the monitor that was
+    // directly edited, plus any neighbors whose position was recomputed because a
+    // scale change moved the edited monitor's right/bottom edge (see updateMonitor).
+    property var _affectedIndices: []
+
     function updateMonitor(index, changes) {
         let m = root.monitors.slice()
-        m[index] = Object.assign({}, m[index], changes)
+        const old = m[index]
+        const scaleChanging = Object.prototype.hasOwnProperty.call(changes, "scale")
+            && changes.scale !== old.scale
+
+        if (!scaleChanging) {
+            m[index] = Object.assign({}, old, changes)
+            root.monitors = m
+            root._affectedIndices = [index]
+            return
+        }
+
+        // Hyprland positions are logical (post-scale) pixels. When this monitor's
+        // scale changes, its logical width/height changes even though its physical
+        // resolution and its x/y anchor do not. Any other monitor that was placed
+        // flush against this monitor's OLD right or bottom edge must be shifted by
+        // the resulting delta, or it is left with a stale position: no gap at
+        // scale 1.0 (physical == logical), but a real empty gap (and an
+        // uncrossable cursor dead zone) once the scale changes.
+        // Rounded to whole logical pixels: monitor positions are integers, and
+        // Hyprland's own scale values (e.g. 1.75x) don't always divide evenly.
+        const oldLogW = Math.round(root.logicalWidth(old))
+        const oldLogH = Math.round(root.logicalHeight(old))
+        m[index] = Object.assign({}, old, changes)
+        const newLogW = Math.round(root.logicalWidth(m[index]))
+        const newLogH = Math.round(root.logicalHeight(m[index]))
+        const dx = newLogW - oldLogW
+        const dy = newLogH - oldLogH
+
+        let affected = [index]
+        if (dx !== 0 || dy !== 0) {
+            const oldRight = old.x + oldLogW
+            const oldBottom = old.y + oldLogH
+            for (let i = 0; i < m.length; i++) {
+                if (i === index || m[i].disabled) continue
+                let nx = m[i].x, ny = m[i].y, changed = false
+                if (dx !== 0 && m[i].x === oldRight) { nx += dx; changed = true }
+                if (dy !== 0 && m[i].y === oldBottom) { ny += dy; changed = true }
+                if (changed) {
+                    m[i] = Object.assign({}, m[i], { x: nx, y: ny })
+                    affected.push(i)
+                }
+            }
+        }
+
         root.monitors = m
+        root._affectedIndices = affected
     }
 
     function _buildLuaLine(m) {
@@ -114,23 +163,40 @@ NestableObject {
     }
 
     function applyAndSave(index) {
-        root.applyMonitor(root.monitors[index])
+        // If the last updateMonitor() call recomputed neighbor positions (a scale
+        // change moved this monitor's edge), push all of them to hyprctl too --
+        // otherwise the live layout keeps the stale gap until the next full reload.
+        const indices = (root._affectedIndices.length > 0 && root._affectedIndices.indexOf(index) !== -1)
+            ? root._affectedIndices : [index]
+        for (let i = 0; i < indices.length; i++)
+            root.applyMonitor(root.monitors[indices[i]])
         root.save()
     }
 
-    function logicalWidth(m) {
+    // Physical pixel width/height (post-transform, pre-scale). Do NOT use this for
+    // positioning math -- Hyprland's monitor "position" field is in LOGICAL
+    // (post-scale) pixels, so adjacent-monitor offsets must use logicalWidth()/
+    // logicalHeight() below instead.
+    function physicalWidth(m) {
         return (m.transform === 1 || m.transform === 3) ? m.height : m.width
     }
 
-    function logicalHeight(m) {
+    function physicalHeight(m) {
         return (m.transform === 1 || m.transform === 3) ? m.width : m.height
     }
 
+    // Logical (post-scale) width/height, i.e. what Hyprland actually uses for
+    // monitor "position" arithmetic. physical / scale.
+    function logicalWidth(m) {
+        return root.physicalWidth(m) / (m.scale || 1)
+    }
+
+    function logicalHeight(m) {
+        return root.physicalHeight(m) / (m.scale || 1)
+    }
+
     function logicalSizeDisplay(m) {
-        const w = logicalWidth(m)
-        const h = logicalHeight(m)
-        const scale = m.scale || 1
-        return `${Math.round(w / scale)}×${Math.round(h / scale)}`
+        return `${Math.round(logicalWidth(m))}×${Math.round(logicalHeight(m))}`
     }
 
     Process {

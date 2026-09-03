@@ -20,6 +20,10 @@ Item {
     property bool launcherOpen: GlobalStates.overviewOpen
     property bool hovered: hoverHandler.hovered
     property bool expanded: false
+    // A launcher opened from an auto-hidden island needs its own arrival;
+    // otherwise a freshly-loaded island starts at its final size with no motion.
+    property real launcherEntryScale: 1
+    property real launcherEntryOpacity: 1
 
     readonly property bool isLauncher: launcherOpen
     property var pendingNotif: null
@@ -32,6 +36,7 @@ Item {
     // the queue so opening the launcher never silently drops a notification.
     onLauncherOpenChanged: {
         if (launcherOpen) {
+            launcherEntrance.restart()
             expanded = false
             if (pendingNotif) {
                 notificationQueue = [pendingNotif, ...notificationQueue]
@@ -39,6 +44,31 @@ Item {
             }
         } else {
             showNextNotification()
+        }
+    }
+
+    Component.onCompleted: {
+        if (launcherOpen)
+            launcherEntrance.restart()
+    }
+
+    SequentialAnimation {
+        id: launcherEntrance
+        PropertyAction { target: root; property: "launcherEntryScale"; value: 0.82 }
+        PropertyAction { target: root; property: "launcherEntryOpacity"; value: 0 }
+        ParallelAnimation {
+            NumberAnimation {
+                target: root; property: "launcherEntryScale"; to: 1
+                duration: 420
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial
+            }
+            NumberAnimation {
+                target: root; property: "launcherEntryOpacity"; to: 1
+                duration: 300
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
+            }
         }
     }
     onIsNotificationChanged: if (isNotification) expanded = false

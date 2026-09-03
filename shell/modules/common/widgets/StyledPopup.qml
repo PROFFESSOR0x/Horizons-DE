@@ -11,6 +11,9 @@ LazyLoader {
     property Item hoverTarget
     default property Item contentItem
     property real popupBackgroundMargin: 0
+    // Keep hover detail windows outside the bar instead of overlapping the
+    // item which opened them.
+    property real barPopupGap: 8
     active: hoverTarget && hoverTarget.containsMouse
 
     readonly property bool barVertical: Config.options.bar.vertical
@@ -53,6 +56,15 @@ LazyLoader {
             const maxTop = popupWindow.screen.height - popupBackground.implicitHeight - margin - 15
             return Math.max(margin, Math.min(base, maxTop))
         }
+        // Do not infer the popup's edge from the nominal bar height. Floating
+        // and M3 bars can place an item anywhere inside their layer window.
+        // Map the actual hovered item and position the popup after its real
+        // outer edge instead.
+        readonly property var hoverTargetPosition: root.QsWindow?.mapFromItem(root.hoverTarget, 0, 0) ?? Qt.point(0, 0)
+        readonly property real hoverTargetLeft: hoverTargetPosition.x
+        readonly property real hoverTargetTop: hoverTargetPosition.y
+        readonly property real hoverTargetRight: hoverTargetLeft + (root.hoverTarget?.width ?? root.barThickness)
+        readonly property real hoverTargetBottom: hoverTargetTop + (root.hoverTarget?.height ?? root.barThickness)
 
         mask: Region {
             item: popupBackground
@@ -63,16 +75,18 @@ LazyLoader {
         margins {
             left: {
                 if (root.barEdge === "right") return 0
-                if (root.barEdge === "left") return root.barThickness
+                if (root.barEdge === "left") return popupWindow.hoverTargetRight + root.barPopupGap
                 return centerOffsetX 
             }
             top: {
                 if (root.barEdge === "bottom") return 0
-                if (root.barEdge === "top") return root.barThickness
+                if (root.barEdge === "top") return popupWindow.hoverTargetBottom + root.barPopupGap
                 return centerOffsetY
             }
-            right: root.barEdge === "right" ? root.barThickness : 0
-            bottom: root.barEdge === "bottom" ? root.barThickness : 0
+            right: root.barEdge === "right"
+                ? popupWindow.screen.width - popupWindow.hoverTargetLeft + root.barPopupGap : 0
+            bottom: root.barEdge === "bottom"
+                ? popupWindow.screen.height - popupWindow.hoverTargetTop + root.barPopupGap : 0
         }
         WlrLayershell.namespace: "quickshell:popup"
         WlrLayershell.layer: WlrLayer.Overlay

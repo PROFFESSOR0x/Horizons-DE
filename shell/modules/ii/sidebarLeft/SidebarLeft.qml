@@ -115,6 +115,19 @@ Scope { // Scope
                 onTriggered: panelWindow.reallyVisible = false
             }
 
+            // See SidebarRight: only hot-corner opens are transient. A short
+            // grace period lets the pointer move from the corner into the panel.
+            Timer {
+                id: hoverCloseTimer
+                interval: 260
+                repeat: false
+                onTriggered: {
+                    if (GlobalStates.hoverOpenedState === "sidebarLeftOpen"
+                            && !sidebarHoverHandler.hovered)
+                        GlobalStates.closeHoverState("sidebarLeftOpen");
+                }
+            }
+
             property bool extend: false
             property real sidebarWidth: panelWindow.extend ? Appearance.sizes.sidebarWidthExtended : Appearance.sizes.sidebarWidth
             property var contentParent: sidebarLeftBackground
@@ -239,6 +252,16 @@ Scope { // Scope
                     onClicked: (mouse) => { mouse.accepted = true }
                 }
 
+                HoverHandler {
+                    id: sidebarHoverHandler
+                    onHoveredChanged: {
+                        if (hovered)
+                            hoverCloseTimer.stop();
+                        else if (GlobalStates.hoverOpenedState === "sidebarLeftOpen")
+                            hoverCloseTimer.restart();
+                    }
+                }
+
                 Keys.onPressed: (event) => {
                     if (event.key === Qt.Key_Escape) {
                         panelWindow.hide();
@@ -253,6 +276,17 @@ Scope { // Scope
                         }
                         event.accepted = true;
                     }
+                }
+            }
+
+            Connections {
+                target: GlobalStates
+                function onHoverOpenedStateChanged() {
+                    if (GlobalStates.hoverOpenedState === "sidebarLeftOpen"
+                            && GlobalStates.sidebarLeftOpen && !sidebarHoverHandler.hovered)
+                        hoverCloseTimer.restart();
+                    else if (GlobalStates.hoverOpenedState !== "sidebarLeftOpen")
+                        hoverCloseTimer.stop();
                 }
             }
         }

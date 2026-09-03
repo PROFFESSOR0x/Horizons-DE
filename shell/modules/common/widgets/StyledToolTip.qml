@@ -9,7 +9,11 @@ ToolTip {
     property bool extraVisibleCondition: true
     property bool alternativeVisibleCondition: false
 
-    readonly property bool internalVisibleCondition: (extraVisibleCondition && (parent.hovered === undefined || parent?.hovered)) || alternativeVisibleCondition
+    // A tooltip must never treat an item without a `hovered` property as
+    // hovered. Most bar widgets are MouseAreas and expose `containsMouse`
+    // instead; the old fallback made their tooltips visible all the time.
+    readonly property bool parentIsHovered: parent?.hovered === true || parent?.containsMouse === true
+    readonly property bool internalVisibleCondition: (extraVisibleCondition && parentIsHovered) || alternativeVisibleCondition
     verticalPadding: 5
     horizontalPadding: 10
     background: null

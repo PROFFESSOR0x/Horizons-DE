@@ -14,6 +14,9 @@ Singleton {
     property bool crosshairOpen: false
     property bool sidebarLeftOpen: false
     property bool sidebarRightOpen: false
+    // A hot corner opens panels without a click.  Keep that origin so a sidebar
+    // can close itself when the pointer leaves instead of staying latched open.
+    property string hoverOpenedState: ""
     property bool mediaControlsOpen: false
     property bool osdBrightnessOpen: false
     property bool settingsOpen: false
@@ -76,7 +79,21 @@ Singleton {
     function toggleState(name) {
         if (!name || name === "none") return;
         if (root[name] === undefined) return;
+        if (root.hoverOpenedState === name)
+            root.hoverOpenedState = "";
         root[name] = !root[name];
+    }
+
+    function openFromHover(name) {
+        if (!name || name === "none" || root[name] === undefined) return;
+        root.hoverOpenedState = name;
+        root[name] = true;
+    }
+
+    function closeHoverState(name) {
+        if (root.hoverOpenedState !== name) return;
+        root.hoverOpenedState = "";
+        root[name] = false;
     }
     
     onSidebarRightOpenChanged: {

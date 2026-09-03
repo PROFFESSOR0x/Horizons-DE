@@ -41,6 +41,20 @@ Scope {
             onTriggered: panelWindow.reallyVisible = false
         }
 
+        // The right sidebar can be opened from a hot corner without a click.
+        // Let the pointer cross into the panel, then close only if it remains
+        // outside. Explicit shortcut/click opens are intentionally unaffected.
+        Timer {
+            id: hoverCloseTimer
+            interval: 260
+            repeat: false
+            onTriggered: {
+                if (GlobalStates.hoverOpenedState === "sidebarRightOpen"
+                        && !sidebarHoverHandler.hovered)
+                    GlobalStates.closeHoverState("sidebarRightOpen");
+            }
+        }
+
         function hide() {
             GlobalStates.sidebarRightOpen = false;
         }
@@ -152,6 +166,16 @@ Scope {
                     z: -1
                 }
 
+                HoverHandler {
+                    id: sidebarHoverHandler
+                    onHoveredChanged: {
+                        if (hovered)
+                            hoverCloseTimer.stop();
+                        else if (GlobalStates.hoverOpenedState === "sidebarRightOpen")
+                            hoverCloseTimer.restart();
+                    }
+                }
+
                 Loader {
                     id: sidebarContentLoader
                     active: panelWindow.reallyVisible || Config?.options.sidebar.keepRightSidebarLoaded
@@ -172,6 +196,17 @@ Scope {
 
                     sourceComponent: SidebarRightContent {}
                 }
+            }
+        }
+
+        Connections {
+            target: GlobalStates
+            function onHoverOpenedStateChanged() {
+                if (GlobalStates.hoverOpenedState === "sidebarRightOpen"
+                        && GlobalStates.sidebarRightOpen && !sidebarHoverHandler.hovered)
+                    hoverCloseTimer.restart();
+                else if (GlobalStates.hoverOpenedState !== "sidebarRightOpen")
+                    hoverCloseTimer.stop();
             }
         }
 

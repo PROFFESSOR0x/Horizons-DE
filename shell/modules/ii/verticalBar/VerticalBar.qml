@@ -74,13 +74,11 @@ Scope {
                     hoverEnabled: true
                     anchors.fill: parent
 
-                    Item {
+                    AutoHideRevealRegion {
                         id: hoverMaskRegion
-                        anchors {
-                            fill: barContent
-                            leftMargin: -Config.options.bar.autoHide.hoverRegionWidth
-                            rightMargin: -Config.options.bar.autoHide.hoverRegionWidth
-                        }
+                        barItem: barContent
+                        vertical: true
+                        edgeAtEnd: Config.options.bar.bottom
                     }
 
                     RoundCorner {
@@ -153,7 +151,7 @@ Scope {
                             left: parent.left
                             right: undefined
                             leftMargin: (Config?.options.bar.autoHide.enable && !mustShow) 
-                                ? -Appearance.sizes.verticalBarWidth 
+                                ? -barContent.width
                                 : (Config.options.bar.cornerStyle === 3 ? (Config.options.hyprland.general.gapsOut || 5) : 0)
                         }
                         Behavior on anchors.leftMargin {
@@ -178,7 +176,7 @@ Scope {
                             PropertyChanges {
                                 target: barContent
                                 anchors.topMargin: 0
-                                anchors.rightMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -Appearance.sizes.barHeight : 0
+                                anchors.rightMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -barContent.width : 0
                             }
                         }
                     }

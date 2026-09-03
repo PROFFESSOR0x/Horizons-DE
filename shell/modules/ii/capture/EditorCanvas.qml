@@ -211,12 +211,29 @@ Item {
             if (onComplete) onComplete(success)
         }
 
-        if (root.drawHistory.length === 0 || root.isVideo) {
-            // For video or no-annotation image, just grab what's visible.
+        if (!root.isVideo && root.drawHistory.length === 0) {
+            // A screenshot already is a PNG. Copy it directly instead of
+            // grabbing the visible canvas into a temporary file first: that
+            // path races the renderer/file writer and was the source of the
+            // intermittent "Could not copy image" failure.
+            const q = StringUtils.shellSingleQuoteEscape
+            root.runProcess(clipboardProcess, [
+                "bash", "-c",
+                "test -s '" + q(root.loadedImagePath) + "' && wl-copy --type image/png < '" + q(root.loadedImagePath) + "'"
+            ], finish)
+            return
+        }
+
+        if (root.isVideo) {
+            // Video has no source PNG, so copy the currently rendered frame.
             canvasContainer.grabToImage(function(result) {
                 const tempPath = "/tmp/quickshell/media/capture-editor-copy-" + Date.now() + ".png"
                 result.saveToFile(tempPath)
-                root.runProcess(clipboardProcess, ["bash", "-c", "wl-copy < '" + StringUtils.shellSingleQuoteEscape(tempPath) + "'"], finish)
+                const q = StringUtils.shellSingleQuoteEscape
+                root.runProcess(clipboardProcess, [
+                    "bash", "-c",
+                    "test -s '" + q(tempPath) + "' && wl-copy --type image/png < '" + q(tempPath) + "'"
+                ], finish)
             })
             return
         }
@@ -226,7 +243,7 @@ Item {
             const q = StringUtils.shellSingleQuoteEscape
             root.runProcess(clipboardProcess, [
                 "bash", "-c",
-                "magick '" + q(root.loadedImagePath) + "' '" + q(annPath) + "' -composite '" + q(outTmp) + "' && wl-copy < '" + q(outTmp) + "'"
+                "magick '" + q(root.loadedImagePath) + "' '" + q(annPath) + "' -composite '" + q(outTmp) + "' && test -s '" + q(outTmp) + "' && wl-copy --type image/png < '" + q(outTmp) + "'"
             ], finish)
         })
     }
@@ -326,6 +343,7 @@ Item {
         property var completion: null
         command: []
         onExited: exitCode => {
+            console.log("[EditorCanvas] clipboard process exited:", exitCode)
             const callback = completion
             completion = null
             if (callback) callback(exitCode === 0)

@@ -20,8 +20,17 @@ Item {
         tooltipLoader.item?.anchor.updateAnchor();
     }
 
-    readonly property bool internalVisibleCondition: (extraVisibleCondition && (parent.hovered === undefined || parent?.hovered)) || alternativeVisibleCondition
-    property var anchorEdges: Edges.Top
+    // Do not interpret a missing `hovered` property as an active hover. Bar
+    // widgets often use MouseArea, whose equivalent state is `containsMouse`.
+    readonly property bool parentIsHovered: parent?.hovered === true || parent?.containsMouse === true
+    readonly property bool internalVisibleCondition: (extraVisibleCondition && parentIsHovered) || alternativeVisibleCondition
+    // Bar tooltips open toward the usable desktop area: above a bottom bar,
+    // below a top bar, and inward from either vertical edge.
+    property var anchorEdges: {
+        if (Config.options.bar.vertical)
+            return Config.options.bar.bottom ? Edges.Left : Edges.Right
+        return Config.options.bar.bottom ? Edges.Top : Edges.Bottom
+    }
     property var anchorGravity: anchorEdges
 
     property Item contentItem: StyledToolTipContent {

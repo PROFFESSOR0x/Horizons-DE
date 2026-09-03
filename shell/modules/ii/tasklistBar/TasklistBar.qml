@@ -82,13 +82,10 @@ Scope {
                     hoverEnabled: true
                     anchors.fill: parent
 
-                    Item {
+                    AutoHideRevealRegion {
                         id: hoverMaskRegion
-                        anchors {
-                            fill: barContent
-                            topMargin: -Config.options.bar.autoHide.hoverRegionWidth
-                            bottomMargin: -Config.options.bar.autoHide.hoverRegionWidth
-                        }
+                        barItem: barContent
+                        edgeAtEnd: Config.options.bar.bottom
                     }
 
                     TasklistBarContent {
@@ -100,7 +97,7 @@ Scope {
                             left: parent.left
                             top: parent.top
                             bottom: undefined
-                            topMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -Appearance.sizes.barHeight : 0
+                            topMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -barContent.height : 0
                         }
                         Behavior on anchors.topMargin {
                             animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
@@ -122,7 +119,7 @@ Scope {
                             PropertyChanges {
                                 target: barContent
                                 anchors.topMargin: 0
-                                anchors.bottomMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -Appearance.sizes.barHeight : 0
+                                anchors.bottomMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -barContent.height : 0
                             }
                         }
                     }
