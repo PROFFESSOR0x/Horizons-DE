@@ -17,6 +17,7 @@ Singleton {
     property bool mediaControlsOpen: false
     property bool osdBrightnessOpen: false
     property bool settingsOpen: false
+    property bool keybindsOverlayOpen: false
     property bool osdVolumeOpen: false
     property bool oskOpen: false
     property bool overlayOpen: false
@@ -66,6 +67,7 @@ Singleton {
         { displayName: Translation.tr("On-screen Keyboard"),     value: "oskOpen" },
         { displayName: Translation.tr("Session Menu"),           value: "sessionOpen" },
         { displayName: Translation.tr("Settings"),               value: "settingsOpen" },
+        { displayName: Translation.tr("Keybinds Cheatsheet"),    value: "keybindsOverlayOpen" },
         { displayName: Translation.tr("Application Search"),     value: "searchOpen" },
         { displayName: Translation.tr("Drop Shelf"),             value: "dropShelfOpen" },
         { displayName: Translation.tr("Crosshair"),              value: "crosshairOpen" }

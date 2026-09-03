@@ -13,6 +13,7 @@ import qs.modules.ii.onScreenKeyboard
 import qs.modules.ii.overview
 import qs.modules.ii.polkit
 import qs.modules.ii.settings
+import qs.modules.ii.keybindsOverlay
 import qs.modules.ii.regionSelector
 import qs.modules.ii.capture
 import qs.modules.ii.screenCorners
@@ -70,6 +71,7 @@ Scope {
     PanelLoader { component: SidebarRight {} }
     PanelLoader { component: WallpaperSelector {} }
     PanelLoader { component: Settings {} }
+    PanelLoader { component: KeybindsOverlay {} }
     PanelLoader { component: DesktopMenu {} }
     PanelLoader { component: DropShelfPanel {} }
     PanelLoader { component: NiriBackdrop {} }
