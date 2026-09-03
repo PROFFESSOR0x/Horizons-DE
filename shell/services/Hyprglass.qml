@@ -13,6 +13,11 @@ import qs.modules.common.functions
 Singleton {
     id: root
 
+    // Plugin options are only valid after Hyprland has loaded hyprglass.so.
+    // Keeping this state here lets a disabled or unavailable plugin leave no
+    // invalid `plugin:hyprglass:*` entries behind in shellOverrides/main.lua.
+    property bool pluginLoaded: false
+
     // ── Public helpers ────────────────────────────────────────────────────
 
     // Built-in presets exposed to the UI (matches BuiltInPresets::getAll)
@@ -137,6 +142,22 @@ Singleton {
             entries["plugin:hyprglass:layers:preset"]                   = h.layers.preset || "[[EMPTY]]"
             entries["plugin:hyprglass:layers:namespace_presets"]        = h.layers.namespacePresets || "[[EMPTY]]"
             entries["plugin:hyprglass:layers:namespace_mask_thresholds"]= h.layers.namespaceMaskThresholds || "[[EMPTY]]"
+        }
+
+        // Hyprland rejects plugin keys while the plugin is absent. More
+        // importantly, a disabled Hyprglass must not leave stale keys that
+        // make the whole Hyprland config report errors on every reload.
+        if (!h.enabled) {
+            HyprlandConfig.resetMany(Object.keys(entries))
+            root.writePresetsFile()
+            return
+        }
+
+        // Loading is asynchronous. Wait until it succeeds before persisting
+        // plugin-only keys, so enabling Hyprglass is clean even on first use.
+        if (!root.pluginLoaded) {
+            root.ensurePluginLoaded()
+            return
         }
 
         HyprlandConfig.setMany(entries)
@@ -285,7 +306,7 @@ Singleton {
     // Auto-load hyprglass plugin if enabled but not yet loaded
     function ensurePluginLoaded() {
         const h = Config.options.appearance.hyprglass
-        if (!h || !h.enabled) return
+        if (!h || !h.enabled || root.pluginLoaded || pluginLoader.running) return
         // Try hyprpm first, fall back to common manual paths
         pluginLoader.running = true
     }
@@ -294,15 +315,24 @@ Singleton {
         id: pluginLoader
         running: false
         command: ["bash", "-c", `
-            if hyprctl plugin list 2>/dev/null | grep -q hyprglass; then exit 0; fi
-            hyprpm enable hyprglass 2>/dev/null && exit 0
+            if hyprctl plugin list 2>/dev/null | grep -q hyprglass; then echo __horizons_hyprglass_loaded__; exit 0; fi
+            hyprpm enable hyprglass 2>/dev/null || true
             for p in "$HOME/.config/hypr/hyprglass.so" "./hyprglass.so" "/usr/lib/hyprglass.so" "/usr/local/lib/hyprglass.so"; do
-                [ -f "$p" ] && hyprctl plugin load "$p" 2>/dev/null && exit 0
+                [ -f "$p" ] && hyprctl plugin load "$p" 2>/dev/null || true
+                if hyprctl plugin list 2>/dev/null | grep -q hyprglass; then echo __horizons_hyprglass_loaded__; exit 0; fi
             done
             # Also try building from bundled source if available
-            if [ -f "$HOME/End4-PXpC/shell/plugins/hyprglass/hyprglass.so" ]; then hyprctl plugin load "$HOME/End4-PXpC/shell/plugins/hyprglass/hyprglass.so" 2>/dev/null; fi
-            if [ -f "$HOME/.config/quickshell/horizons/plugins/hyprglass/hyprglass.so" ]; then hyprctl plugin load "$HOME/.config/quickshell/horizons/plugins/hyprglass/hyprglass.so" 2>/dev/null; fi
+            if [ -f "$HOME/End4-PXpC/shell/plugins/hyprglass/hyprglass.so" ]; then hyprctl plugin load "$HOME/End4-PXpC/shell/plugins/hyprglass/hyprglass.so" 2>/dev/null || true; fi
+            if [ -f "$HOME/.config/quickshell/horizons/plugins/hyprglass/hyprglass.so" ]; then hyprctl plugin load "$HOME/.config/quickshell/horizons/plugins/hyprglass/hyprglass.so" 2>/dev/null || true; fi
+            hyprctl plugin list 2>/dev/null | grep -q hyprglass && echo __horizons_hyprglass_loaded__ || exit 1
         `]
+        stdout: StdioCollector {
+            onStreamFinished: root.pluginLoaded = text.includes("__horizons_hyprglass_loaded__")
+        }
+        onExited: {
+            if (root.pluginLoaded)
+                applyTimer.restart()
+        }
     }
 
     Component.onCompleted: {
