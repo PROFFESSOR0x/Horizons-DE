@@ -30,7 +30,23 @@ MouseArea { // Notification group area
     implicitHeight: background.implicitHeight
 
     property real dragConfirmThreshold: 70 // Drag further to discard notification
+    property real clickMoveThreshold: 8 // Below this, a press+release counts as a click, not a cancelled drag
     property real dismissOvershoot: 20 // Account for gaps and bouncy animations
+    readonly property bool hasActions: root.notifications.some(n => (n.actions?.length ?? 0) > 0)
+    // Tracks arrivals so the "new item joined this group" pulse only fires
+    // after the card has actually mounted, never on initial creation.
+    property bool _mounted: false
+    property int _lastNotificationCount: -1
+    Component.onCompleted: {
+        root._lastNotificationCount = root.notificationCount;
+        Qt.callLater(() => { root._mounted = true; });
+    }
+    onNotificationCountChanged: {
+        if (root._mounted && root.notificationCount > root._lastNotificationCount) {
+            groupArrivalPulse.restart();
+        }
+        root._lastNotificationCount = root.notificationCount;
+    }
     property var qmlParent: root?.parent?.parent // There's something between this and the parent ListView
     property var parentDragIndex: qmlParent?.dragIndex ?? -1
     property real parentDragDistance: qmlParent?.dragDistance ?? 0
@@ -118,8 +134,17 @@ MouseArea { // Notification group area
         }
 
         onClicked: (mouse) => {
-            if (mouse.button === Qt.MiddleButton) 
+            if (mouse.button === Qt.MiddleButton) {
                 root.destroyWithAnimation();
+            } else if (mouse.button === Qt.LeftButton) {
+                // A left click with little to no movement toggles expansion.
+                // Anything that moved further was a (possibly cancelled) drag,
+                // not a click, so it's left alone here.
+                const dx = mouse.x - dragManager.startX;
+                const dy = mouse.y - dragManager.startY;
+                if (Math.sqrt(dx * dx + dy * dy) < root.clickMoveThreshold)
+                    root.toggleExpanded();
+            }
         }
 
         onDraggingChanged: () => {
@@ -179,6 +204,34 @@ MouseArea { // Notification group area
             animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
         }
 
+        Rectangle { // Brief highlight when a new notification joins this group while it's already visible
+            id: arrivalHighlight
+            anchors.fill: parent
+            radius: background.radius
+            color: Appearance.colors.colPrimary
+            opacity: 0
+
+            SequentialAnimation {
+                id: groupArrivalPulse
+                NumberAnimation {
+                    target: arrivalHighlight
+                    property: "opacity"
+                    to: 0.35
+                    duration: Appearance.animation.elementMoveFast.duration
+                    easing.type: Appearance.animation.elementMoveFast.type
+                    easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
+                }
+                NumberAnimation {
+                    target: arrivalHighlight
+                    property: "opacity"
+                    to: 0
+                    duration: Appearance.animation.elementMove.duration
+                    easing.type: Appearance.animation.elementMove.type
+                    easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
+                }
+            }
+        }
+
         RowLayout { // Left column for icon, right column for content
             id: row
             anchors.top: parent.top
@@ -218,7 +271,7 @@ MouseArea { // Notification group area
                     RowLayout {
                         id: topTextRow
                         anchors.left: parent.left
-                        anchors.right: expandButton.left
+                        anchors.right: hoverActionsRow.left
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 5
                         StyledText {
@@ -235,6 +288,12 @@ MouseArea { // Notification group area
                                 Appearance.colors.colSubtext :
                                 Appearance.colors.colOnLayer2
                         }
+                        MaterialSymbol { // Hints that this (collapsed) card has app-provided actions once expanded
+                            text: "more_horiz"
+                            iconSize: topRow.fontSize + 2
+                            color: Appearance.colors.colSubtext
+                            visible: root.hasActions && !root.expanded
+                        }
                         StyledText {
                             id: timeText
                             // Layout.fillWidth: true
@@ -245,18 +304,49 @@ MouseArea { // Notification group area
                             color: Appearance.colors.colSubtext
                         }
                     }
-                    NotificationGroupExpandButton {
-                        id: expandButton
+                    RowLayout { // Revealed on hover: quick actions, then the expand button
+                        id: hoverActionsRow
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        count: root.notificationCount
-                        expanded: root.expanded
-                        fontSize: topRow.fontSize
-                        onClicked: { root.toggleExpanded() }
-                        altAction: () => { root.toggleExpanded() }
+                        spacing: 2
 
-                        StyledToolTip {
-                            text: Translation.tr("Tip: right-clicking a group\nalso expands it")
+                        CircleUtilButton { // Quick dismiss for this whole app group
+                            id: quickDismissButton
+                            implicitHeight: topRow.fontSize + 4 * 2
+                            implicitWidth: implicitHeight
+                            opacity: root.containsMouse ? 1 : 0
+                            visible: opacity > 0
+                            buttonRadius: implicitHeight / 2
+
+                            Behavior on opacity {
+                                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                            }
+
+                            onClicked: root.destroyWithAnimation()
+
+                            MaterialSymbol {
+                                horizontalAlignment: Text.AlignHCenter
+                                text: "close"
+                                iconSize: topRow.fontSize + 4
+                                color: Appearance.colors.colOnLayer2
+                            }
+
+                            StyledToolTip {
+                                text: Translation.tr("Dismiss")
+                            }
+                        }
+
+                        NotificationGroupExpandButton {
+                            id: expandButton
+                            count: root.notificationCount
+                            expanded: root.expanded
+                            fontSize: topRow.fontSize
+                            onClicked: { root.toggleExpanded() }
+                            altAction: () => { root.toggleExpanded() }
+
+                            StyledToolTip {
+                                text: Translation.tr("Tip: clicking or right-clicking\na group also expands it")
+                            }
                         }
                     }
                 }
