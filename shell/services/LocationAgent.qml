@@ -69,9 +69,14 @@ Singleton {
         }
     }
 
+    // Only QuickActionsBarContent.qml reads root.running, and it only exists
+    // while barMode is "quickActionsBar" (see PanelLoader in
+    // IllogicalImpulseFamily.qml). Polling pgrep every 5s for a value
+    // nothing displays wastes a subprocess spawn; toggle()/refresh() still
+    // update immediately on demand and after start()/stop() either way.
     Timer {
         interval: 5000
-        running: root.available
+        running: root.available && Config.options.bar.barMode === "quickActionsBar"
         repeat: true
         onTriggered: root.refresh()
     }
