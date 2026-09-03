@@ -85,6 +85,42 @@ Singleton {
             }
             opts.m3Island.scrollActionMigrated = true;
         }
+
+        // Back-compat shim for the blur/transparency/glass exclusivity rule.
+        // Before this, blur (hyprland.decoration.blur.enabled), transparency
+        // (appearance.transparency.enable) and glass (appearance.glass.enable /
+        // appearance.hyprglass.enabled) could all be turned on independently and
+        // silently conflict. Pick whichever was already active, using the
+        // priority glass > transparency > blur > none (glass is the most
+        // deliberate/heavyweight choice a user would have made), so an existing
+        // user's look is preserved as closely as possible instead of the config
+        // being left in an ambiguous multi-enabled state.
+        if (!opts.appearance.visualEffectMigrated) {
+            const hadGlass = opts.appearance.hyprglass.enabled || opts.appearance.glass.enable;
+            const hadTransparency = opts.appearance.transparency.enable;
+            const hadBlur = opts.hyprland.decoration.blur.enabled;
+            let effect;
+            if (hadGlass) effect = "glass";
+            else if (hadTransparency) effect = "transparency";
+            else if (hadBlur) effect = "blur";
+            else effect = "none";
+            opts.appearance.visualEffect = effect;
+            root.applyVisualEffectExclusivity(effect);
+            opts.appearance.visualEffectMigrated = true;
+        }
+    }
+
+    // Enforces that exactly one of blur / transparency / glass (Hyprglass) is
+    // enabled in the JSON config, matching `effect`. This only touches
+    // Config.options; callers that need the change to actually reach the
+    // compositor/plugin (HyprlandConfig.set(...), Hyprglass.apply()) do so
+    // themselves after calling this — see InterfaceConfig.qml.
+    function applyVisualEffectExclusivity(effect) {
+        const opts = root.options;
+        opts.hyprland.decoration.blur.enabled = effect === "blur";
+        opts.appearance.transparency.enable = effect === "transparency";
+        opts.appearance.glass.enable = effect === "glass";
+        opts.appearance.hyprglass.enabled = effect === "glass";
     }
 
     Timer {
@@ -154,6 +190,18 @@ Singleton {
             property JsonObject appearance: JsonObject {
                 property bool extraBackgroundTint: true
                 property int fakeScreenRounding: 2 // 0: None | 1: Always | 2: When not fullscreen
+                // Blur (hyprland.decoration.blur.enabled), transparency
+                // (appearance.transparency.enable) and glass (appearance.glass.enable /
+                // appearance.hyprglass.enabled) all change how the same surfaces look and
+                // visibly conflict when stacked (e.g. Hyprglass compositing its own blur
+                // behind an already-alpha-transparent, separately-blurred panel). Settings
+                // > Interface exposes them as one exclusive choice; this is the persisted
+                // selection. See Config.applyVisualEffectExclusivity().
+                property string visualEffect: "blur" // "none" | "blur" | "transparency" | "glass"
+                // Set once migrateLegacyConfig() has resolved a pre-existing config's
+                // (possibly simultaneously-enabled) blur/transparency/glass flags into a
+                // single visualEffect choice, so later user edits are never overwritten.
+                property bool visualEffectMigrated: false
                 property JsonObject fonts: JsonObject {
                     property string main: "Google Sans Flex"
                     property string numbers: "Google Sans Flex"

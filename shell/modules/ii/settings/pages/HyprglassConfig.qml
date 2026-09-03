@@ -35,9 +35,23 @@ ContentPage {
                     text: Translation.tr("Enable Hyprglass (compositor glass)")
                     checked: page.h ? page.h.enabled : false
                     onCheckedChanged: {
-                        page.h.enabled = checked
-                        // Keep legacy shell glass in sync so QML transparency matches
-                        Config.options.appearance.glass.enable = checked
+                        if (!page.h) return
+                        // Blur, transparency and Liquid Glass are mutually exclusive
+                        // (Settings > Interface > Visual Effect) — enabling Hyprglass
+                        // here must turn the other two off too, and disabling it
+                        // should fall back to "none" rather than leaving the
+                        // Interface page's selector pointing at a style that's
+                        // actually off.
+                        if (checked) {
+                            Config.options.appearance.visualEffect = "glass"
+                            Config.applyVisualEffectExclusivity("glass")
+                        } else {
+                            page.h.enabled = false
+                            // Keep legacy shell glass in sync so QML transparency matches
+                            Config.options.appearance.glass.enable = false
+                            if (Config.options.appearance.visualEffect === "glass")
+                                Config.options.appearance.visualEffect = "none"
+                        }
                         Hyprglass.apply()
                     }
                 }

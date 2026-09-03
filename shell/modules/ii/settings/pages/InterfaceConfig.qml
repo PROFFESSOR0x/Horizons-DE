@@ -104,14 +104,32 @@ ContentPage {
                 }
             }
             ContentSubsection {
-                title: Translation.tr("Transparency")
+                title: Translation.tr("Visual Effect")
+                tooltip: Translation.tr("Blur, transparency and Liquid Glass all change how panels look and don't layer well together, so only one can be active at a time. Choosing one here automatically turns the other two off.")
                 GroupedList {
-                    ConfigSwitch {
-                        buttonIcon: "opacity"
-                        text: Translation.tr("Enable Transparency")
-                        checked: Config.options.appearance.transparency.enable
-                        onCheckedChanged: { Config.options.appearance.transparency.enable = checked }
+                    ConfigSelectionArray {
+                        icon: "styles"
+                        text: Translation.tr("Panel style")
+                        currentValue: Config.options.appearance.visualEffect
+                        onSelected: newValue => {
+                            Config.options.appearance.visualEffect = newValue;
+                            Config.applyVisualEffectExclusivity(newValue);
+                            HyprlandConfig.set("decoration:blur:enabled", Config.options.hyprland.decoration.blur.enabled ? 1 : 0);
+                            Hyprglass.apply();
+                        }
+                        options: [
+                            { displayName: Translation.tr("None"), icon: "block", value: "none" },
+                            { displayName: Translation.tr("Blur"), icon: "blur_on", value: "blur" },
+                            { displayName: Translation.tr("Transparency"), icon: "opacity", value: "transparency" },
+                            { displayName: Translation.tr("Liquid Glass"), icon: "water_drop", value: "glass" }
+                        ]
                     }
+                }
+            }
+            ContentSubsection {
+                title: Translation.tr("Transparency")
+                visible: Config.options.appearance.visualEffect === "transparency"
+                GroupedList {
                     ConfigSwitch {
                         buttonIcon: "auto_awesome"
                         text: Translation.tr("Automatic (disables Background slider)")
@@ -141,13 +159,8 @@ ContentPage {
             }
             ContentSubsection {
                 title: Translation.tr("Liquid Glass")
+                visible: Config.options.appearance.visualEffect === "glass"
                 GroupedList {
-                    ConfigSwitch {
-                        buttonIcon: "glass_cup"
-                        text: Translation.tr("Enable Liquid Glass")
-                        checked: Config.options.appearance.glass.enable
-                        onCheckedChanged: { Config.options.appearance.glass.enable = checked }
-                    }
                     ConfigSlider {
                         text: Translation.tr("Glass opacity")
                         textWidth: 110
@@ -156,6 +169,13 @@ ContentPage {
                         value: Config.options.appearance.glass.opacity * 100
                         from: 35; to: 95
                         onValueChanged: { Config.options.appearance.glass.opacity = value / 100 }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Full Hyprglass (compositor blur/refraction) controls are on the Hyprglass settings page.")
                     }
                 }
             }

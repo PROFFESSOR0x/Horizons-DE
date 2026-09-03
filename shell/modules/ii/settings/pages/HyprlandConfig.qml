@@ -1093,8 +1093,21 @@ ContentPage {
                     checked: Config.options.hyprland.decoration.blur.enabled
                     onCheckedChanged: {
                         if (checked === Config.options.hyprland.decoration.blur.enabled) return
-                        Config.options.hyprland.decoration.blur.enabled = checked
-                        HyprlandConfig.set("decoration:blur:enabled", checked ? 1 : 0)
+                        // Blur, transparency and Liquid Glass are mutually exclusive
+                        // (Settings > Interface > Visual Effect) — enabling blur here
+                        // must turn the other two off too, and disabling it should
+                        // fall back to "none" rather than leaving the Interface page's
+                        // selector pointing at a style that's actually off.
+                        if (checked) {
+                            Config.options.appearance.visualEffect = "blur"
+                            Config.applyVisualEffectExclusivity("blur")
+                            Hyprglass.apply()
+                        } else {
+                            Config.options.hyprland.decoration.blur.enabled = false
+                            if (Config.options.appearance.visualEffect === "blur")
+                                Config.options.appearance.visualEffect = "none"
+                        }
+                        HyprlandConfig.set("decoration:blur:enabled", Config.options.hyprland.decoration.blur.enabled ? 1 : 0)
                     }
                 }
                 ConfigSpinBox {

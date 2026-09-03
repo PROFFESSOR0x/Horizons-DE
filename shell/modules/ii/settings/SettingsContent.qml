@@ -17,6 +17,26 @@ Item {
     property int currentPage: 0
     property bool showingProfile: false
     property bool isMinimal: Config.options.settings.style === "minimal"
+    // Remembers the active page by name so that if the pages list itself
+    // changes shape while it's open (e.g. the Hyprglass tab disappearing
+    // because Liquid Glass just got turned off from within that very page),
+    // currentPage can be re-pointed at whatever the same logical page's new
+    // index is instead of landing on whichever unrelated page shifted into
+    // the old numeric slot.
+    property string _currentPageName: ""
+
+    onPagesChanged: {
+        if (root._currentPageName === "") return
+        const idx = root.pages.findIndex(p => p.name === root._currentPageName)
+        if (idx >= 0) {
+            root.currentPage = idx
+        } else if (root.currentPage >= root.pages.length) {
+            // The active page itself vanished (e.g. Hyprglass got hidden while
+            // open) — fall back to a page that always exists.
+            const fallback = root.pages.findIndex(p => p.name === Translation.tr("Interface"))
+            root.currentPage = fallback >= 0 ? fallback : 0
+        }
+    }
 
     Connections {
         target: GlobalStates
@@ -52,6 +72,7 @@ Item {
 
     onCurrentPageChanged: {
         const pageName = root.pages[currentPage]?.name ?? ""
+        root._currentPageName = pageName
         if (pageName === Translation.tr("About")) {
             if (SystemInfo.cpu === "") SystemInfo.refresh()
             Updates.refresh()
@@ -70,7 +91,13 @@ Item {
         ]
         if (WM.compositor === "hyprland") {
                     list.push({ name: Translation.tr("Hyprland"), icon: "select_window_2", component: Qt.resolvedUrl("pages/HyprlandConfig.qml") })
-                    list.push({ name: Translation.tr("Hyprglass"), icon: "water_drop", component: Qt.resolvedUrl("pages/HyprglassConfig.qml") })
+                    // Hyprglass's own settings only make sense while it's the active
+                    // Interface > Visual Effect choice — otherwise it's fully disabled
+                    // (see Config.applyVisualEffectExclusivity()), so keep the whole
+                    // page out of the nav rail rather than showing a page full of
+                    // controls for a disabled effect.
+                    if (Config.options.appearance.visualEffect === "glass")
+                        list.push({ name: Translation.tr("Hyprglass"), icon: "water_drop", component: Qt.resolvedUrl("pages/HyprglassConfig.qml") })
                     list.push({ name: Translation.tr("Keybinds"), icon: "keyboard", component: Qt.resolvedUrl("pages/KeybindsConfig.qml") })
                 }
         if (WM.compositor === "niri") {
