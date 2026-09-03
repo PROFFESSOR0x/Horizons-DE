@@ -24,9 +24,11 @@ RowLayout {
         StyledText {
             id: labelWidget
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             text: root.text
             color: Appearance.colors.colOnSecondaryContainer
             opacity: root.enabled ? 1 : 0.4
+            elide: Text.ElideRight
         }
     }
 

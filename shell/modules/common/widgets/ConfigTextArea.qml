@@ -46,15 +46,19 @@ RowLayout {
 
     ColumnLayout {
         Layout.fillWidth: true
+        Layout.minimumWidth: 0
         spacing: 0
         StyledText {
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             text: root.text
             color: root.colLabel
             opacity: root.enabled ? 1 : 0.4
+            elide: Text.ElideRight
         }
         StyledText {
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             visible: root.description.length > 0
             text: root.description
             font.pixelSize: Appearance.font.pixelSize.smaller
@@ -67,6 +71,7 @@ RowLayout {
     Rectangle {
         id: fieldBg
         Layout.preferredWidth: root.fieldWidth
+        Layout.minimumWidth: root.fieldWidth
         Layout.preferredHeight: root.fieldHeight
         Layout.alignment: Qt.AlignVCenter
         radius: root.cornerRadius
