@@ -424,6 +424,15 @@ ContentPage {
                 ConfigRow {
                     uniform: true
                     ConfigSwitch {
+                        buttonIcon: "vertical_align_center"
+                        text: Translation.tr("Reserve screen space")
+                        checked: Config.options.m3Island.reserveScreenSpace ?? false
+                        onCheckedChanged: {
+                            if (!Config.ready || checked === (Config.options.m3Island.reserveScreenSpace ?? false)) return
+                            Config.setNestedValue("m3Island.reserveScreenSpace", checked)
+                        }
+                    }
+                    ConfigSwitch {
                         buttonIcon: "open_in_full"
                         text: Translation.tr("Click to expand")
                         checked: Config.options.m3Island.clickToExpand

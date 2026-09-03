@@ -43,6 +43,7 @@
 #       --skip-bundled      Skip bundled extras
 #       --with-backup       Backup existing configs (default)
 #       --skip-backup       Skip backup
+#       --existing-config <action>  ask | keep | backup | delete detected non-Horizons configs
 #       --with-fontset <set> Use dotfiles fontset
 #       --via-nix           Use Nix/Home-manager for deps (experimental)
 #       --build-force       Force rebuild even if binaries exist
@@ -148,6 +149,7 @@ SHOW_PROFILES=false
 # Language (en / ar) — chosen at start of installer
 HORIZONS_LANG="en"
 HORIZONS_LANG_CLI=""
+EXISTING_CONFIG_ACTION="ask" # ask | keep | backup | delete
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 println(){ [[ "$QUIET" == false ]] && printf "%b\n" "$*"; true; }
@@ -269,6 +271,7 @@ while [[ $# -gt 0 ]]; do
     --skip-bundled|--skip-extra) DO_BUNDLED=false; shift ;;
     --with-backup) DO_BACKUP=true; SKIP_BACKUP=false; shift ;;
     --skip-backup) DO_BACKUP=false; SKIP_BACKUP=true; shift ;;
+    --existing-config) EXISTING_CONFIG_ACTION="${2,,}"; shift 2 ;;
     --skip-dots) SKIP_DOTS=true; shift ;;
     --skip-qs|--skip-quickshell) SKIP_QS=true; shift ;;
     --skip-hyprglass) SKIP_HYPRGLASS=true; shift ;;
@@ -284,6 +287,11 @@ while [[ $# -gt 0 ]]; do
     *) echo -e "${R}Unknown option: $1${RST}"; echo "Run ./installer.sh --help for usage."; exit 1 ;;
   esac
 done
+
+case "$EXISTING_CONFIG_ACTION" in
+  ask|keep|backup|delete) ;;
+  *) echo -e "${R}Invalid --existing-config value: $EXISTING_CONFIG_ACTION (use ask, keep, backup, delete)${RST}"; exit 1 ;;
+esac
 
 if [[ "$SHOW_PROFILES" == true ]]; then
     if declare -f horizons_profile_list &>/dev/null; then horizons_profile_list; else echo "minimal core full ultra"; fi
@@ -668,6 +676,105 @@ is_horizons_shell(){
     fi
   fi
   return 1
+}
+
+# ── Existing desktop configuration inventory ─────────────────────────────────
+# Only known, explicit paths are ever offered here. This deliberately does not
+# scan arbitrary dotfiles or remove a parent directory such as ~/.config.
+detect_existing_desktop_configs(){
+  EXISTING_CONFIG_LABELS=()
+  EXISTING_CONFIG_PATHS=()
+  local label path
+  local -a candidates=(
+    "Hyprland:$XDG_CONFIG_HOME/hypr"
+    "legacy Hyprland:$XDG_CONFIG_HOME/hyprland"
+    "i3:$XDG_CONFIG_HOME/i3"
+    "i3status:$XDG_CONFIG_HOME/i3status"
+    "Quickshell:$XDG_CONFIG_HOME/quickshell"
+    "AGS:$XDG_CONFIG_HOME/ags"
+    "Waybar:$XDG_CONFIG_HOME/waybar"
+    "Polybar:$XDG_CONFIG_HOME/polybar"
+    "Eww:$XDG_CONFIG_HOME/eww"
+    "Kitty:$XDG_CONFIG_HOME/kitty"
+    "Fish:$XDG_CONFIG_HOME/fish"
+  )
+  for item in "${candidates[@]}"; do
+    label="${item%%:*}"; path="${item#*:}"
+    [[ -e "$path" ]] || continue
+    # Horizons' own separate shell directory is not an external config.
+    [[ "$path" == "$QS_CONFIG_DIR" ]] && continue
+    # Do not offer the parent QuickShell directory when it contains only the
+    # Horizons profile we are installing/updating.
+    if [[ "$path" == "$XDG_CONFIG_HOME/quickshell" && -d "$QS_CONFIG_DIR" ]]; then
+      local child_count
+      child_count=$(find "$path" -mindepth 1 -maxdepth 1 -printf '.' 2>/dev/null | wc -c)
+      [[ "$child_count" -le 1 ]] && continue
+    fi
+    EXISTING_CONFIG_LABELS+=("$label")
+    EXISTING_CONFIG_PATHS+=("$path")
+  done
+}
+
+handle_existing_desktop_configs(){
+  detect_existing_desktop_configs
+  (( ${#EXISTING_CONFIG_PATHS[@]} > 0 )) || { info "No existing Hyprland/i3 shell or dotfile configs detected."; return 0; }
+
+  step "Detected existing shells and dotfiles"
+  local i
+  for i in "${!EXISTING_CONFIG_PATHS[@]}"; do
+    printf "  ${Y}•${RST} %-18s %s\n" "${EXISTING_CONFIG_LABELS[$i]}" "${EXISTING_CONFIG_PATHS[$i]}"
+  done
+
+  local action="$EXISTING_CONFIG_ACTION"
+  if [[ "$action" == ask ]]; then
+    if [[ "$ASK" == false ]]; then
+      action=keep
+      info "Non-interactive mode keeps detected configs by default. Use --existing-config backup or delete to choose explicitly."
+    else
+      printf "\n  ${B}Choose how to handle the detected configurations:${RST}\n"
+      printf "    ${G}1)${RST} Keep them unchanged (default)\n"
+      printf "    ${G}2)${RST} Create a backup copy\n"
+      printf "    ${G}3)${RST} Delete them permanently\n"
+      printf "  ${B}> ${RST}"; read -r config_choice || config_choice="1"
+      case "$config_choice" in
+        2|backup) action=backup ;;
+        3|delete) action=delete ;;
+        *) action=keep ;;
+      esac
+    fi
+  fi
+
+  case "$action" in
+    keep)
+      info "Keeping all detected configurations unchanged."
+      return 0 ;;
+    backup)
+      local inventory_backup="$XDG_STATE_HOME/horizons/existing-config-backups/$(date +%Y%m%d-%H%M%S)"
+      if [[ "$DRY_RUN" == true ]]; then
+        info "[dry-run] would back up detected configs to $inventory_backup"
+        return 0
+      fi
+      run mkdir -p "$inventory_backup"
+      for i in "${!EXISTING_CONFIG_PATHS[@]}"; do
+        run cp -a "${EXISTING_CONFIG_PATHS[$i]}" "$inventory_backup/${EXISTING_CONFIG_LABELS[$i]// /_}"
+      done
+      ok "Existing configuration backup saved to: $inventory_backup"
+      return 0 ;;
+    delete)
+      warn "This permanently deletes only the listed configuration paths. It never deletes ~/.config itself."
+      if [[ "$ASK" == false ]]; then
+        die "Refusing non-interactive deletion. Re-run interactively and confirm the exact deletion."
+      fi
+      printf "  Type DELETE to remove all %d detected paths: " "${#EXISTING_CONFIG_PATHS[@]}"
+      local confirmation=""; read -r confirmation || true
+      [[ "$confirmation" == DELETE ]] || { info "Deletion cancelled; all configurations were kept."; return 0; }
+      [[ "$DRY_RUN" == true ]] && { info "[dry-run] would delete only the listed paths."; return 0; }
+      for i in "${!EXISTING_CONFIG_PATHS[@]}"; do
+        run rm -rf -- "${EXISTING_CONFIG_PATHS[$i]}"
+      done
+      ok "Detected configurations deleted."
+      return 0 ;;
+  esac
 }
 
 # ── Requirement checks ────────────────────────────────────────────────────────
@@ -1464,6 +1571,7 @@ fi
 
 # Dynamic steps total based on profile (use +=1 to avoid set -e exit on 0++)
 STEPS_TOTAL=0
+((STEPS_TOTAL+=1)) # existing config inventory
 ((STEPS_TOTAL+=1)) # target requirements
 ((STEPS_TOTAL+=1)) # check
 ((STEPS_TOTAL+=1)) # migrate
@@ -1483,6 +1591,7 @@ STEPS_TOTAL=0
 STEPS_DONE=0
 _done(){ ((STEPS_DONE++)) || true; progress "$STEPS_DONE" "$STEPS_TOTAL" ""; printf "\n"; }
 
+handle_existing_desktop_configs; _done
 install_target_requirements; _done
 check_requirements;      _done
 migrate_legacy_configs;  _done

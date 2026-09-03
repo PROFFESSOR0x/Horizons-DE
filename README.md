@@ -67,6 +67,12 @@ runtime helpers; i3 installs i3, X.Org, and X11 clipboard support. `--skip-deps`
 is an explicit opt-out: it leaves the installer in audit-only mode and reports what
 is still missing.
 
+The installer also inventories known existing desktop configuration directories for
+Hyprland, i3, QuickShell, AGS, Waybar, Polybar, Eww, Kitty, and Fish. Interactive
+installs offer **Keep**, **Backup**, or permanently **Delete**. Deletion requires
+typing `DELETE`; non-interactive installs keep files unless `--existing-config backup`
+was supplied explicitly.
+
 ### Identity marker & update protocol
 
 After a successful install a marker is written (requested feature):

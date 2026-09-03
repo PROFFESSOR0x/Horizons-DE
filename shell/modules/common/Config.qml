@@ -86,6 +86,13 @@ Singleton {
             opts.m3Island.scrollActionMigrated = true;
         }
 
+        // Added after the first M3 Island release. JsonObject does not write
+        // newly declared defaults into an existing config automatically, so
+        // persist this value once or the settings switch resets on reload.
+        if (opts.m3Island.reserveScreenSpace === undefined) {
+            opts.m3Island.reserveScreenSpace = false;
+        }
+
         // Back-compat shim for the blur/transparency/glass exclusivity rule.
         // Before this, blur (hyprland.decoration.blur.enabled), transparency
         // (appearance.transparency.enable) and glass (appearance.glass.enable /
@@ -1052,6 +1059,10 @@ Singleton {
                 property string borderless: "pills"
                 property bool showBackground: true
                 property bool verbose: true
+                // Reserve a layer-shell exclusive zone so tiled windows never
+                // occupy the island's edge. Disabled by default: the island
+                // otherwise remains a floating overlay.
+                property bool reserveScreenSpace: false
                 // Clock
                 property string clockStyle: "m3" // "m3" | "minimal" | "digital"
                 property bool clockShowDate: true

@@ -56,9 +56,18 @@ Scope {
                 // has tucked the idle pill against the screen edge.
                 property bool mustShow: hoverRegion.containsMouse || superShow
                     || barContent.isLauncher || barContent.isNotification || barContent.isExpanded
-                // Always hug+float -> no exclusive zone push, window is transparent full-width but content is centered pill
+                // Default remains a floating island. When requested, reserve
+                // exactly the currently visible island height so clients are
+                // pushed away from its screen edge instead of sitting beneath it.
                 exclusionMode: ExclusionMode.Ignore
-                exclusiveZone: 0
+                readonly property bool reserveSpace: (Config.options.m3Island.reserveScreenSpace ?? false)
+                    && !(Config?.options.bar.autoHide.enable && !mustShow)
+                // Layer-shell compositors negotiate exclusive zones from the
+                // panel's edge geometry. A stable bar-height zone is reliable
+                // here; binding it to the morphing child can be ignored by
+                // Hyprland after the first surface commit.
+                exclusiveZone: reserveSpace ? Appearance.sizes.barHeight
+                    + (Config.options.m3Island.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0) : 0
                 WlrLayershell.namespace: "quickshell:m3Island"
                 WlrLayershell.layer: WlrLayer.Top
                 // Fixed window to avoid per-frame layer-shell resize - content morphs inside

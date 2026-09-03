@@ -168,6 +168,17 @@ Item {
         process.running = true
     }
 
+    // Copy real PNG bytes, not a file path. wl-copy is correct on Wayland;
+    // xclip/xsel keep the canvas functional for the i3/X11 target as well.
+    function clipboardCommand(imagePath) {
+        const q = StringUtils.shellSingleQuoteEscape
+        const file = "'" + q(imagePath) + "'"
+        return "test -s " + file + " && "
+            + "(command -v wl-copy >/dev/null 2>&1 && wl-copy --type image/png < " + file
+            + " || command -v xclip >/dev/null 2>&1 && xclip -selection clipboard -t image/png -i " + file
+            + " || command -v xsel >/dev/null 2>&1 && xsel --clipboard --input < " + file + ")"
+    }
+
     function saveImage(originalPath, onComplete, explicitPath = "") {
         if (!originalPath) return
         const mode = Config.options.screenCanvas.imageSaveMode || "editedSuffix"
@@ -216,10 +227,9 @@ Item {
             // grabbing the visible canvas into a temporary file first: that
             // path races the renderer/file writer and was the source of the
             // intermittent "Could not copy image" failure.
-            const q = StringUtils.shellSingleQuoteEscape
             root.runProcess(clipboardProcess, [
                 "bash", "-c",
-                "test -s '" + q(root.loadedImagePath) + "' && wl-copy --type image/png < '" + q(root.loadedImagePath) + "'"
+                root.clipboardCommand(root.loadedImagePath)
             ], finish)
             return
         }
@@ -229,10 +239,9 @@ Item {
             canvasContainer.grabToImage(function(result) {
                 const tempPath = "/tmp/quickshell/media/capture-editor-copy-" + Date.now() + ".png"
                 result.saveToFile(tempPath)
-                const q = StringUtils.shellSingleQuoteEscape
                 root.runProcess(clipboardProcess, [
                     "bash", "-c",
-                    "test -s '" + q(tempPath) + "' && wl-copy --type image/png < '" + q(tempPath) + "'"
+                    root.clipboardCommand(tempPath)
                 ], finish)
             })
             return
@@ -243,7 +252,7 @@ Item {
             const q = StringUtils.shellSingleQuoteEscape
             root.runProcess(clipboardProcess, [
                 "bash", "-c",
-                "magick '" + q(root.loadedImagePath) + "' '" + q(annPath) + "' -composite '" + q(outTmp) + "' && test -s '" + q(outTmp) + "' && wl-copy --type image/png < '" + q(outTmp) + "'"
+                "mkdir -p /tmp/quickshell/media && magick '" + q(root.loadedImagePath) + "' '" + q(annPath) + "' -composite '" + q(outTmp) + "' && " + root.clipboardCommand(outTmp)
             ], finish)
         })
     }
