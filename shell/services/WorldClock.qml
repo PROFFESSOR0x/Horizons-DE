@@ -101,10 +101,16 @@ Singleton {
     }
     readonly property bool use24h: root.ampmToken === ""
 
+    // WorldClockWidget.qml (a background desktop widget behind
+    // Config.options.background.widgets.worldClock.enable) is the only
+    // consumer of now/entries. Ticking every second to recompute times for
+    // every timezone entry is wasted work while that widget is disabled.
+    readonly property bool hasViewer: Config.options?.background?.widgets?.worldClock?.enable ?? false
+
     property var now: new Date()
     Timer {
         interval: 1000
-        running: true
+        running: root.hasViewer
         repeat: true
         onTriggered: root.now = new Date()
     }
@@ -118,7 +124,7 @@ Singleton {
 
     Timer {
         interval: 5 * 60 * 1000
-        running: true
+        running: root.hasViewer
         repeat: true
         onTriggered: root.refreshOffsets()
     }
