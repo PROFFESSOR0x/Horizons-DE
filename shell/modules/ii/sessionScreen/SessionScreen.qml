@@ -49,19 +49,70 @@ Scope {
             property string pendingDestructiveAction: ""
             property var pendingDestructiveCallback: null
 
+            // Password gate for destructive power actions (poweroff/reboot/
+            // reboot-to-firmware), mirroring the lock screen's
+            // "require password to power" toggle so it can't be bypassed
+            // simply by opening the session menu instead of the lock screen.
+            property bool awaitingPassword: false
+            property string passwordAuthError: ""
+            property var pendingPasswordCallback: null
+
             function runDestructiveAction(label, callback) {
                 if (!Config.options.sessionScreen.confirmDestructive
                     || pendingDestructiveAction === label) {
                     pendingDestructiveAction = ""
                     pendingDestructiveCallback = null
-                    callback()
-                    sessionRoot.hide()
+                    if (Config.options.lock.security.requirePasswordToPower) {
+                        sessionRoot.beginPasswordAuth(callback)
+                    } else {
+                        callback()
+                        sessionRoot.hide()
+                    }
                     return
                 }
                 pendingDestructiveAction = label
                 pendingDestructiveCallback = callback
                 sessionRoot.subtitle = Translation.tr("Click %1 again to confirm").arg(label)
                 destructiveConfirmTimer.restart()
+            }
+
+            function beginPasswordAuth(callback) {
+                sessionRoot.pendingPasswordCallback = callback
+                sessionRoot.passwordAuthError = ""
+                sessionRoot.awaitingPassword = true
+                Qt.callLater(() => passwordAuthField.forceActiveFocus())
+            }
+
+            function cancelPasswordAuth() {
+                sessionRoot.awaitingPassword = false
+                sessionRoot.pendingPasswordCallback = null
+                sessionRoot.passwordAuthError = ""
+                passwordAuthField.text = ""
+            }
+
+            function submitPasswordAuth() {
+                if (passwordAuth.inProgress)
+                    return
+                sessionRoot.passwordAuthError = ""
+                passwordAuth.verify(passwordAuthField.text)
+            }
+
+            PowerPasswordAuth {
+                id: passwordAuth
+                onSucceeded: {
+                    const callback = sessionRoot.pendingPasswordCallback
+                    sessionRoot.awaitingPassword = false
+                    sessionRoot.pendingPasswordCallback = null
+                    passwordAuthField.text = ""
+                    if (callback)
+                        callback()
+                    sessionRoot.hide()
+                }
+                onFailed: {
+                    sessionRoot.passwordAuthError = Translation.tr("Incorrect password")
+                    passwordAuthField.text = ""
+                    passwordAuthField.forceActiveFocus()
+                }
             }
 
             Timer {
@@ -75,6 +126,7 @@ Scope {
             }
 
             function hide() {
+                sessionRoot.cancelPasswordAuth()
                 GlobalStates.sessionOpen = false;
             }
 
@@ -129,7 +181,11 @@ Scope {
 
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_Escape) {
-                        sessionRoot.hide();
+                        if (sessionRoot.awaitingPassword) {
+                            sessionRoot.cancelPasswordAuth();
+                        } else {
+                            sessionRoot.hide();
+                        }
                     }
                 }
 
@@ -158,6 +214,7 @@ Scope {
                 }
 
                 GridLayout {
+                    visible: !sessionRoot.awaitingPassword
                     columns: sessionRoot.edgeMode ? Math.min(2, Config.options.sessionScreen.columns) : Config.options.sessionScreen.columns
                     columnSpacing: 15
                     rowSpacing: 15
@@ -290,8 +347,58 @@ Scope {
                     }
                 }
 
+                ColumnLayout {
+                    id: passwordAuthPanel
+                    visible: sessionRoot.awaitingPassword
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: 260
+                    spacing: 10
+
+                    StyledText {
+                        Layout.alignment: Qt.AlignHCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        font.pixelSize: Appearance.font.pixelSize.normal
+                        text: Translation.tr("Enter your password to continue")
+                    }
+
+                    MaterialTextField {
+                        id: passwordAuthField
+                        Layout.fillWidth: true
+                        echoMode: TextInput.Password
+                        inputMethodHints: Qt.ImhSensitiveData
+                        enabled: !passwordAuth.inProgress
+                        placeholderText: Translation.tr("Password")
+                        onAccepted: sessionRoot.submitPasswordAuth()
+                        Keys.onEscapePressed: sessionRoot.cancelPasswordAuth()
+                    }
+
+                    StyledText {
+                        Layout.alignment: Qt.AlignHCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        visible: sessionRoot.passwordAuthError.length > 0
+                        color: Appearance.m3colors.m3error
+                        text: sessionRoot.passwordAuthError
+                    }
+
+                    RowLayout {
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: 10
+
+                        DialogButton {
+                            buttonText: Translation.tr("Cancel")
+                            onClicked: sessionRoot.cancelPasswordAuth()
+                        }
+                        DialogButton {
+                            buttonText: Translation.tr("Confirm")
+                            enabled: !passwordAuth.inProgress
+                            onClicked: sessionRoot.submitPasswordAuth()
+                        }
+                    }
+                }
+
                 DescriptionLabel {
                     Layout.alignment: Qt.AlignHCenter
+                    visible: !sessionRoot.awaitingPassword
                     text: sessionRoot.subtitle
                 }
             }
