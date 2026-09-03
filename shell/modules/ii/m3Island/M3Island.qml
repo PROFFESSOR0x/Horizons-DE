@@ -160,5 +160,12 @@ Scope {
         function toggle(): void { GlobalStates.barOpen = !GlobalStates.barOpen }
         function close(): void { GlobalStates.barOpen = false }
         function open(): void { GlobalStates.barOpen = true }
+        // Forwarded to every screen's M3IslandContent via M3IslandState, since
+        // the actual expand/collapse and notification state lives per-screen
+        // inside the LazyLoader below, not here at the Scope level.
+        function expand(): void { M3IslandState.requestExpand() }
+        function collapse(): void { M3IslandState.requestCollapse() }
+        function toggleExpand(): void { M3IslandState.requestToggleExpand() }
+        function dismissNotification(): void { M3IslandState.requestDismissNotification() }
     }
 }
