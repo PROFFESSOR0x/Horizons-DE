@@ -40,6 +40,12 @@ Item {
     property list<var> drawHistory: []
     property list<var> currentStrokePoints: []
 
+    Component.onCompleted: {
+        // Pre-create temp dirs so offscreen saveToFile never fails silently
+        Quickshell.execDetached(["mkdir", "-p", "/tmp/quickshell/media/overlays"])
+        Quickshell.execDetached(["mkdir", "-p", "/tmp/quickshell/media"])
+    }
+
     // Natural dimensions (Image or Video)
     readonly property real contentNativeWidth: root.isVideo
         ? (root.videoNativeWidth > 0 ? root.videoNativeWidth : 1920)
@@ -145,6 +151,10 @@ Item {
     // strokeFilter(stroke) → bool   — pass null to include every stroke.
     // ---------------------------------------------------------------------------
     function renderAnnotationsOffscreen(nw, nh, strokeFilter, callback) {
+        // Ensure the overlays directory exists before the offscreen canvas
+        // tries to saveToFile() into it. Without this, saveToFile silently
+        // fails and the subsequent `magick ... -composite` has no input → copy fails.
+        Quickshell.execDetached(["mkdir", "-p", "/tmp/quickshell/media/overlays"])
         let oc = offscreenCanvas
         oc.width  = nw
         oc.height = nh
@@ -170,13 +180,18 @@ Item {
 
     // Copy real PNG bytes, not a file path. wl-copy is correct on Wayland;
     // xclip/xsel keep the canvas functional for the i3/X11 target as well.
+    // NOTE: previous version used `A && B || C && D` without grouping which
+    // causes bash to evaluate as `((A && B) || C) && D` → runs D even when B
+    // succeeded and fails when xclip/xsel are missing. Use if/elif to avoid
+    // precedence pitfalls.
     function clipboardCommand(imagePath) {
         const q = StringUtils.shellSingleQuoteEscape
         const file = "'" + q(imagePath) + "'"
-        return "test -s " + file + " && "
-            + "(command -v wl-copy >/dev/null 2>&1 && wl-copy --type image/png < " + file
-            + " || command -v xclip >/dev/null 2>&1 && xclip -selection clipboard -t image/png -i " + file
-            + " || command -v xsel >/dev/null 2>&1 && xsel --clipboard --input < " + file + ")"
+        return "test -s " + file + " && { "
+            + "if command -v wl-copy >/dev/null 2>&1; then wl-copy --type image/png < " + file + "; "
+            + "elif command -v xclip >/dev/null 2>&1; then xclip -selection clipboard -t image/png -i " + file + "; "
+            + "elif command -v xsel >/dev/null 2>&1; then xsel --clipboard --input < " + file + "; "
+            + "else false; fi; }"
     }
 
     function saveImage(originalPath, onComplete, explicitPath = "") {
@@ -194,10 +209,11 @@ Item {
 
         // If there are no annotations just grab the container as-is (fast path).
         if (root.drawHistory.length === 0) {
+            Quickshell.execDetached(["mkdir", "-p", "/tmp/quickshell/media"])
             canvasContainer.grabToImage(function(result) {
                 const tmp = "/tmp/quickshell/media/qs-save-nodraw-" + Date.now() + ".png"
                 result.saveToFile(tmp)
-                root.runProcess(imageSaveProcess, ["magick", tmp, "-resize", nw + "x" + nh + "!", savePath], finish)
+                root.runProcess(imageSaveProcess, ["bash", "-c", "mkdir -p /tmp/quickshell/media && magick '" + StringUtils.shellSingleQuoteEscape(tmp) + "' -resize " + nw + "x" + nh + "! '" + StringUtils.shellSingleQuoteEscape(savePath) + "'"], finish)
             })
             return
         }
@@ -205,7 +221,8 @@ Item {
         // Render annotations at native size on the offscreen canvas, then
         // composite them over the original image with ImageMagick.
         renderAnnotationsOffscreen(nw, nh, null, function(annPath) {
-            root.runProcess(imageSaveProcess, ["magick", originalPath, annPath, "-composite", savePath], finish)
+            const q = StringUtils.shellSingleQuoteEscape
+            root.runProcess(imageSaveProcess, ["bash", "-c", "mkdir -p /tmp/quickshell/media/overlays && mkdir -p \"$(dirname '" + q(savePath) + "')\" && magick '" + q(originalPath) + "' '" + q(annPath) + "' -composite '" + q(savePath) + "'"], finish)
         })
     }
 
@@ -236,23 +253,27 @@ Item {
 
         if (root.isVideo) {
             // Video has no source PNG, so copy the currently rendered frame.
+            Quickshell.execDetached(["mkdir", "-p", "/tmp/quickshell/media"])
             canvasContainer.grabToImage(function(result) {
                 const tempPath = "/tmp/quickshell/media/capture-editor-copy-" + Date.now() + ".png"
                 result.saveToFile(tempPath)
                 root.runProcess(clipboardProcess, [
                     "bash", "-c",
-                    root.clipboardCommand(tempPath)
+                    "mkdir -p /tmp/quickshell/media && " + root.clipboardCommand(tempPath)
                 ], finish)
             })
             return
         }
 
         const outTmp = "/tmp/quickshell/media/capture-editor-copy-" + Date.now() + ".png"
+        // Ensure base dir exists before the async render (belt + suspenders with the
+        // mkdir inside renderAnnotationsOffscreen)
+        Quickshell.execDetached(["mkdir", "-p", "/tmp/quickshell/media"])
         renderAnnotationsOffscreen(nw, nh, null, function(annPath) {
             const q = StringUtils.shellSingleQuoteEscape
             root.runProcess(clipboardProcess, [
                 "bash", "-c",
-                "mkdir -p /tmp/quickshell/media && magick '" + q(root.loadedImagePath) + "' '" + q(annPath) + "' -composite '" + q(outTmp) + "' && " + root.clipboardCommand(outTmp)
+                "mkdir -p /tmp/quickshell/media/overlays && mkdir -p /tmp/quickshell/media && magick '" + q(root.loadedImagePath) + "' '" + q(annPath) + "' -composite '" + q(outTmp) + "' && " + root.clipboardCommand(outTmp)
             ], finish)
         })
     }

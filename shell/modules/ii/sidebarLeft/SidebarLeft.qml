@@ -63,21 +63,35 @@ Scope { // Scope
         root.sidebarContent = contentComponent.createObject(null, {
             "scopeRoot": root,
         });
-        sidebarLoader.item.contentParent.children = [root.sidebarContent];
+        // PanelWindow may fail to instantiate on X11 (no wl_display / no layer-shell).
+        // Guard against null so the whole shell does not throw "contentParent of null".
+        if (sidebarLoader.item?.contentParent) {
+            sidebarLoader.item.contentParent.children = [root.sidebarContent];
+        } else {
+            console.warn("[SidebarLeft] PanelWindow not ready (likely X11 without layer-shell), content will attach when loader becomes ready")
+        }
+    }
+    Connections {
+        target: sidebarLoader
+        function onLoaded() {
+            if (root.sidebarContent && sidebarLoader.item?.contentParent && root.sidebarContent.parent == null) {
+                sidebarLoader.item.contentParent.children = [root.sidebarContent];
+            }
+        }
     }
 
     onDetachChanged: {
         if (root.detach) {
-            GlobalFocusGrab.removeDismissable(sidebarLoader.item) // Remove sidebar from the focus grab system
-            sidebarContent.parent = null; // Detach content from sidebar
+            if (sidebarLoader.item) GlobalFocusGrab.removeDismissable(sidebarLoader.item) // Remove sidebar from the focus grab system
+            if (sidebarContent) sidebarContent.parent = null; // Detach content from sidebar
             sidebarLoader.active = false; // Unload sidebar
             detachedSidebarLoader.active = true; // Load detached window
-            detachedSidebarLoader.item.contentParent.children = [sidebarContent];
+            if (detachedSidebarLoader.item?.contentParent) detachedSidebarLoader.item.contentParent.children = [sidebarContent];
         } else {
-            sidebarContent.parent = null; // Detach content from window
+            if (sidebarContent) sidebarContent.parent = null; // Detach content from window
             detachedSidebarLoader.active = false; // Unload detached window
             sidebarLoader.active = true; // Load sidebar
-            sidebarLoader.item.contentParent.children = [sidebarContent];
+            if (sidebarLoader.item?.contentParent) sidebarLoader.item.contentParent.children = [sidebarContent];
         }
     }
 

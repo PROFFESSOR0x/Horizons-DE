@@ -9,7 +9,16 @@ Singleton {
     id: root
 
     readonly property string compositor: detectCompositor()
-    readonly property string sessionType: (Quickshell.env("XDG_SESSION_TYPE") ?? "").toLowerCase()
+    // XDG_SESSION_TYPE is empty inside Xephyr/nested X sessions and plain `i3` launches.
+    // Fall back to WAYLAND_DISPLAY/DISPLAY so a bare `DISPLAY=:1 quickshell -c horizons`
+    // is correctly recognised as X11 instead of “unknown”.
+    readonly property string sessionType: {
+        let t = (Quickshell.env("XDG_SESSION_TYPE") ?? "").toLowerCase();
+        if (t === "wayland" || t === "x11") return t;
+        if ((Quickshell.env("WAYLAND_DISPLAY") ?? "") !== "") return "wayland";
+        if ((Quickshell.env("DISPLAY") ?? "") !== "") return "x11";
+        return t;
+    }
     readonly property bool isWayland: sessionType === "wayland"
     readonly property bool isX11: sessionType === "x11"
     // Keep feature checks in one place. Components can stay generic instead of
@@ -29,12 +38,23 @@ Singleton {
         const desktop = (Quickshell.env("XDG_CURRENT_DESKTOP") ?? "").toLowerCase();
         const session = (Quickshell.env("XDG_SESSION_DESKTOP") ?? "").toLowerCase();
         const combined = desktop + " " + session;
+        // i3/X11 sessions often export no XDG_CURRENT_DESKTOP – detect via I3SOCK/WINDOWMANAGER too
+        const i3sock = (Quickshell.env("I3SOCK") ?? "")
+        const wmHint = (Quickshell.env("WINDOWMANAGER") ?? "").toLowerCase()
 
         if (combined.includes("hyprland")) return "hyprland";
         if (combined.includes("niri")) return "niri";
-        if (combined.includes("i3")) return "i3";
+        if (combined.includes("i3") || i3sock !== "" || wmHint.includes("i3")) return "i3";
         if (combined.includes("sway")) return "sway";
         if (combined.includes("mango")) return "mango";
+        // Last resort: if we are on X11 and no compositor was identified, assume i3
+        let sess = (Quickshell.env("XDG_SESSION_TYPE") ?? "").toLowerCase();
+        if (sess !== "wayland" && sess !== "x11") {
+            if ((Quickshell.env("WAYLAND_DISPLAY") ?? "") === "" && (Quickshell.env("DISPLAY") ?? "") !== "")
+                return "i3";
+        } else if (sess === "x11") {
+            return "i3";
+        }
         return "unknown";
     }
 
