@@ -442,6 +442,13 @@ ContentPage {
                         onCheckedChanged: { Config.options.m3Island.verbose = checked }
                     }
                 }
+                ConfigSpinBox {
+                    icon: "format_list_numbered"
+                    text: Translation.tr("Launcher maximum visible results")
+                    value: Config.options.m3Island.launcherMaxResults
+                    from: 1; to: 10; stepSize: 1
+                    onValueChanged: { Config.options.m3Island.launcherMaxResults = value }
+                }
                 ConfigSelectionArray {
                     text: Translation.tr("Scroll over island")
                     icon: "mouse"

@@ -27,6 +27,10 @@
 #   -v, --verbose           Verbose output
 #       --dry-run           Show what would be done, don't execute
 #       --profile <name>    minimal | core (default) | full | ultra
+#       --wm <name>         Required on a new install: hyprland | i3
+#       --protocol <name>   Wayland | X11 (validated against --wm)
+#       --desktop <name>    Required on a new install: horizons | existing
+#       --fresh-install     Do not convert a repeated `install` invocation to update
 #       --components <csv>  Comma-separated overrides: dots,shell,hyprglass,bundled,build,deps,sysupdate,backup
 #                           Prefix with ^/- /no- to disable: --components no-dots,^bundled
 #       --with-deps         Install dependencies (default: via profile)
@@ -114,6 +118,16 @@ DO_SYSUPDATE=false
 DO_DEPS=true
 DO_BACKUP=true
 BUILD_FORCE=false
+
+# Installation target. Hyprland is a Wayland compositor; i3 is an X11 window
+# manager. These are deliberately stored independently from the profile.
+HORIZONS_PROTOCOL=""
+HORIZONS_WINDOW_MANAGER=""
+HORIZONS_DESKTOP_ENVIRONMENT=""
+HORIZONS_PROTOCOL_CLI=false
+HORIZONS_WINDOW_MANAGER_CLI=false
+HORIZONS_DESKTOP_ENVIRONMENT_CLI=false
+FRESH_INSTALL=false
 
 # Legacy compat flags (mapped later)
 SKIP_DEPS=false
@@ -236,6 +250,10 @@ while [[ $# -gt 0 ]]; do
     -v|--verbose) VERBOSE=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
     --profile) HORIZONS_PROFILE="$2"; shift 2 ;;
+    --wm|--window-manager) HORIZONS_WINDOW_MANAGER="${2,,}"; HORIZONS_WINDOW_MANAGER_CLI=true; shift 2 ;;
+    --protocol|--display-protocol) HORIZONS_PROTOCOL="${2,,}"; HORIZONS_PROTOCOL_CLI=true; shift 2 ;;
+    --desktop|--desktop-environment) HORIZONS_DESKTOP_ENVIRONMENT="${2,,}"; HORIZONS_DESKTOP_ENVIRONMENT_CLI=true; shift 2 ;;
+    --fresh-install) FRESH_INSTALL=true; shift ;;
     --components) COMPONENTS_CSV="$2"; shift 2 ;;
     --with-deps) DO_DEPS=true; SKIP_DEPS=false; shift ;;
     --skip-deps) DO_DEPS=false; SKIP_DEPS=true; shift ;;
@@ -270,6 +288,105 @@ if [[ "$SHOW_PROFILES" == true ]]; then
     exit 0
 fi
 
+# ── Installation target / session selection ──────────────────────────────────
+# i3 and Hyprland are window managers, not desktop environments. `desktop`
+# describes whether Horizons manages the surrounding dotfiles or is installed
+# as a shell on top of an existing desktop setup.
+horizons_target_for_wm(){
+  case "$HORIZONS_WINDOW_MANAGER" in
+    hyprland) HORIZONS_PROTOCOL="wayland" ;;
+    i3)       HORIZONS_PROTOCOL="x11" ;;
+    *) return 1 ;;
+  esac
+}
+
+horizons_validate_target(){
+  case "$HORIZONS_WINDOW_MANAGER:$HORIZONS_PROTOCOL" in
+    hyprland:wayland|i3:x11) ;;
+    hyprland:x11)
+      die "Hyprland is Wayland-only; Hyprland/X11 is not a valid target." ;;
+    i3:wayland)
+      die "i3 is X11-only; use Sway for an i3-like Wayland session (not supported by this installer yet)." ;;
+    *) die "Unsupported installation target: protocol='$HORIZONS_PROTOCOL', wm='$HORIZONS_WINDOW_MANAGER'." ;;
+  esac
+  case "$HORIZONS_DESKTOP_ENVIRONMENT" in
+    horizons|existing) ;;
+    *) die "Unsupported desktop mode '$HORIZONS_DESKTOP_ENVIRONMENT' (use horizons or existing)." ;;
+  esac
+}
+
+horizons_load_saved_target(){
+  declare -f horizons_state_is_installed &>/dev/null || return 1
+  horizons_state_is_installed || return 1
+  local saved_protocol saved_wm saved_desktop
+  saved_protocol=$(horizons_state_get display_protocol 2>/dev/null || true)
+  saved_wm=$(horizons_state_get window_manager 2>/dev/null || true)
+  saved_desktop=$(horizons_state_get desktop_environment 2>/dev/null || true)
+  [[ -n "$saved_protocol" && -n "$saved_wm" && -n "$saved_desktop" ]] || return 1
+  [[ "$HORIZONS_PROTOCOL_CLI" == true ]] || HORIZONS_PROTOCOL="$saved_protocol"
+  [[ "$HORIZONS_WINDOW_MANAGER_CLI" == true ]] || HORIZONS_WINDOW_MANAGER="$saved_wm"
+  [[ "$HORIZONS_DESKTOP_ENVIRONMENT_CLI" == true ]] || HORIZONS_DESKTOP_ENVIRONMENT="$saved_desktop"
+  return 0
+}
+
+horizons_infer_legacy_target(){
+  if [[ -f "$XDG_CONFIG_HOME/hypr/hyprland/variables.lua" ]] || command -v hyprctl &>/dev/null; then
+    HORIZONS_WINDOW_MANAGER="hyprland"
+    HORIZONS_PROTOCOL="wayland"
+    HORIZONS_DESKTOP_ENVIRONMENT="horizons"
+    return 0
+  fi
+  if [[ -f "$XDG_CONFIG_HOME/i3/config" ]] || command -v i3-msg &>/dev/null; then
+    HORIZONS_WINDOW_MANAGER="i3"
+    HORIZONS_PROTOCOL="x11"
+    HORIZONS_DESKTOP_ENVIRONMENT="existing"
+    return 0
+  fi
+  return 1
+}
+
+horizons_choose_target(){
+  if horizons_load_saved_target; then
+    info "$(L "Using the saved installation target" "استخدام هدف التثبيت المحفوظ"): $HORIZONS_PROTOCOL / $HORIZONS_WINDOW_MANAGER / $HORIZONS_DESKTOP_ENVIRONMENT"
+  elif [[ "$HORIZONS_WINDOW_MANAGER_CLI" == true || "$HORIZONS_PROTOCOL_CLI" == true || "$HORIZONS_DESKTOP_ENVIRONMENT_CLI" == true ]]; then
+    [[ -n "$HORIZONS_WINDOW_MANAGER" ]] || die "--protocol requires --wm on a new install."
+    [[ -n "$HORIZONS_DESKTOP_ENVIRONMENT" ]] || die "--desktop is required on a new install."
+    if [[ "$HORIZONS_PROTOCOL_CLI" == false ]]; then horizons_target_for_wm || die "Unknown window manager '$HORIZONS_WINDOW_MANAGER'."; fi
+  elif [[ "$ASK" == false ]]; then
+    horizons_infer_legacy_target || die "A new non-interactive install requires --wm and --desktop."
+    warn "Inferred legacy target: $HORIZONS_PROTOCOL / $HORIZONS_WINDOW_MANAGER / $HORIZONS_DESKTOP_ENVIRONMENT"
+  else
+    printf "\n  ${B}${BD}$(L "Choose the window-manager target" "اختر هدف مدير النوافذ"):${RST}\n"
+    printf "    ${G}1)${RST} Hyprland  $(L "(Wayland)" "(Wayland)")\n"
+    printf "    ${G}2)${RST} i3        $(L "(X11)" "(X11)")\n"
+    printf "  ${B}> ${RST}"; read -r target_choice || target_choice=""
+    case "$target_choice" in
+      1|hyprland|Hyprland) HORIZONS_WINDOW_MANAGER="hyprland" ;;
+      2|i3|I3) HORIZONS_WINDOW_MANAGER="i3" ;;
+      *) die "A window-manager target is required." ;;
+    esac
+    horizons_target_for_wm
+    printf "\n  ${B}${BD}$(L "Choose the desktop integration mode" "اختر نمط تكامل سطح المكتب"):${RST}\n"
+    printf "    ${G}1)${RST} $(L "Horizons-managed desktop (includes compatible dotfiles)" "سطح مكتب Horizons المُدار (يشمل ملفات الإعداد المتوافقة)")\n"
+    printf "    ${G}2)${RST} $(L "Existing desktop (shell integration only)" "سطح مكتب قائم (تكامل الواجهة فقط)")\n"
+    printf "  ${B}> ${RST}"; read -r desktop_choice || desktop_choice=""
+    case "$desktop_choice" in
+      1|horizons) HORIZONS_DESKTOP_ENVIRONMENT="horizons" ;;
+      2|existing) HORIZONS_DESKTOP_ENVIRONMENT="existing" ;;
+      *) die "A desktop integration mode is required." ;;
+    esac
+  fi
+
+  horizons_validate_target
+  # The bundled dots and hyprglass are Hyprland-only. An i3 or existing-DE
+  # install never receives them, even if a broad profile was selected.
+  if [[ "$HORIZONS_WINDOW_MANAGER" == "i3" || "$HORIZONS_DESKTOP_ENVIRONMENT" == "existing" ]]; then
+    DO_DOTS=false
+    DO_HYPRGLASS=false
+  fi
+  export HORIZONS_PROTOCOL HORIZONS_WINDOW_MANAGER HORIZONS_DESKTOP_ENVIRONMENT
+}
+
 # ── Resolve profile → flags, then apply granular overrides ───────────────────
 if declare -f horizons_profile_resolve &>/dev/null; then
     horizons_profile_resolve "$HORIZONS_PROFILE"
@@ -298,6 +415,19 @@ if declare -f horizons_profile_resolve &>/dev/null; then
     # Instead, respect that --with-build/--with-bundled mean true regardless of profile, if they were on CLI.
     # We do this by checking if original invokation contained those strings via $*? Not reliable. So we just keep profile + components.
     # For now, allow manual override via env: if user wants full control, use --components.
+fi
+
+if [[ "$COMMAND" == "install" || "$COMMAND" == "update" || "$COMMAND" == "build" ]]; then
+    horizons_choose_target
+fi
+
+# A repeated plain `./installer.sh` is an update, not a second install. The
+# saved target is loaded above and update_apply sets HORIZONS_REAPPLY=1 to
+# enter the pipeline exactly once after pulling.
+if [[ "$COMMAND" == "install" && "$FRESH_INSTALL" == false && "${HORIZONS_REAPPLY:-0}" != "1" ]] \
+    && declare -f horizons_state_is_installed &>/dev/null && horizons_state_is_installed; then
+    COMMAND="update"
+    info "$(L "Existing Horizons installation detected; switching to update mode." "تم العثور على تثبيت Horizons قائم؛ التحويل إلى وضع التحديث.")"
 fi
 
 # Legacy mapping for dotfiles/setup compatibility
@@ -943,6 +1073,7 @@ install_qs(){
 
 # ── Configure Hyprland ────────────────────────────────────────────────────────
 configure_hyprland(){
+  [[ "$HORIZONS_WINDOW_MANAGER" == "hyprland" ]] || return 0
   step "$(L "Configure Hyprland shell" "إعداد واجهة Hyprland")"
   local vars_file="$XDG_CONFIG_HOME/hypr/hyprland/variables.lua"
   local current_qs="(not detected)"
@@ -978,8 +1109,53 @@ configure_hyprland(){
   fi
 }
 
+# ── Configure i3/X11 integration ────────────────────────────────────────────
+configure_i3(){
+  [[ "$HORIZONS_WINDOW_MANAGER" == "i3" ]] || return 0
+  local i3_config="$XDG_CONFIG_HOME/i3/config"
+  local horizons_i3="$XDG_CONFIG_HOME/i3/horizons.conf"
+  local source_i3="$REPO_ROOT/i3/horizons.conf"
+  [[ -f "$i3_config" ]] || return 0
+
+  step "$(L "Configure i3/X11 shell" "إعداد واجهة i3/X11")"
+  if grep -Fq 'include ~/.config/i3/horizons.conf' "$i3_config" 2>/dev/null && [[ -f "$horizons_i3" ]]; then
+    ok "Horizons i3 integration already configured — no changes needed."
+    return 0
+  fi
+
+  printf "\n"
+  printf "  ${B}Horizons detected an i3 configuration:${RST} %s\n" "$i3_config"
+  printf "  ${DM}This adds a separate, reversible include for startup and IPC keybinds.${RST}\n"
+  printf "  ${DM}Existing i3 rules and bindings are left untouched.${RST}\n\n"
+  if ! confirm "$(L "Enable Horizons integration for i3/X11?" "تفعيل تكامل Horizons مع i3/X11؟")" "y"; then
+    info "$(L "Skipping i3 integration." "تخطي تكامل i3.")"
+    return 0
+  fi
+  if [[ "$DRY_RUN" == true ]]; then
+    info "[dry-run] would install $horizons_i3 and add its include to $i3_config"
+    return 0
+  fi
+  if [[ ! -f "$source_i3" ]]; then
+    warn "Horizons i3 template is missing: $source_i3"
+    return 1
+  fi
+  run cp "$i3_config" "${i3_config}.horizons.bak"
+  if [[ -f "$horizons_i3" ]]; then
+    run cp "$horizons_i3" "${horizons_i3}.horizons.bak"
+  fi
+  run cp "$source_i3" "$horizons_i3"
+  if ! grep -Fq 'include ~/.config/i3/horizons.conf' "$i3_config"; then
+    printf "\n# Horizons i3/X11 integration\ninclude ~/.config/i3/horizons.conf\n" >> "$i3_config"
+  fi
+  ok "i3 integration enabled. Backup saved to: ${i3_config}.horizons.bak"
+}
+
 # ── Add settings keybind ──────────────────────────────────────────────────────
 configure_keybind(){
+  # i3 gets its own IPC bindings from i3/horizons.conf. Do not create a
+  # Hyprland configuration directory merely because this installer was run
+  # inside an X11 session.
+  [[ -f "$XDG_CONFIG_HOME/hypr/hyprland/variables.lua" ]] || return 0
   step "$(L "Settings keybind" "اختصار الإعدادات")"
   local keybind_line='hl.bind("SUPER + escape", hl.dsp.global("quickshell:settingsToggle"), {description = "Toggle settings"})'
   local custom_dir="$XDG_CONFIG_HOME/hypr/custom"
@@ -1006,6 +1182,11 @@ configure_keybind(){
 
 # ── Restart Quickshell ────────────────────────────────────────────────────────
 restart_qs(){
+  local current_session="${XDG_SESSION_TYPE:-}"
+  if [[ "$HORIZONS_PROTOCOL" != "$current_session" ]]; then
+    info "$(L "Not restarting the active session because it does not match the selected target." "لن يتم إعادة تشغيل الجلسة الحالية لأنها لا تطابق الهدف المختار.")"
+    return 0
+  fi
   step "$(L "Restart Quickshell" "إعادة تشغيل Quickshell")"
   if ! confirm "$(L "Restart Quickshell now to apply changes?" "إعادة تشغيل Quickshell الآن لتطبيق التغييرات؟")"; then
     info "$(L "Skipping — restart manually:" "تخطي — أعد التشغيل يدوياً:")"
@@ -1023,8 +1204,11 @@ restart_qs(){
     err "quickshell binary not found. Start manually: qs -c horizons"
     return 1
   fi
-  WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}" \
-    "$QS_BIN" -c horizons >/dev/null 2>&1 &
+  if [[ "${XDG_SESSION_TYPE:-}" == "x11" ]]; then
+    DISPLAY="${DISPLAY:-:0}" "$QS_BIN" -c horizons >/dev/null 2>&1 &
+  else
+    WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}" "$QS_BIN" -c horizons >/dev/null 2>&1 &
+  fi
   sleep 2
   if pgrep -x quickshell &>/dev/null || pgrep -x qs &>/dev/null; then
     ok "Quickshell started successfully."
@@ -1279,6 +1463,7 @@ STEPS_TOTAL=0
 [[ "$DO_BUNDLED" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_SHELL" == true ]] && ((STEPS_TOTAL+=1)) || true
 ((STEPS_TOTAL+=1)) # hyprland
+((STEPS_TOTAL+=1)) # i3
 ((STEPS_TOTAL+=1)) # keybind
 ((STEPS_TOTAL+=1)) # restart
 ((STEPS_TOTAL+=1)) # state
@@ -1296,6 +1481,7 @@ if [[ "$DO_HYPRGLASS" == true ]]; then build_hyprglass; _done; fi
 if [[ "$DO_BUNDLED" == true ]]; then install_bundled; _done; fi
 if [[ "$DO_SHELL" == true ]]; then install_qs; _done; fi
 configure_hyprland;      _done
+configure_i3;            _done
 configure_keybind;       _done
 restart_qs;              _done
 write_horizons_state;    _done

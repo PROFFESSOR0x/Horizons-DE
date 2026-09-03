@@ -13,11 +13,18 @@ import qs.modules.common.models
 Item {
     id: root
     implicitWidth: 500
-    // Fixed height when launcher to avoid per-keystroke shaking via outer window animation
+    // The outer island animates this height, so it can follow the actual
+    // number of matches without a fixed empty results area.
     implicitHeight: column.implicitHeight
+    // This follows the *animated* island height rather than the launcher's
+    // final implicit height. Together with clipping, results are revealed only
+    // as the black launcher surface has physically expanded underneath them.
+    height: parent?.height ?? 0
+    clip: true
     property var panelWindow
-    // Stable column height: searchRow + optional results (fixed 320)
     property bool hasQuery: LauncherSearch.query !== ""
+    readonly property int maximumResults: Math.max(1, Config.options.m3Island.launcherMaxResults)
+    readonly property real resultsRevealProgress: Math.max(0, Math.min(1, (height - 52) / 88))
 
     Connections {
         target: GlobalStates
@@ -57,16 +64,20 @@ Item {
                 focus: GlobalStates.overviewOpen
                 font.pixelSize: Appearance.font.pixelSize.small
                 placeholderText: Translation.tr("Search, calculate or run")
-                onTextChanged: LauncherSearch.query = text
+                onTextChanged: {
+                    LauncherSearch.query = text
+                    resultsView.currentIndex = -1
+                }
                 onAccepted: {
-                    if (resultModel.values.length > 0) {
-                        let e = resultModel.values[0]
-                        if (e && e.execute) { e.execute(); GlobalStates.overviewOpen = false }
-                    }
+                    resultsView.executeCurrent()
                 }
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_Escape) { GlobalStates.overviewOpen = false; event.accepted = true }
-                    else if (event.key === Qt.Key_Down) { resultsView.forceActiveFocus(); if (resultsView.count>0) resultsView.currentIndex = 0; event.accepted = true }
+                    else if (event.key === Qt.Key_Down) {
+                        resultsView.selectResult(0)
+                        resultsView.forceActiveFocus()
+                        event.accepted = true
+                    }
                 }
             }
             // Sync back from service
@@ -90,15 +101,23 @@ Item {
             Layout.fillWidth: true
             height: 1
             color: Appearance.colors.colOutlineVariant
-            opacity: 0.5
+            opacity: 0.5 * root.resultsRevealProgress
         }
 
         ListView {
             id: resultsView
             visible: LauncherSearch.query !== ""
+            opacity: root.resultsRevealProgress
+            enabled: root.resultsRevealProgress >= 0.98
             Layout.fillWidth: true
-            Layout.preferredHeight: visible ? 320 : 0
-            implicitHeight: visible ? 320 : 0
+            // Use each delegate's measured content height, capped by the
+            // setting. More matches remain keyboard/scroll accessible.
+            readonly property real maximumVisibleHeight: root.maximumResults * 56
+            readonly property real desiredHeight: count > 0
+                ? Math.min(contentHeight + topMargin + bottomMargin, maximumVisibleHeight)
+                : 0
+            Layout.preferredHeight: visible ? desiredHeight : 0
+            implicitHeight: visible ? desiredHeight : 0
             clip: true
             spacing: 2
             topMargin: 6
@@ -106,8 +125,31 @@ Item {
             interactive: true
             cacheBuffer: 200
             model: ScriptModel { id: resultModel; objectProp: "key" }
+
+            function selectResult(index) {
+                if (count <= 0) return
+                currentIndex = Math.max(0, Math.min(index, count - 1))
+                positionViewAtIndex(currentIndex, ListView.Contain)
+            }
+
+            function executeCurrent() {
+                if (currentIndex < 0 || currentIndex >= resultModel.values.length) return
+                const entry = resultModel.values[currentIndex]
+                if (entry?.execute) {
+                    entry.execute()
+                    GlobalStates.overviewOpen = false
+                }
+            }
+
             // Debounce rapid typing to avoid shaking
-            Timer { id: updateTimer; interval: 60; onTriggered: resultModel.values = (LauncherSearch.results ?? []).slice(0, 10) }
+            Timer {
+                id: updateTimer
+                interval: 60
+                onTriggered: {
+                    resultModel.values = (LauncherSearch.results ?? []).slice(0, 10)
+                    Qt.callLater(() => resultsView.selectResult(0))
+                }
+            }
             Connections {
                 target: LauncherSearch
                 function onResultsChanged() { updateTimer.restart() }
@@ -115,12 +157,14 @@ Item {
             delegate: RippleButton {
                 id: delButton
                 required property var modelData
+                required property int index
                 property var entry: modelData
+                readonly property bool selected: ListView.isCurrentItem
                 width: ListView.view.width - 8
                 x: 4
                 implicitHeight: row.implicitHeight + 12
                 buttonRadius: Appearance.rounding.normal
-                colBackground: hovered || focus ? Appearance.colors.colPrimaryContainer : ColorUtils.transparentize(Appearance.colors.colPrimaryContainer, 1)
+                colBackground: hovered || selected ? Appearance.colors.colPrimaryContainer : ColorUtils.transparentize(Appearance.colors.colPrimaryContainer, 1)
                 colBackgroundHover: Appearance.colors.colPrimaryContainer
                 onClicked: { entry.execute(); GlobalStates.overviewOpen = false }
 
@@ -140,7 +184,7 @@ Item {
                         }
                     }
                     Component { id: sysIcon; IconImage { source: Quickshell.iconPath(delButton.entry.iconName, "image-missing"); width: 28; height: 28 } }
-                    Component { id: matIcon; MaterialSymbol { text: delButton.entry.iconName || "apps"; iconSize: 22; color: delButton.hovered || delButton.focus ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer1 } }
+                    Component { id: matIcon; MaterialSymbol { text: delButton.entry.iconName || "apps"; iconSize: 22; color: delButton.hovered || delButton.selected ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer1 } }
                     Component { id: txtIcon; StyledText { text: delButton.entry.iconName || ""; font.pixelSize: Appearance.font.pixelSize.large; color: Appearance.colors.colOnLayer1 } }
 
                     ColumnLayout {
@@ -156,12 +200,12 @@ Item {
                             Layout.fillWidth: true
                             text: delButton.entry.name
                             font.pixelSize: Appearance.font.pixelSize.small
-                            color: delButton.hovered || delButton.focus ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer1
+                            color: delButton.hovered || delButton.selected ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer1
                             elide: Text.ElideRight
                         }
                     }
                     StyledText {
-                        visible: delButton.hovered || delButton.focus
+                        visible: delButton.hovered || delButton.selected
                         text: delButton.entry.verb || "Open"
                         font.pixelSize: Appearance.font.pixelSize.smallest
                         color: Appearance.colors.colOnPrimaryContainer
@@ -170,7 +214,15 @@ Item {
             }
             Keys.onPressed: event => {
                 if (event.key === Qt.Key_Escape) { GlobalStates.overviewOpen = false; event.accepted = true }
-                else if (event.key === Qt.Key_Up && currentIndex === 0) { searchInput.forceActiveFocus(); event.accepted = true }
+                else if (event.key === Qt.Key_Down) { selectResult(currentIndex + 1); event.accepted = true }
+                else if (event.key === Qt.Key_Up) {
+                    if (currentIndex <= 0) searchInput.forceActiveFocus()
+                    else selectResult(currentIndex - 1)
+                    event.accepted = true
+                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    executeCurrent()
+                    event.accepted = true
+                }
             }
         }
     }

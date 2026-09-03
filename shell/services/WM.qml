@@ -9,6 +9,18 @@ Singleton {
     id: root
 
     readonly property string compositor: detectCompositor()
+    readonly property string sessionType: (Quickshell.env("XDG_SESSION_TYPE") ?? "").toLowerCase()
+    readonly property bool isWayland: sessionType === "wayland"
+    readonly property bool isX11: sessionType === "x11"
+    // Keep feature checks in one place. Components can stay generic instead of
+    // making assumptions from the compositor name.
+    readonly property var capabilities: ({
+        workspaceIpc: compositor === "hyprland" || compositor === "niri" || compositor === "i3",
+        compositorShortcuts: compositor === "hyprland",
+        layerShell: isWayland,
+        screenCapture: isWayland,
+        x11: isX11
+    })
     property QtObject backend: null
 
     function switchWorkspaceRelative(direction) { backend?.switchWorkspaceRelative(direction) }
@@ -20,6 +32,7 @@ Singleton {
 
         if (combined.includes("hyprland")) return "hyprland";
         if (combined.includes("niri")) return "niri";
+        if (combined.includes("i3")) return "i3";
         if (combined.includes("sway")) return "sway";
         if (combined.includes("mango")) return "mango";
         return "unknown";
@@ -27,6 +40,8 @@ Singleton {
 
     Component { id: hyprlandComp; HyprlandBackend {} }
     Component { id: niriComp; NiriBackend {} }
+    Component { id: i3Comp; I3Backend {} }
+    Component { id: nullComp; NullBackend {} }
     // Component { id: swayComp; SwayBackend {} }
     // Component { id: mangoComp; MangoBackend {} }
 
@@ -34,11 +49,14 @@ Singleton {
         switch (root.compositor) {
         case "hyprland": backend = hyprlandComp.createObject(root); break;
         case "niri":     backend = niriComp.createObject(root); break;
+        case "i3":       backend = i3Comp.createObject(root); break;
         // case "sway":  backend = swayComp.createObject(root); break;
         // case "mango": backend = mangoComp.createObject(root); break;
         default:
-            console.log("[WM] Unknown compositor: " + root.compositor + ", falling back to Hyprland backend");
-            backend = hyprlandComp.createObject(root);
+            // Never instantiate Hyprland integration outside a Hyprland
+            // session: that used to make a plain X11 session fail at startup.
+            console.log("[WM] Unsupported compositor: " + root.compositor + "; using the safe backend");
+            backend = nullComp.createObject(root);
         }
     }
 

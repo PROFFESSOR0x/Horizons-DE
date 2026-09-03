@@ -163,7 +163,10 @@ Item {
 
     property bool notifHovered: false
     implicitHeight: {
-        if (isLauncher) return 52 + (LauncherSearch.query !== "" ? 328 : 0) + 12
+        // The inline launcher reports the height of its actual result list.
+        // This keeps the island compact for one match and grows it only as
+        // more matches arrive (up to the configured visible-result limit).
+        if (isLauncher) return launcherInline.implicitHeight + 12
         if (isNotification) return notifContainer.implicitHeight + 16
         if (isExpanded) return Math.max(Config.options.m3Island.expandedHeight, expandedRow.implicitHeight + 16) + 8
         return Appearance.sizes.barHeight
@@ -171,10 +174,11 @@ Item {
     implicitWidth: contentWidth + islandPadding * 2
     width: contentWidth + islandPadding * 2
     clip: false
-    // Single source of morph - smooth spring, no double window anim
-    Behavior on implicitHeight { NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
-    Behavior on implicitWidth { NumberAnimation { duration: Appearance.animation.elementMoveSmall.duration; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial; alwaysRunToEnd: true } }
-    Behavior on width { NumberAnimation { duration: Appearance.animation.elementMoveSmall.duration; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial } }
+    // One visible surface morph. Hover expansion gets enough travel time to be
+    // perceived as a deliberate widening of the island, not a one-frame jump.
+    Behavior on implicitHeight { NumberAnimation { duration: isHoverPeek || isExpanded ? 360 : 240; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
+    Behavior on implicitWidth { NumberAnimation { duration: isHoverPeek || isExpanded ? 440 : 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
+    Behavior on width { NumberAnimation { duration: isHoverPeek || isExpanded ? 440 : 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
 
     readonly property real islandPadding: 10
     readonly property real islandSpacing: 6
@@ -388,9 +392,14 @@ Item {
     Item {
         id: contentStack
         anchors.centerIn: parent
-        width: root.contentWidth
+        // Use the current animated island width, not the destination width.
+        // This makes the widgets emerge from within the widening surface.
+        width: parent.width
         height: parent.height
-        clip: false
+        // The launcher grows the island's height while results are created.
+        // Clip the stack during that growth so result text can never paint
+        // outside the animated background.
+        clip: root.isLauncher || root.isHoverPeek || root.isExpanded
 
         // Idle - clock always centered (morphs out when launcher/notification)
         M3ClockCenter {
@@ -405,7 +414,8 @@ Item {
             showDate: Config.options.m3Island.clockShowDate
         }
 
-        // Hover peek - clock + hover widgets with scale morph
+        // Hover peek - let the surface widen first, then reveal its contents
+        // in reading order instead of dropping every widget in at once.
         RowLayout {
             id: hoverRow
             anchors.centerIn: parent
@@ -417,11 +427,34 @@ Item {
             Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial } }
 
             M3ClockCenter {
+                opacity: root.isHoverPeek ? 1 : 0
+                scale: root.isHoverPeek ? 1 : 0.84
+                Behavior on opacity {
+                    SequentialAnimation {
+                        PauseAnimation { duration: root.isHoverPeek ? 20 : 0 }
+                        NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                    }
+                }
+                Behavior on scale {
+                    SequentialAnimation {
+                        PauseAnimation { duration: root.isHoverPeek ? 20 : 0 }
+                        NumberAnimation { duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial }
+                    }
+                }
                 clockStyle: Config.options.m3Island.clockStyle
                 showDate: false
                 use24Hour: Config.options.m3Island.clockUse24h
             }
-            Rectangle { width: 1; height: 18; color: Appearance.colors.colOutlineVariant; opacity: 0.5 }
+            Rectangle {
+                width: 1; height: 18; color: Appearance.colors.colOutlineVariant
+                opacity: root.isHoverPeek ? 0.5 : 0
+                Behavior on opacity {
+                    SequentialAnimation {
+                        PauseAnimation { duration: root.isHoverPeek ? 60 : 0 }
+                        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                    }
+                }
+            }
             Repeater {
                 model: root.hoverLayout
                 delegate: Item {
@@ -430,6 +463,21 @@ Item {
                     readonly property bool isSys: modelData === "systemIcons"
                     implicitWidth: isSys ? sysBg.implicitWidth : barGroup.implicitWidth
                     implicitHeight: isSys ? sysBg.implicitHeight : barGroup.implicitHeight
+                    opacity: root.isHoverPeek ? 1 : 0
+                    scale: root.isHoverPeek ? 1 : 0.78
+                    transformOrigin: Item.Center
+                    Behavior on opacity {
+                        SequentialAnimation {
+                            PauseAnimation { duration: root.isHoverPeek ? 105 + index * 70 : 0 }
+                            NumberAnimation { duration: 170; easing.type: Easing.OutCubic }
+                        }
+                    }
+                    Behavior on scale {
+                        SequentialAnimation {
+                            PauseAnimation { duration: root.isHoverPeek ? 105 + index * 70 : 0 }
+                            NumberAnimation { duration: 250; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
+                        }
+                    }
                     Bar.BarGroup {
                         id: barGroup
                         visible: !isSys
@@ -467,8 +515,10 @@ Item {
             anchors.centerIn: parent
             visible: root.isExpanded
             opacity: visible ? 1 : 0
+            scale: visible ? 1 : 0.9
             spacing: 4
             Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            Behavior on scale { NumberAnimation { duration: 280; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
 
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
@@ -520,6 +570,20 @@ Item {
                         required property int index
                         implicitWidth: barGroup2.implicitWidth
                         implicitHeight: barGroup2.implicitHeight
+                        opacity: root.isExpanded ? 1 : 0
+                        scale: root.isExpanded ? 1 : 0.82
+                        Behavior on opacity {
+                            SequentialAnimation {
+                                PauseAnimation { duration: root.isExpanded ? 100 + index * 60 : 0 }
+                                NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                            }
+                        }
+                        Behavior on scale {
+                            SequentialAnimation {
+                                PauseAnimation { duration: root.isExpanded ? 100 + index * 60 : 0 }
+                                NumberAnimation { duration: 230; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
+                            }
+                        }
                         Bar.BarGroup {
                             id: barGroup2
                             anchors.centerIn: parent
@@ -546,6 +610,20 @@ Item {
                         required property int index
                         implicitWidth: barGroup3.implicitWidth
                         implicitHeight: barGroup3.implicitHeight
+                        opacity: root.isExpanded ? 1 : 0
+                        scale: root.isExpanded ? 1 : 0.82
+                        Behavior on opacity {
+                            SequentialAnimation {
+                                PauseAnimation { duration: root.isExpanded ? 140 + index * 60 : 0 }
+                                NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                            }
+                        }
+                        Behavior on scale {
+                            SequentialAnimation {
+                                PauseAnimation { duration: root.isExpanded ? 140 + index * 60 : 0 }
+                                NumberAnimation { duration: 230; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
+                            }
+                        }
                         Bar.BarGroup {
                             id: barGroup3
                             anchors.centerIn: parent

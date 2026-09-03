@@ -102,9 +102,11 @@ horizons_update_pull() {
         fi
         # Update state marker immediately
         if declare -f horizons_state_write &>/dev/null; then
-            local prof comp
+            local prof comp saved_lang
             prof=$(horizons_state_get profile 2>/dev/null || echo "full")
             comp=$(horizons_state_get components 2>/dev/null || echo "dots,shell,hyprglass")
+            saved_lang=$(horizons_state_get lang 2>/dev/null || true)
+            [[ -n "$saved_lang" ]] && HORIZONS_LANG="$saved_lang"
             horizons_state_write "$prof" "$comp"
         fi
         return 0
@@ -132,10 +134,10 @@ horizons_update_apply() {
     fi
 
     case "$mode" in
-        quick)  bash "$installer" --skip-deps --skip-backup --force ;;
-        smart)  bash "$installer" --skip-sysupdate --force ;;
-        full)   bash "$installer" --force ;;
-        *)      bash "$installer" --force ;;
+        quick)  HORIZONS_REAPPLY=1 bash "$installer" --skip-deps --skip-backup --force ;;
+        smart)  HORIZONS_REAPPLY=1 bash "$installer" --skip-sysupdate --force ;;
+        full)   HORIZONS_REAPPLY=1 bash "$installer" --force ;;
+        *)      HORIZONS_REAPPLY=1 bash "$installer" --force ;;
     esac
 }
 
@@ -194,8 +196,9 @@ horizons_update_full() {
     horizons_update_check
     local rc=$?
     if [[ $rc -eq 0 ]]; then
-        _hz_upd_ok "No update needed — still re-applying to ensure files are in sync? (skip with --check-only)"
-        return 0
+        _hz_upd_ok "No repository update needed — re-applying the saved installation target."
+        horizons_update_apply "$mode"
+        return $?
     fi
     # Even if check returned 2 (offline) we still try pull? Let user decide.
     if ! horizons_update_pull "$strategy"; then

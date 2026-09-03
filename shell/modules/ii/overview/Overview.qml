@@ -21,8 +21,8 @@ Scope {
     PanelWindow {
         id: panelWindow
         property string searchingText: ""
-        readonly property HyprlandMonitor monitor: Hyprland.monitorFor(panelWindow.screen)
-        property bool monitorIsFocused: (Hyprland.focusedMonitor?.id == monitor?.id)
+        readonly property var monitor: WM.monitorFor(panelWindow.screen)
+        property bool monitorIsFocused: WM.focusedMonitor?.name === monitor?.name
         // When m3Island is active, its inline launcher replaces Overview - suppress duplicate
         readonly property bool m3IslandActive: Config.options.bar.barMode === "m3Island"
         visible: GlobalStates.overviewOpen && !panelWindow.m3IslandActive
@@ -99,10 +99,10 @@ Scope {
                     GlobalStates.overviewOpen = false;
                 } else if (event.key === Qt.Key_Left) {
                     if (!panelWindow.searchingText)
-                        Hyprland.dispatch("workspace r-1");
+                        WM.switchWorkspaceRelative("prev");
                 } else if (event.key === Qt.Key_Right) {
                     if (!panelWindow.searchingText)
-                        Hyprland.dispatch("workspace r+1");
+                        WM.switchWorkspaceRelative("next");
                 }
             }
 

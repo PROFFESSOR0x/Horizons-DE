@@ -1071,6 +1071,8 @@ Singleton {
                 property bool hoverPeek: true
                 property bool clickToExpand: true
                 property bool launcherHug: true
+                // Number of launcher matches visible before its list scrolls.
+                property int launcherMaxResults: 6
                 property bool rightClickMenu: true
                 property int expandedHeight: 72
                 // A value of 0 follows the global notification timeout.

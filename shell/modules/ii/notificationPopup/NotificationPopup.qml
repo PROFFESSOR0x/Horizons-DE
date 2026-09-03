@@ -20,7 +20,9 @@ Scope {
         readonly property bool showPopups: displayMode !== "history"
             && (displayMode !== "island" || Config.options.bar.barMode !== "m3Island")
         visible: showPopups && (Notifications.popupList.length > 0) && !GlobalStates.screenLocked
-        screen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? null
+        // i3 has no Hyprland monitor object; use the compositor-neutral WM
+        // backend so notifications still land on the focused X11 output.
+        screen: Quickshell.screens.find(s => s.name === (WM.focusedMonitor?.name ?? Hyprland.focusedMonitor?.name)) ?? null
 
         property string position: {
             const raw = Config.options.notifications.position ?? "top_right"

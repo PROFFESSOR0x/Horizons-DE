@@ -19,6 +19,7 @@ Scope {
 		}
 
 		function onReloadFailed(error: string) {
+			ReloadController.markFailed()
 			// Close any existing popup before making a new one.
 			popupLoader.active = false;
 

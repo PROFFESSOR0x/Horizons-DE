@@ -24,7 +24,7 @@ NestableObject {
         if (WM.compositor === "hyprland")
             return hyprMonitor?.activeWorkspace?.id ?? 1
         const ws = WM.workspaces.find(w => w.output === root.monitorName && w.is_active)
-        return ws?.idx ?? 1
+        return ws?.idx ?? ws?.id ?? 1
     }
 
     readonly property bool currentWorkspaceNotFake: WM.compositor === "hyprland"
@@ -51,8 +51,11 @@ NestableObject {
         return root.getWorkspaceId(root.group, index)
     }
 
-    function _niriRealId(number) {
-        const ws = WM.workspaces.find(w => w.output === root.monitorName && w.idx === number)
+    // Both Niri and i3 describe their visible workspace through WM. Preserve
+    // Niri's idx field while accepting i3's numeric workspace id.
+    function _backendRealId(number) {
+        const ws = WM.workspaces.find(w => w.output === root.monitorName
+            && (w.idx === number || w.id === number))
         return ws?.id ?? null
     }
 
@@ -60,7 +63,7 @@ NestableObject {
         if (WM.compositor === "hyprland")
             return HyprlandData.biggestWindowForWorkspace(number)
 
-        const realId = root._niriRealId(number)
+        const realId = root._backendRealId(number)
         if (realId === null) return null
         const winsInWs = WM.windowList.filter(w => w.workspaceId === realId)
         if (winsInWs.length === 0) return null
@@ -77,7 +80,7 @@ NestableObject {
         } else {
             root.occupied = Array.from({ length: root.shownCount }, (_, i) => {
                 const number = getWorkspaceId(root.group, i)
-                const realId = root._niriRealId(number)
+                const realId = root._backendRealId(number)
                 if (realId === null) return false
                 return WM.windowList.some(w => w.workspaceId === realId)
             })
