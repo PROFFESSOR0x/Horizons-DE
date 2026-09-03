@@ -290,7 +290,10 @@ Item {
 
                 Component {
                     id: normalComponent
-                    SystemButtonRow {}
+                    SystemButtonRow {
+                        editMode: root.editMode
+                        onEditModeToggleRequested: root.editMode = !root.editMode
+                    }
                 }
             }
 
