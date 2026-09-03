@@ -19,6 +19,9 @@ Item {
     implicitWidth: 200
     implicitHeight: 200
 
+    Component.onCompleted: LyricsService.registerViewer()
+    Component.onDestruction: LyricsService.unregisterViewer()
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 4

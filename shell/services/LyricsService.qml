@@ -22,6 +22,31 @@ Singleton {
     readonly property int after:  3
     readonly property int total:  7
 
+    // Ref-counted by Lyrics.qml instances (Component.onCompleted/onDestruction).
+    // syncTimer only needs to run while at least one Lyrics widget is actually
+    // instantiated (media controls popup open, lyrics sidebar expanded, etc.);
+    // otherwise it was recomputing the active line 3-4x/second for a UI
+    // nothing was reading.
+    property int viewerCount: 0
+    function registerViewer() {
+        root.viewerCount++
+        root.syncActiveLine() // catch up immediately instead of waiting up to 300ms
+    }
+    function unregisterViewer() { root.viewerCount = Math.max(0, root.viewerCount - 1) }
+
+    function syncActiveLine() {
+        const pos = root.activePlayer?.position ?? 0
+        let idx = -1
+        for (let i = 0; i < root.lyricsLines.length; i++) {
+            if (root.lyricsLines[i].time <= pos) idx = i
+            else break
+        }
+        if (idx !== root.activeIndex) {
+            root.activeIndex = idx
+            root.slots = root.buildSlots(idx)
+        }
+    }
+
     function buildSlots(idx) {
         let result = []
         for (let i = 0; i < root.total; i++) {
@@ -38,19 +63,8 @@ Singleton {
         id: syncTimer
         interval: 300
         repeat: true
-        running: root.status === "ok" && root.lyricsLines.length > 0
-        onTriggered: {
-            const pos = root.activePlayer?.position ?? 0
-            let idx = -1
-            for (let i = 0; i < root.lyricsLines.length; i++) {
-                if (root.lyricsLines[i].time <= pos) idx = i
-                else break
-            }
-            if (idx !== root.activeIndex) {
-                root.activeIndex = idx
-                root.slots = root.buildSlots(idx)
-            }
-        }
+        running: root.status === "ok" && root.lyricsLines.length > 0 && root.viewerCount > 0
+        onTriggered: root.syncActiveLine()
     }
 
     Process {
