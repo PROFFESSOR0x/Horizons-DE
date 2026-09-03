@@ -63,18 +63,43 @@ ContentPage {
         { id: "privacyIndicator",  name: Translation.tr("Privacy Indicator"),    icon: "shield_lock" },
     ]
 
-    function availableFor() {
+    // Classic bar and Mesobar are mutually-exclusive surfaces (only one is
+    // ever loaded, per barMode - see IllogicalImpulseFamily.qml), but each
+    // keeps its own independent layouts.* config even while inactive. The
+    // "available to add" list for one must therefore only be filtered
+    // against that same surface's own layouts - never the other, otherwise
+    // a widget that happens to sit in the *other*, currently-untouched
+    // surface's (default) layout can never be offered here, and removing it
+    // from this surface's layout alone won't bring it back since it's still
+    // "used" by the other one. (This previously unioned both surfaces'
+    // layouts together, which is why "workspaces" - present in both bar's
+    // and mesoBar's default leftLayout - could vanish from the picker
+    // entirely after being removed from just one of them; the same applied
+    // to every other widget shared between the two default layouts, e.g.
+    // clockWidget, systemIcons, powerButton, sysTray, launcherButton and
+    // activeWindow.)
+    function availableForBar() {
         let used = [
             ...Config.options.bar.layouts.leftLayout,
             ...Config.options.bar.layouts.middleLayout,
-            ...Config.options.bar.layouts.rightLayout,
+            ...Config.options.bar.layouts.rightLayout
+        ]
+        const multipleAllowed = ["visualizer", "divisor"]
+        return allWidgets.filter(w => {
+            if (w.id === "divisor" && Config.options.bar.borderless !== "transparent") return false
+            return !used.includes(w.id) || multipleAllowed.includes(w.id)
+        })
+    }
+
+    function availableForMesoBar() {
+        let used = [
             ...Config.options.mesoBar.layouts.leftLayout,
             ...Config.options.mesoBar.layouts.middleLayout,
             ...Config.options.mesoBar.layouts.rightLayout
         ]
         const multipleAllowed = ["visualizer", "divisor"]
         return allWidgets.filter(w => {
-            if (w.id === "divisor" && Config.options.bar.borderless !== "transparent") return false
+            if (w.id === "divisor" && Config.options.mesoBar.borderless !== "transparent") return false
             return !used.includes(w.id) || multipleAllowed.includes(w.id)
         })
     }
@@ -269,21 +294,21 @@ ContentPage {
                 LayoutSection {
                     sectionTitle: Config.options.bar.vertical ? Translation.tr("Top") : Translation.tr("Left")
                     layout: Config.options.bar.layouts.leftLayout
-                    availableWidgets: page.availableFor()
+                    availableWidgets: page.availableForBar()
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.bar.layouts.leftLayout = list
                 }
                 LayoutSection {
                     sectionTitle: Translation.tr("Center")
                     layout: Config.options.bar.layouts.middleLayout
-                    availableWidgets: page.availableFor()
+                    availableWidgets: page.availableForBar()
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.bar.layouts.middleLayout = list
                 }
                 LayoutSection {
                     sectionTitle: Config.options.bar.vertical ? Translation.tr("Bottom") : Translation.tr("Right")
                     layout: Config.options.bar.layouts.rightLayout
-                    availableWidgets: page.availableFor()
+                    availableWidgets: page.availableForBar()
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.bar.layouts.rightLayout = list
                 }
@@ -301,21 +326,21 @@ ContentPage {
                 LayoutSection {
                     sectionTitle: Translation.tr("Left")
                     layout: Config.options.mesoBar.layouts.leftLayout
-                    availableWidgets: page.availableFor()
+                    availableWidgets: page.availableForMesoBar()
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.mesoBar.layouts.leftLayout = list
                 }
                 LayoutSection {
                     sectionTitle: Translation.tr("Center")
                     layout: Config.options.mesoBar.layouts.middleLayout
-                    availableWidgets: page.availableFor()
+                    availableWidgets: page.availableForMesoBar()
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.mesoBar.layouts.middleLayout = list
                 }
                 LayoutSection {
                     sectionTitle: Translation.tr("Right")
                     layout: Config.options.mesoBar.layouts.rightLayout
-                    availableWidgets: page.availableFor()
+                    availableWidgets: page.availableForMesoBar()
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.mesoBar.layouts.rightLayout = list
                 }
