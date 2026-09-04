@@ -31,19 +31,11 @@ Singleton {
         return Math.max(0, Math.min(0.22, y)) - 0.12 * (m3colors.darkmode ? 0 : 1)
     }
     property real autoContentTransparency: 0.9
-    // Legacy shell glass (appearance.glass) + hyprglass compositor glass (appearance.hyprglass)
+    // Liquid Glass ("glass" visual effect) — the shell's own translucent panel
+    // styling. Backed compositor-side by Hyprland's native decoration:blur:
+    // variant=acrylic (see Config.applyVisualEffectExclusivity()), not a plugin.
     property bool liquidGlassEnabled: Config?.options?.appearance?.glass?.enable ?? false
     property real glassOpacity: Math.max(0.35, Math.min(0.95, Config?.options?.appearance?.glass?.opacity ?? 0.78))
-    // Hyprglass plugin state — mirrors Config.options.appearance.hyprglass (see hyprglass/src/PluginConfig.hpp)
-    property bool hyprglassEnabled: Config?.options?.appearance?.hyprglass?.enabled ?? false
-    property string hyprglassTheme: Config?.options?.appearance?.hyprglass?.defaultTheme ?? "dark"
-    property string hyprglassPreset: Config?.options?.appearance?.hyprglass?.defaultPreset ?? "default"
-    property real hyprglassOpacity: Math.max(0.0, Math.min(1.0, Config?.options?.appearance?.hyprglass?.glassOpacity ?? 1.0))
-    // Effective glass: true if either legacy shell glass or hyprglass compositor is active.
-    // When hyprglass is enabled, shell transparency follows hyprglass opacity so the
-    // compositor glass shows through consistently.
-    property bool effectiveGlassEnabled: liquidGlassEnabled || hyprglassEnabled
-    property real effectiveGlassOpacity: hyprglassEnabled ? hyprglassOpacity : glassOpacity
     property string motionStyle: Config?.options?.appearance?.motion?.style ?? "smooth"
     property real motionDurationScale: Math.max(0.5, Math.min(2, Config?.options?.appearance?.motion?.durationScale ?? 1))
     function motionDuration(baseDuration) { return Math.round(baseDuration * motionDurationScale) }

@@ -50,7 +50,17 @@ RowLayout {
 
     Flow {
         id: buttonsFlow
-        Layout.fillWidth: true
+        // Deliberately NOT Layout.fillWidth: competing with the label's own
+        // fillWidth left the split between them up to however Qt Quick
+        // Layouts happened to resolve two fillWidth siblings that frame,
+        // which could shrink this Flow below what a single row of buttons
+        // needs even while there was still room — wrapping to an extra line
+        // (and inflating the GroupedList row's height inconsistently between
+        // otherwise-identical rows) or visually colliding with the label.
+        // Sizing to its own natural (unwrapped) width instead means it only
+        // ever wraps when the row is genuinely too narrow to fit it, and the
+        // label (which does keep fillWidth + elide) is always the side that
+        // absorbs the squeeze.
         Layout.alignment: Qt.AlignRight
         spacing: 2
 

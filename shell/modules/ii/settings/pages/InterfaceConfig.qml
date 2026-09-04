@@ -115,7 +115,7 @@ ContentPage {
                             Config.options.appearance.visualEffect = newValue;
                             Config.applyVisualEffectExclusivity(newValue);
                             HyprlandConfig.set("decoration:blur:enabled", Config.options.hyprland.decoration.blur.enabled ? 1 : 0);
-                            Hyprglass.apply();
+                            HyprlandConfig.set("decoration:blur:variant", Config.options.hyprland.decoration.blur.variant);
                         }
                         options: [
                             { displayName: Translation.tr("None"), icon: "block", value: "none" },
@@ -123,6 +123,36 @@ ContentPage {
                             { displayName: Translation.tr("Transparency"), icon: "opacity", value: "transparency" },
                             { displayName: Translation.tr("Liquid Glass"), icon: "water_drop", value: "glass" }
                         ]
+                    }
+                }
+            }
+            ContentSubsection {
+                title: Translation.tr("Window Transparency (for Blur/Glass)")
+                visible: Config.options.appearance.visualEffect === "blur" || Config.options.appearance.visualEffect === "glass"
+                GroupedList {
+                    ConfigSwitch {
+                        buttonIcon: "opacity"
+                        text: Translation.tr("Make regular app windows slightly transparent")
+                        checked: Config.options.hyprland.decoration.activeOpacity < 1.0
+                        onCheckedChanged: {
+                            if (checked === (Config.options.hyprland.decoration.activeOpacity < 1.0)) return
+                            if (checked) {
+                                Config.options.hyprland.decoration.activeOpacity = 0.95
+                                Config.options.hyprland.decoration.inactiveOpacity = 0.85
+                            } else {
+                                Config.options.hyprland.decoration.activeOpacity = 1.0
+                                Config.options.hyprland.decoration.inactiveOpacity = 1.0
+                            }
+                            HyprlandConfig.set("decoration:active_opacity", Config.options.hyprland.decoration.activeOpacity)
+                            HyprlandConfig.set("decoration:inactive_opacity", Config.options.hyprland.decoration.inactiveOpacity)
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Blur/Glass only shows through a window that isn't fully opaque — a normal app window has no transparency of its own, so the effect stays invisible on it even though it now applies compositor-wide. This gives every window (focused and unfocused) a modest default transparency so Blur/Glass is visible everywhere without hand-writing a windowrulev2 opacity rule per app. Off by default — no visual change until you turn it on. Fine-tune the exact amounts under Settings > Hyprland > Decoration (\"Active/Inactive Opacity\"), or exclude specific apps there via Window Rules.")
                     }
                 }
             }
@@ -175,7 +205,7 @@ ContentPage {
                         wrapMode: Text.Wrap
                         color: Appearance.colors.colSubtext
                         font.pixelSize: Appearance.font.pixelSize.small
-                        text: Translation.tr("Full Hyprglass (compositor blur/refraction) controls are on the Hyprglass settings page.")
+                        text: Translation.tr("Liquid Glass is Hyprland's native \"acrylic\" blur variant, applied compositor-wide to every window. Fine-tune refraction, tint and the other blur styles under Settings > Hyprland > Blur Style.")
                     }
                 }
             }

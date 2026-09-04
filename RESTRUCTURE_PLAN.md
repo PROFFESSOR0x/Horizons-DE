@@ -196,3 +196,31 @@ silently inert before this pass. Fixed by correcting the path in all three files
 Phase 0 → Phase 1 → Phase 2 → Phase 4 → Phase 5 → Phase 3 (can run anytime after Phase 1).
 Each phase should land as its own commit (or small set of commits) so it stays reviewable
 and revertible.
+
+## Phase 6 — hyprglass removed, replaced with native Hyprland blur variants (2026-09-04)
+
+hyprwm/Hyprland merged native blur variants
+([#15661](https://github.com/hyprwm/Hyprland/pull/15661), 2026-08-22):
+`decoration:blur:variant` (`kawase|frost|ripple|drops|water|fluid_jar|prism|
+heat_shimmer|acrylic|aurora|haze`) plus `decoration:blur:acrylic:*` /
+`decoration:blur:glass:*` params — `acrylic` is Hyprland's own Liquid-Glass-style
+effect. This made the vendored `shell/plugins/hyprglass` plugin (Phase 5) redundant, so
+it was removed entirely: the plugin source, `services/Hyprglass.qml`,
+`settings/pages/HyprglassConfig.qml`, `appearance.hyprglass` config schema, the
+installer's `hyprglass` component (build step, profile flag, `hyprpm`/manual-load
+fallback), and all settings-page wiring (including the per-window "glass tag" picker in
+Window Rules, since native blur is a purely compositor-side toggle with no per-window
+tag protocol).
+
+"Liquid Glass" is now just `hyprland.decoration.blur.enabled=true` +
+`hyprland.decoration.blur.variant="acrylic"` — folded into the existing blur/
+transparency exclusivity model (`Config.applyVisualEffectExclusivity()`) instead of
+being a separate plugin-backed mode. A new "Blur Style" control (Settings > Hyprland)
+exposes all 11 native variants, with acrylic/glass param sliders shown when relevant.
+
+Also fixed: `dotfiles/dots/.config/hypr/hyprland/rules.lua` had a blanket
+`hl.window_rule({match={class=".*"}, no_blur=true})` disabling Hyprland's compositor
+blur for every regular application window — only shell panels and a few system layer
+surfaces had `layer_rule`s opting back in. This is why blur/glass only ever reached the
+shell's own panels, independent of the plugin question. Removed, so whichever blur
+variant is active applies to any window Hyprland would otherwise blur.

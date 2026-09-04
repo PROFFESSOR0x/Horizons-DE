@@ -1,10 +1,13 @@
 -- ######## Window rules ########
 
--- Disable blur for xwayland context menus
+-- Disable blur for xwayland context menus (real glitch workaround, not a
+-- shell-scoping rule — unnamed X11 popups render blur as a glitchy black box)
 hl.window_rule({match = {class = "^()$", title = "^()$" },                   no_blur = true })
 
--- Disable blur for every window
-hl.window_rule({match = {class = ".*" }, no_blur = true })
+-- (Blanket "no_blur" for every window removed — blur/glass (decoration:blur,
+-- see hyprland/general.lua + Settings > Hyprland > Blur Style) is meant to
+-- apply to any window, not just shell panels. Per-window opt-out is still
+-- available via Settings > Hyprland > Window Rules > "No Blur".)
 
 -- Floating
 hl.window_rule({match = {title = "^(Open File)(.*)$" },                      center = true})

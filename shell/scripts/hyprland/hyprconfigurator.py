@@ -70,11 +70,6 @@ def option_is_supported(key):
     this script may be used while Hyprland is not running, and must not erase a
     user's saved override just because it cannot contact the compositor.
     """
-    # Hyprglass plugin keys must be written even when the plugin is not yet
-    # loaded (e.g. first-time enable). Hyprctl will report them as unsupported
-    # until the .so is loaded, but we want them persisted to shellOverrides.
-    if key.startswith("plugin:hyprglass:"):
-        return True
     if key in _option_support_cache:
         return _option_support_cache[key]
 

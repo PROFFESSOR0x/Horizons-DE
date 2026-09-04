@@ -104,7 +104,7 @@ horizons_update_pull() {
         if declare -f horizons_state_write &>/dev/null; then
             local prof comp saved_lang
             prof=$(horizons_state_get profile 2>/dev/null || echo "full")
-            comp=$(horizons_state_get components 2>/dev/null || echo "dots,shell,hyprglass")
+            comp=$(horizons_state_get components 2>/dev/null || echo "dots,shell")
             saved_lang=$(horizons_state_get lang 2>/dev/null || true)
             [[ -n "$saved_lang" ]] && HORIZONS_LANG="$saved_lang"
             horizons_state_write "$prof" "$comp"

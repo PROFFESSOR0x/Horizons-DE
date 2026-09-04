@@ -51,11 +51,6 @@ ShellRoot {
         Wallpapers.load()
         Updates.load()
         LyricsService.restartLyrics()
-        // Hyprglass service — access to trigger singleton creation and initial apply
-        if (WM.compositor === "hyprland") {
-            // Touch Hyprglass to ensure it loads and syncs plugin config
-            Hyprglass.apply()
-        }
         // This is reached only after the new QML root and its startup services
         // exist, so it is the real hand-off point for an external reload splash.
         ReloadController.markReady()

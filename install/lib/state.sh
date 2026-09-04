@@ -43,9 +43,10 @@ _hz_ensure_dirs() {
 # Usage: horizons_state_write [profile] [components_csv] [lang]
 # Target information is read from the installer globals so every update can
 # re-apply the exact first-install choice without prompting again.
+# e.g. horizons_state_write "full" "dots,shell" "ar"
 horizons_state_write() {
     local profile="${1:-full}"
-    local components="${2:-dots,shell,hyprglass}"
+    local components="${2:-dots,shell}"
     local lang="${3:-${HORIZONS_LANG:-en}}"
     local distro="${PKG_GROUP:-${OS_GROUP_ID:-unknown}}"
     local protocol="${HORIZONS_PROTOCOL:-unknown}"

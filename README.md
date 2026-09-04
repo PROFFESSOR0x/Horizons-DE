@@ -8,8 +8,10 @@ This monorepo combines the three pieces that make up Horizons:
 - **`dotfiles/`** — the base Hyprland/kitty/fish/etc. dotfiles (originally `dots-hyprland`).
 - **`shell/`** — the Quickshell desktop shell (originally `end4-pC`), including its
   README(s) in [`shell/README.md`](shell/README.md).
-- **`shell/plugins/hyprglass/`** — the glass/blur Hyprland plugin (originally the
-  standalone `hyprglass` repo by [@hyprnux](https://github.com/hyprnux/hyprglass)).
+
+Liquid Glass / blur are provided by Hyprland's own native `decoration:blur:variant`
+(no plugin needed) — see `dotfiles/dots/.config/hypr/hyprland/general.lua` and
+Settings > Hyprland > Blur Style in the shell.
 
 ## Install — Horizons Installer v2.0
 
@@ -23,8 +25,7 @@ cd End4-PXpC
 
 The unified installer (`installer.sh` + `install/lib/*`) does in order: a target-aware
 runtime bootstrap, pre-flight checks, legacy migration (`illogical-impulse`/`end4-pC` → `horizons`), optional backup,
-optional full system upgrade, the `dotfiles/setup install` base, optional quickshell
-build from source, `hyprglass` plugin build (`make`), optional bundled extras
+build from source, optional bundled extras
 (Rubik/Gabarito/Bibata/GoogleSans), the `shell/` Quickshell config into
 `~/.config/quickshell/horizons`, target-specific WM integration and keybinds,
 a matching-session Quickshell restart, and finally writes the identity marker.
@@ -36,7 +37,7 @@ not desktop environments. Horizons supports only the two valid pairs below:
 
 | Target | Protocol | Installer behavior |
 |---|---|---|
-| Hyprland | Wayland | Full Horizons-managed desktop can be selected, including compatible dotfiles and Hyprglass. |
+| Hyprland | Wayland | Full Horizons-managed desktop can be selected, including compatible dotfiles. |
 | i3 | X11 | Shell integration only; i3 IPC provides windows, workspaces, outputs, focus, and workspace actions. |
 
 Hyprland/X11 and i3/Wayland are rejected by the installer because those upstream
@@ -98,12 +99,12 @@ horizons update
 
 ### Profiles & granular control
 
-| Profile | Dots | Shell | hyprglass | Bundled | Build | SysUpgrade |
-|---------|------|-------|-----------|---------|-------|------------|
-| `minimal` | ✗ | ✔ | ✗ | ✗ | ✗ | ✗ |
-| `core` *(default)* | ✔ | ✔ | ✔ | ✗ | ✗ | ✗ |
-| `full` | ✔ | ✔ | ✔ | ✔ | ✗ | ✗ |
-| `ultra` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| Profile | Dots | Shell | Bundled | Build | SysUpgrade |
+|---------|------|-------|---------|-------|------------|
+| `minimal` | ✗ | ✔ | ✗ | ✗ | ✗ |
+| `core` *(default)* | ✔ | ✔ | ✗ | ✗ | ✗ |
+| `full` | ✔ | ✔ | ✔ | ✗ | ✗ |
+| `ultra` | ✔ | ✔ | ✔ | ✔ | ✔ |
 
 Granular overrides: `--components <csv>` with `^`/`-`/`no-` negation.
 
@@ -112,7 +113,7 @@ Granular overrides: `--components <csv>` with `^`/`-`/`no-` negation.
 ./installer.sh --profile full --with-sysupdate -y   # full + system upgrade
 ./installer.sh --components dots,shell --force      # only dots + shell
 ./installer.sh --components no-dots,^bundled -y     # everything except dots/bundled
-./installer.sh build --build-force                  # only rebuild plugins/shell
+./installer.sh build --build-force                  # only rebuild quickshell
 ```
 
 ### Full flags
@@ -129,7 +130,6 @@ Run `./installer.sh --help` for the complete list. Highlights:
 ## Credits
 
 - **[@end-4](https://github.com/end-4)** — original [dots-hyprland](https://github.com/end-4/dots-hyprland) / illogical-impulse.
-- **[@hyprnux](https://github.com/hyprnux)** — original [hyprglass](https://github.com/hyprnux/hyprglass) plugin.
 - **pctrade** — end4-pC fork, now rebranded as آفاق | Horizons.
 
 See [`shell/README.md`](shell/README.md) for shell-specific docs (also available in

@@ -47,7 +47,7 @@ Customized and maintained by **pctrade**
 > [!NOTE]
 > Horizons manages its own configuration folder (`~/.config/quickshell/horizons`) independently — it does **not** overwrite or modify any existing setup. It is a fork of, and requires, [illogical-impulse](https://github.com/end-4/dots-hyprland) (bundled here as `dotfiles/`) to be installed and running.
 
-Use the single installer at the repo root — it installs the dotfiles base, this Quickshell config, and builds the bundled `hyprglass` plugin in one pass:
+Use the single installer at the repo root — it installs the dotfiles base and this Quickshell config in one pass:
 
 ```bash
 git clone https://github.com/PROFFESSOR0x/end4-pC.git End4-PXpC

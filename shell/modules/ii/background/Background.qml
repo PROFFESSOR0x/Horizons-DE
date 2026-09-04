@@ -277,6 +277,12 @@ Variants {
                 asynchronous: true
                 layer.enabled: true
                 visible: false
+                // Decode at output resolution instead of the wallpaper file's
+                // native size - without this a large (e.g. 4K/8K) wallpaper is
+                // fully decoded into memory at full resolution for no visual
+                // benefit, since it's cropped down to screen size anyway.
+                sourceSize.width: parent.width
+                sourceSize.height: parent.height
             }
 
             StyledImage {
@@ -289,6 +295,8 @@ Variants {
                 layer.enabled: blurLoader.active
                 visible: !blurLoader.active && !bgRoot.centeredWallpaperEnabled && !bgRoot.videoRevealed
                     && (bgRoot.wallpaperAnimation === "" || bgRoot.transitionProgress >= 1.0)
+                sourceSize.width: parent.width
+                sourceSize.height: parent.height
                 onStatusChanged: {
                     if (status === Image.Ready && bgRoot.transitionProgress === 0.0) {
                         transitionAnim.restart()
