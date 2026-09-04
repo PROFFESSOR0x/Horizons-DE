@@ -53,9 +53,16 @@ Scope {
         readonly property bool m3IslandActive: Config.options.bar.barMode === "m3Island"
         visible: GlobalStates.overviewOpen && !panelWindow.m3IslandActive
 
-        WlrLayershell.namespace: "quickshell:overview"
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: (GlobalStates.overviewOpen && !panelWindow.m3IslandActive) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+        // behind a Wayland-only Loader instead of set directly.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding { target: panelWindow.WlrLayershell; property: "namespace"; value: "quickshell:overview" }
+                Binding { target: panelWindow.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                Binding { target: panelWindow.WlrLayershell; property: "keyboardFocus"; value: (GlobalStates.overviewOpen && !panelWindow.m3IslandActive) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None }
+            }
+        }
         color: "transparent"
 
         mask: Region {

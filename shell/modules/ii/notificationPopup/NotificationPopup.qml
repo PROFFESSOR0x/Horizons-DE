@@ -36,8 +36,15 @@ Scope {
         property bool isLeft: position.endsWith("left")
         property bool isRight: position.endsWith("right")
 
-        WlrLayershell.namespace: "quickshell:notificationPopup"
-        WlrLayershell.layer: WlrLayer.Overlay
+        // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+        // behind a Wayland-only Loader instead of set directly.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding { target: root.WlrLayershell; property: "namespace"; value: "quickshell:notificationPopup" }
+                Binding { target: root.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+            }
+        }
         exclusiveZone: 0
 
         anchors {

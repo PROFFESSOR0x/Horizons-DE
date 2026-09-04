@@ -47,10 +47,17 @@ Scope { // Scope
             exclusiveZone: root.pinned ? implicitHeight - Appearance.sizes.hyprlandGapsOut : 0
             implicitWidth: oskBackground.width + Appearance.sizes.elevationMargin * 2
             implicitHeight: oskBackground.height + Appearance.sizes.elevationMargin * 2
-            WlrLayershell.namespace: "quickshell:osk"
-            WlrLayershell.layer: WlrLayer.Overlay
-            // Hyprland 0.49: Focus is always exclusive and setting this breaks mouse focus grab
-            // WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+            // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+            // gated behind a Wayland-only Loader instead of set directly.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: oskRoot.WlrLayershell; property: "namespace"; value: "quickshell:osk" }
+                    Binding { target: oskRoot.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+                    // Hyprland 0.49: Focus is always exclusive and setting this breaks mouse focus grab
+                    // Binding { target: oskRoot.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.Exclusive }
+                }
+            }
             color: "transparent"
 
             mask: Region {

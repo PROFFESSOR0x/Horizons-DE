@@ -68,10 +68,17 @@ Scope {
                 property bool monitorHasSpecialOpen: (thisMonitorData?.specialWorkspace?.name ?? "") !== ""
                 exclusionMode: ExclusionMode.Ignore
                 exclusiveZone: (Config?.options.bar.autoHide.enable && (!mustShow || !Config?.options.bar.autoHide.pushWindows)) ? 0 : Appearance.sizes.barHeight + (Config.options.mesoBar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0)
-                WlrLayershell.namespace: "quickshell:mesobar"
-                // Overlay layer only while special workspace sits on top of a fullscreen window on this monitor,
-                // else Top layer so fullscreen apps cover the bar as normal (mirrors Bar.qml's rule).
-                WlrLayershell.layer: (monitorHasFullscreen && monitorHasSpecialOpen) ? WlrLayer.Overlay : WlrLayer.Top
+                // See Bar.qml for why this is gated behind a Wayland-only
+                // Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: barRoot.WlrLayershell; property: "namespace"; value: "quickshell:mesobar" }
+                        // Overlay layer only while special workspace sits on top of a fullscreen window on this monitor,
+                        // else Top layer so fullscreen apps cover the bar as normal (mirrors Bar.qml's rule).
+                        Binding { target: barRoot.WlrLayershell; property: "layer"; value: (barRoot.monitorHasFullscreen && barRoot.monitorHasSpecialOpen) ? WlrLayer.Overlay : WlrLayer.Top }
+                    }
+                }
                 implicitHeight: Appearance.sizes.barHeight + Appearance.rounding.screenRounding
                 // See Bar.qml for why this cutout exists: on the Overlay layer this
                 // window shares a layer with ScreenCorners.qml's click zones, and

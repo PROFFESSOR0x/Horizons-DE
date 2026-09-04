@@ -121,7 +121,14 @@ Scope {
             implicitWidth: root.widgetWidth
             implicitHeight: playerColumnLayout.implicitHeight
             color: "transparent"
-            WlrLayershell.namespace: "quickshell:mediaControls"
+            // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+            // gated behind a Wayland-only Loader instead of set directly.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: panelWindow.WlrLayershell; property: "namespace"; value: "quickshell:mediaControls" }
+                }
+            }
 
             anchors {
                 top: true
