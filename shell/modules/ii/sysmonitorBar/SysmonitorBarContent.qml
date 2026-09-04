@@ -16,6 +16,11 @@ Item {
 
     // Network speed comes from the shared qs.services.NetworkStats poller
     // (also used by bar/NetworkSpeed.qml) rather than a local independent one.
+    // That poller is ref-counted and idle until acquired - hold a slot for
+    // exactly as long as this bar content instance exists.
+    Component.onCompleted: NetworkStats.acquire()
+    Component.onDestruction: NetworkStats.release()
+
     function formatRate(bytes) {
         return NetworkStats.formatRate(bytes, false)
     }

@@ -3,14 +3,14 @@ import qs
 import qs.services
 import qs.modules.common
 import qs.modules.common.functions
-import Qt5Compat.GraphicalEffects
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 
-Item { // Window
+Rectangle { // Window
     id: root
+    color: "transparent"
     property var toplevel
     property var windowData
     property var monitorData
@@ -67,22 +67,11 @@ Item { // Window
     height: targetWindowHeight
     opacity: windowData && windowData.monitor === widgetMonitorId ? 1 : 0.4
 
-    property real topLeftRadius
-    property real topRightRadius
-    property real bottomLeftRadius
-    property real bottomRightRadius
-
-    layer.enabled: true
-    layer.effect: OpacityMask {
-        maskSource: Rectangle {
-            width: root.width
-            height: root.height
-            topLeftRadius: root.topLeftRadius
-            topRightRadius: root.topRightRadius
-            bottomRightRadius: root.bottomRightRadius
-            bottomLeftRadius: root.bottomLeftRadius
-        }
-    }
+    // topLeftRadius/topRightRadius/bottomLeftRadius/bottomRightRadius come
+    // from Rectangle itself (Qt 6.7+, natively clip-aware with `clip: true`
+    // below) - no need to redeclare them or route the ScreencopyView through
+    // an OpacityMask offscreen render pass just to round its corners.
+    clip: true
 
     Behavior on x {
         animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this)

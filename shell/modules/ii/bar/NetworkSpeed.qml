@@ -14,6 +14,12 @@ MouseArea {
 
     hoverEnabled: !Config.options.bar.tooltips.clickToShow
 
+    // NetworkStats' /proc/net/dev poller only runs while at least one
+    // consumer is around - only this widget or sysmonitorBar ever asks for
+    // it, so hold a slot for exactly as long as this widget instance exists.
+    Component.onCompleted: NetworkStats.acquire()
+    Component.onDestruction: NetworkStats.release()
+
     function formatRate(rate, compact) {
         return NetworkStats.formatRate(rate, compact)
     }

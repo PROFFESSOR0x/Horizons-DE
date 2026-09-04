@@ -4,7 +4,6 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
-import Qt5Compat.GraphicalEffects
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -64,7 +63,7 @@ Item {
 
         Repeater {
             model: root.matchingWindows
-            delegate: Item {
+            delegate: Rectangle {
                 id: tile
                 required property var modelData
                 readonly property var win: modelData.win
@@ -77,14 +76,12 @@ Item {
                 property bool hovered: false
                 property bool pressed: false
 
-                layer.enabled: true
-                layer.effect: OpacityMask {
-                    maskSource: Rectangle {
-                        width: tile.width
-                        height: tile.height
-                        radius: Appearance.rounding.normal
-                    }
-                }
+                // Rectangle's own radius + clip (Qt 6.7+) is clip-shape-aware
+                // natively - no need for an OpacityMask offscreen render pass
+                // just to round the ScreencopyView's corners.
+                color: "transparent"
+                radius: Appearance.rounding.normal
+                clip: true
 
                 ScreencopyView {
                     id: preview
