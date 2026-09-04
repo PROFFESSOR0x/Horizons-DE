@@ -1,3 +1,4 @@
+import qs.services
 import QtQuick
 import QtQuick.Layouts
 import Qt5Compat.GraphicalEffects
@@ -43,7 +44,18 @@ Scope {
 			implicitWidth: rect.width + shadow.radius * 2
 			implicitHeight: rect.height + shadow.radius * 2
 
-			WlrLayershell.namespace: "quickshell:reloadPopup"
+			// See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+			// behind a Wayland-only Loader instead of set directly.
+			Loader {
+				active: WM.isWayland
+				sourceComponent: Item {
+					Binding {
+						target: popup.WlrLayershell
+						property: "namespace"
+						value: "quickshell:reloadPopup"
+					}
+				}
+			}
 
 			// color blending is a bit odd as detailed in the type reference.
 			color: "transparent"

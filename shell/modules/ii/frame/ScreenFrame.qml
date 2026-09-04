@@ -34,9 +34,16 @@ Scope {
         visible: Config.options.bar.showFrame 
         exclusionMode: ExclusionMode.Ignore
         mask: Region {}
-        WlrLayershell.namespace: "quickshell:screenframe-corner"
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+        // behind a Wayland-only Loader instead of set directly.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding { target: cornerPanelWindow.WlrLayershell; property: "namespace"; value: "quickshell:screenframe-corner" }
+                Binding { target: cornerPanelWindow.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                Binding { target: cornerPanelWindow.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.None }
+            }
+        }
         color: "transparent"
 
         anchors {
@@ -72,12 +79,20 @@ Scope {
             required property var modelData
 
             PanelWindow { // top
+                id: topFramePanel
                 screen: frameGroup.modelData
                 exclusionMode: ExclusionMode.Normal
                 exclusiveZone: root.frameVisibleFor("top") ? root.frameThickness : 0
-                WlrLayershell.namespace: "quickshell:screenframe"
-                WlrLayershell.layer: WlrLayer.Top
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+                // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+                // gated behind a Wayland-only Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: topFramePanel.WlrLayershell; property: "namespace"; value: "quickshell:screenframe" }
+                        Binding { target: topFramePanel.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                        Binding { target: topFramePanel.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.None }
+                    }
+                }
                 color: "transparent"
                 implicitHeight: root.frameThickness
                 anchors { top: true; left: true; right: true }
@@ -87,12 +102,20 @@ Scope {
             }
 
             PanelWindow { // bottom
+                id: bottomFramePanel
                 screen: frameGroup.modelData
                 exclusionMode: ExclusionMode.Normal
                 exclusiveZone: root.frameVisibleFor("bottom") ? root.frameThickness : 0
-                WlrLayershell.namespace: "quickshell:screenframe"
-                WlrLayershell.layer: WlrLayer.Top
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+                // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+                // gated behind a Wayland-only Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: bottomFramePanel.WlrLayershell; property: "namespace"; value: "quickshell:screenframe" }
+                        Binding { target: bottomFramePanel.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                        Binding { target: bottomFramePanel.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.None }
+                    }
+                }
                 color: "transparent"
                 implicitHeight: root.frameThickness
                 anchors { bottom: true; left: true; right: true }
@@ -102,12 +125,20 @@ Scope {
             }
 
             PanelWindow { // left
+                id: leftFramePanel
                 screen: frameGroup.modelData
                 exclusionMode: ExclusionMode.Normal
                 exclusiveZone: root.frameVisibleFor("left") ? root.frameThickness : 0
-                WlrLayershell.namespace: "quickshell:screenframe"
-                WlrLayershell.layer: WlrLayer.Top
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+                // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+                // gated behind a Wayland-only Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: leftFramePanel.WlrLayershell; property: "namespace"; value: "quickshell:screenframe" }
+                        Binding { target: leftFramePanel.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                        Binding { target: leftFramePanel.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.None }
+                    }
+                }
                 color: "transparent"
                 implicitWidth: root.frameThickness
                 anchors { left: true; top: true; bottom: true }
@@ -117,12 +148,20 @@ Scope {
             }
 
             PanelWindow { // right
+                id: rightFramePanel
                 screen: frameGroup.modelData
                 exclusionMode: ExclusionMode.Normal
                 exclusiveZone: root.frameVisibleFor("right") ? root.frameThickness : 0
-                WlrLayershell.namespace: "quickshell:screenframe"
-                WlrLayershell.layer: WlrLayer.Top
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+                // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+                // gated behind a Wayland-only Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: rightFramePanel.WlrLayershell; property: "namespace"; value: "quickshell:screenframe" }
+                        Binding { target: rightFramePanel.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                        Binding { target: rightFramePanel.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.None }
+                    }
+                }
                 color: "transparent"
                 implicitWidth: root.frameThickness
                 anchors { right: true; top: true; bottom: true }

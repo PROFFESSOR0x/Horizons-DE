@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
+import qs.services
 import qs.modules.common.widgets // Para las sombras y estilos
 
 Item {
@@ -21,10 +22,16 @@ Item {
         component: PanelWindow {
             id: popupWindow
             
-            // Configuración de Wayland
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.namespace: "quickshell:popup"
-            
+            // Configuración de Wayland - gated behind a Wayland-only Loader;
+            // see Bar.qml (shell/modules/ii/bar/Bar.qml) for why.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: popupWindow.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+                    Binding { target: popupWindow.WlrLayershell; property: "namespace"; value: "quickshell:popup" }
+                }
+            }
+
             color: "transparent"
             mask: true
             

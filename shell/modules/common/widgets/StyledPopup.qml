@@ -1,6 +1,7 @@
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import qs.services
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -88,8 +89,15 @@ LazyLoader {
             bottom: root.barEdge === "bottom"
                 ? popupWindow.screen.height - popupWindow.hoverTargetTop + root.barPopupGap : 0
         }
-        WlrLayershell.namespace: "quickshell:popup"
-        WlrLayershell.layer: WlrLayer.Overlay
+        // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+        // behind a Wayland-only Loader instead of set directly.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding { target: popupWindow.WlrLayershell; property: "namespace"; value: "quickshell:popup" }
+                Binding { target: popupWindow.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+            }
+        }
 
         StyledRectangularShadow {
             target: popupBackground

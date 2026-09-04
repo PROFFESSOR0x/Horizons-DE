@@ -6,6 +6,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import qs.modules.common
 import qs.modules.common.widgets
+import qs.services
 
 Scope {
     id: root
@@ -59,9 +60,16 @@ Scope {
             screen: modelData
             anchors { top: true; bottom: true; left: true; right: true }
             exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.namespace: "horizons:reload-splash"
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+            // gated behind a Wayland-only Loader instead of set directly.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: window.WlrLayershell; property: "namespace"; value: "horizons:reload-splash" }
+                    Binding { target: window.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+                    Binding { target: window.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.None }
+                }
+            }
             color: Appearance.m3colors.m3background
 
             Rectangle {

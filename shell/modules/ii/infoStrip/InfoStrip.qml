@@ -53,8 +53,15 @@ Scope {
                 property bool mustShow: hoverRegion.containsMouse || superShow
                 exclusionMode: ExclusionMode.Ignore
                 exclusiveZone: (Config?.options.bar.autoHide.enable && (!mustShow || !Config?.options.bar.autoHide.pushWindows)) ? 0 : 24 + (Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0)
-                WlrLayershell.namespace: "quickshell:infostrip"
-                WlrLayershell.layer: WlrLayer.Top
+                // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+                // gated behind a Wayland-only Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: barRoot.WlrLayershell; property: "namespace"; value: "quickshell:infostrip" }
+                        Binding { target: barRoot.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                    }
+                }
                 implicitHeight: 24 + Appearance.rounding.screenRounding
                 color: "transparent"
 
