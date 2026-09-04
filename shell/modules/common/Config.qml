@@ -115,6 +115,18 @@ Singleton {
             root.applyVisualEffectExclusivity(effect);
             opts.appearance.visualEffectMigrated = true;
         }
+
+        // One-time forced-off migration for hyprland.misc.allowSessionLockRestore
+        // (see its schema comment above and github.com/quickshell-mirror/
+        // quickshell#1054) — this is a stability/lockout-risk fix, not a
+        // preference, so unlike the migrations above it overrides an
+        // existing "true" rather than preserving it. Runs once regardless of
+        // the option's current value so a user who already flipped it back
+        // on themselves (accepting the risk) isn't fought with on reload.
+        if (!opts.hyprland.misc.sessionLockRestoreMigrated) {
+            opts.hyprland.misc.allowSessionLockRestore = false;
+            opts.hyprland.misc.sessionLockRestoreMigrated = true;
+        }
     }
 
     // Enforces that exactly one of blur / transparency / glass is enabled in
@@ -465,7 +477,21 @@ Singleton {
                     property bool keyPressEnablesDpms: true
                     property bool animateManualResizes: false
                     property bool animateMouseWindowDragging: false
-                    property bool allowSessionLockRestore: true
+                    // Off by default: quickshell has a known, currently-open
+                    // crash (github.com/quickshell-mirror/quickshell#1054)
+                    // when re-requesting a session lock the compositor
+                    // already holds from a previous instance — this option is
+                    // the precondition that makes that reachable (e.g. after
+                    // a config reload, or a previous crash, while locked),
+                    // and the crash can leave the session stuck locked with
+                    // no lock surface to authenticate against. See
+                    // migrateLegacyConfig()'s one-time forced-off migration
+                    // for existing configs. Re-enable once fixed upstream.
+                    property bool allowSessionLockRestore: false
+                    // Set once migrateLegacyConfig() has forced
+                    // allowSessionLockRestore off for a pre-existing config;
+                    // see the migration and the property comment above.
+                    property bool sessionLockRestoreMigrated: false
                     property int focusOnActivate: 0
                 }
                 property JsonObject cursor: JsonObject {
