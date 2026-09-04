@@ -45,8 +45,8 @@ Singleton {
         : 0
     // All shared layers consume these values, so glass is consistent across
     // panels, popups, widgets, notifications, and settings.
-    property real backgroundTransparency: Math.max(configuredBackgroundTransparency, effectiveGlassEnabled ? 1 - effectiveGlassOpacity : 0)
-    property real contentTransparency: Math.max(configuredContentTransparency, effectiveGlassEnabled ? 1 - effectiveGlassOpacity : 0)
+    property real backgroundTransparency: Math.max(configuredBackgroundTransparency, liquidGlassEnabled ? 1 - glassOpacity : 0)
+    property real contentTransparency: Math.max(configuredContentTransparency, liquidGlassEnabled ? 1 - glassOpacity : 0)
     
     function getColorFromName(name) {
         switch (name) {
