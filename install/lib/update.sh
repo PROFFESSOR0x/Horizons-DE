@@ -133,9 +133,19 @@ horizons_update_apply() {
         return 1
     fi
 
+    # smart (the Update button's default) used to only skip the system
+    # package upgrade - install_target_requirements() still ran unconditionally
+    # underneath, re-checking (and, on any false negative, re-installing or
+    # even source-building) every base dependency including quickshell itself
+    # on every single routine update. --skip-deps stops that: a dependency
+    # that was fine at the last real install/full-apply is still fine now,
+    # and a genuinely new one only needs a full apply once, not every time.
+    # --skip-backup stays off smart's list on purpose (still cheap and worth
+    # the safety net); --launchers none skips prompting to install Walker/
+    # Vicinae on every routine update.
     case "$mode" in
-        quick)  HORIZONS_REAPPLY=1 bash "$installer" --skip-deps --skip-backup --force ;;
-        smart)  HORIZONS_REAPPLY=1 bash "$installer" --skip-sysupdate --force ;;
+        quick)  HORIZONS_REAPPLY=1 bash "$installer" --skip-deps --skip-backup --skip-sysupdate --launchers none --force ;;
+        smart)  HORIZONS_REAPPLY=1 bash "$installer" --skip-deps --skip-sysupdate --launchers none --force ;;
         full)   HORIZONS_REAPPLY=1 bash "$installer" --force ;;
         *)      HORIZONS_REAPPLY=1 bash "$installer" --force ;;
     esac
@@ -204,7 +214,20 @@ horizons_update_full() {
     if ! horizons_update_pull "$strategy"; then
         return 1
     fi
-    horizons_update_apply "$mode"
+    # Re-exec into a fresh `horizons-update apply` process instead of calling
+    # horizons_update_apply() directly: this file (and everything it calls
+    # into) was sourced from disk *before* the pull above - calling it now
+    # would run whatever update logic existed prior to this very update.
+    # Re-execing re-reads install/horizons-update (and everything it
+    # sources) fresh, so a change to the apply steps themselves takes effect
+    # on the same run that pulls it in, not the one after.
+    local repo="${REPO_ROOT:-$(pwd)}"
+    local apply_flag="--smart"
+    case "$mode" in
+        quick) apply_flag="--quick" ;;
+        full)  apply_flag="--full-apply" ;;
+    esac
+    exec bash "$repo/install/horizons-update" apply "$apply_flag" --force
 }
 
 # ── Auto-update cron / systemd timer helper ──────────────────────────────────

@@ -99,7 +99,21 @@ case "$CMD" in
         rc=$?
         if [[ $rc -eq 1 ]]; then
             horizons_update_pull "$STRATEGY" || exit 1
-            horizons_update_apply "$APPLY_MODE"
+            # Re-exec into a fresh `apply` invocation instead of calling
+            # horizons_update_apply directly: install/lib/update.sh (and
+            # everything it calls into, like installer.sh's own apply modes)
+            # was sourced/read from disk *before* the pull just above -
+            # calling it now would run whatever update logic existed prior to
+            # this very update, not whatever we just pulled. Re-execing
+            # re-reads this script (and everything it sources) fresh off
+            # disk, so a change to the apply steps themselves takes effect
+            # on the same run that pulls it in, not the one after.
+            apply_flag="--smart"
+            case "$APPLY_MODE" in
+                quick) apply_flag="--quick" ;;
+                full)  apply_flag="--full-apply" ;;
+            esac
+            exec bash "$REPO_ROOT/install/horizons-update" apply "$apply_flag" --force
         else
             warn "Check returned $rc (offline/unknown) — not pulling automatically."
             exit $rc
