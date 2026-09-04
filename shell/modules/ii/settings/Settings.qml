@@ -85,6 +85,13 @@ Scope {
             border.color: Appearance.getColorFromName(Config.options.settings.borderColor)
             radius: !isMinimal ? Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 5 : Appearance.rounding.screenRounding + 5
             z: 1
+            // Safety net: this window has a fixed width (settings.preferredWidth,
+            // not user-resizable) - a row with enough options to not wrap in
+            // time (or any future sizing slip) used to render straight past
+            // this Rectangle's edge onto the desktop behind it instead of
+            // just looking cramped. Popups/tooltips (QtQuick.Controls
+            // Overlay-based) aren't affected by clipping an ordinary ancestor.
+            clip: true
 
             property bool userMoved: false
             anchors.centerIn: userMoved ? undefined : parent
