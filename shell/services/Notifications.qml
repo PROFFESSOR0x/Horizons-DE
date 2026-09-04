@@ -77,6 +77,11 @@ Singleton {
             const index = root.list.findIndex((notif) => notif.notificationId === notificationId);
             const notifObject = root.list[index];
             print("[Notifications] Notification timer triggered for ID: " + notificationId + ", transient: " + notifObject?.isTransient);
+            // The notification can already be gone by the time this timer fires
+            // (dismissed by the user, or discarded/timed out through another
+            // path) - root.list[-1] is undefined, and reading .isTransient off
+            // it threw a TypeError on every single tick until this was guarded.
+            if (!notifObject) { destroy(); return; }
             if (notifObject.isTransient) root.discardNotification(notificationId);
             else root.timeoutNotification(notificationId);
             destroy()

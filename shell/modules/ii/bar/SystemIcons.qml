@@ -129,8 +129,17 @@ Item {
             id: notifLoader
             active: Notifications.silent || Notifications.unread > 0
             visible: active
-            width: active ? item?.implicitWidth ?? 0 : 0
-            height: active ? item?.implicitHeight ?? 0 : 0
+            // Only force the collapsed (inactive) size explicitly. Every
+            // sibling widget in this file routes sizing through implicitWidth/
+            // implicitHeight instead of binding width/height straight to
+            // item.implicit*; doing it directly here (item.implicitHeight ->
+            // height, re-read every time the loaded MaterialSymbol's variable
+            // font axes settle) was the actual "Binding loop detected for
+            // property height" firing on every notification change. Assigning
+            // `undefined` clears the binding and falls back to Loader's own
+            // built-in item-size mirroring while active.
+            width: active ? undefined : 0
+            height: active ? undefined : 0
             source: "NotificationUnreadCount.qml"
         }
     }

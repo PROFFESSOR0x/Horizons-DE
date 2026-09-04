@@ -65,7 +65,20 @@ Singleton {
     // Component { id: swayComp; SwayBackend {} }
     // Component { id: mangoComp; MangoBackend {} }
 
-    Component.onCompleted: {
+    // Deferred one tick past construction: WM.qml is a Singleton other
+    // services eagerly depend on (Updates -> TrayService -> Translation ->
+    // Todo, etc.), so it tends to be one of the very first files the QML
+    // engine resolves on a cold shell start. Calling createObject() on a
+    // same-directory Component synchronously inside Component.onCompleted
+    // has been observed to occasionally hit the directory's own type table
+    // before every sibling file (NullBackend.qml included) finishes
+    // registering, throwing "NullBackend is not a type" and cascading into
+    // every service that (transitively) imports WM - a one-shot crash on the
+    // first launch after boot that a plain restart doesn't reproduce.
+    // Qt.callLater lets that registration pass finish first.
+    Component.onCompleted: Qt.callLater(root.createBackend)
+
+    function createBackend() {
         switch (root.compositor) {
         case "hyprland": backend = hyprlandComp.createObject(root); break;
         case "niri":     backend = niriComp.createObject(root); break;
