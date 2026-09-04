@@ -159,7 +159,7 @@ Scope {
                     sourceComponent: (Config?.options.overview.style ?? "default") === "niri" ? niriComponent : defaultComponent
                     Component {
                         id: defaultComponent
-                        OverviewWidget {
+                        WindowSwitcherView {
                             screen: panelWindow.screen
                             visible: (panelWindow.searchingText == "") && (Config?.options.overview.showWorkspacesInLauncher ?? true)
                         }

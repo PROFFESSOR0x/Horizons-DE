@@ -21,6 +21,14 @@ hl.bind("SUPER_L", hl.dsp.global("quickshell:workspaceNumber"),
 hl.bind("SUPER_R", hl.dsp.global("quickshell:workspaceNumber"),
     { ignore_mods = true, transparent = true, release = true })
 hl.bind("SUPER + Tab", hl.dsp.global("quickshell:overviewWorkspacesToggle"), { description = "Shell: Toggle overview" })
+-- Quick, mouse-free focus switching (no visual UI - that's Super+Tab's job
+-- above). Routed through plain `hyprctl dispatch` rather than the hl.dsp.*
+-- structured calls used everywhere else in this file: cyclenext/
+-- bringactivetotop are classic Hyprland dispatcher names with no
+-- documented hl.dsp.* equivalent, and hyprctl still accepts them directly
+-- regardless of the Lua config layer.
+hl.bind("ALT + Tab", hl.dsp.exec_cmd("hyprctl dispatch cyclenext"), { description = "Window: Cycle focus to next window" })
+hl.bind("ALT + Tab", hl.dsp.exec_cmd("hyprctl dispatch bringactivetotop"))
 hl.bind("SUPER + V", hl.dsp.global("quickshell:overviewClipboardToggle"))
 hl.bind("SUPER + Period", hl.dsp.global("quickshell:overviewEmojiToggle"))
 hl.bind("SUPER + A", hl.dsp.global("quickshell:sidebarLeftToggle"), { description = "Shell: Toggle left sidebar" })
