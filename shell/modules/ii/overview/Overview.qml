@@ -159,7 +159,7 @@ Scope {
                     sourceComponent: (Config?.options.overview.style ?? "default") === "niri" ? niriComponent : defaultComponent
                     Component {
                         id: defaultComponent
-                        WindowSwitcherView {
+                        OverviewWidget {
                             screen: panelWindow.screen
                             visible: (panelWindow.searchingText == "") && (Config?.options.overview.showWorkspacesInLauncher ?? true)
                         }
@@ -213,9 +213,6 @@ Scope {
         function toggle() {
             overviewScope.toggleSearchLauncher();
         }
-        function workspacesToggle() {
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
-        }
         function close() {
             GlobalStates.overviewOpen = false;
         }
@@ -238,22 +235,9 @@ Scope {
             overviewScope.toggleSearchLauncher();
         }
     }
-    CompositorGlobalShortcut {
-        name: "overviewWorkspacesClose"
-        description: "Closes overview on press"
-
-        onPressed: {
-            GlobalStates.overviewOpen = false;
-        }
-    }
-    CompositorGlobalShortcut {
-        name: "overviewWorkspacesToggle"
-        description: "Toggles overview on press"
-
-        onPressed: {
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
-        }
-    }
+    // overviewWorkspacesToggle/overviewWorkspacesClose moved to
+    // WindowSwitcher.qml - Super+Tab now opens a standalone panel, not this
+    // search/launcher overview.
     CompositorGlobalShortcut {
         name: "searchToggleRelease"
         description: "Toggles search on release"

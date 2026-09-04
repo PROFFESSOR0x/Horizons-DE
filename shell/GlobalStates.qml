@@ -25,6 +25,11 @@ Singleton {
     property bool oskOpen: false
     property bool overlayOpen: false
     property bool overviewOpen: false
+    // Super+Tab's Workspaces/Windows switcher (WindowSwitcher.qml) - separate
+    // from overviewOpen (the app search/launcher, tap-Super) on purpose: they
+    // used to share one panel, stacked directly under the search box, which
+    // looked like one merged surface with nothing to do with searching.
+    property bool windowSwitcherOpen: false
     property bool regionSelectorOpen: false
     property bool captureEditorOpen: false
     property string captureEditorImagePath: ""
@@ -61,6 +66,7 @@ Singleton {
         { displayName: Translation.tr("Left Sidebar"),           value: "sidebarLeftOpen" },
         { displayName: Translation.tr("Right Sidebar"),          value: "sidebarRightOpen" },
         { displayName: Translation.tr("Overview Launcher"),               value: "overviewOpen" },
+        { displayName: Translation.tr("Window Switcher"),        value: "windowSwitcherOpen" },
         { displayName: Translation.tr("Wallpaper Selector"),     value: "wallpaperSelectorOpen" },
         { displayName: Translation.tr("Media Controls"),         value: "mediaControlsOpen" },
         { displayName: Translation.tr("Overlay"),                value: "overlayOpen" },
