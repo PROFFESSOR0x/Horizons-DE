@@ -75,10 +75,35 @@ Scope {
                 property bool monitorHasSpecialOpen: (thisMonitorData?.specialWorkspace?.name ?? "") !== ""
                 exclusionMode: ExclusionMode.Ignore
                 exclusiveZone: (Config?.options.bar.autoHide.enable && (!mustShow || !Config?.options.bar.autoHide.pushWindows)) ? 0 : Appearance.sizes.baseBarHeight + (Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0) + (Config.options.bar.cornerStyle === 2 ? -6 : 0)
-                WlrLayershell.namespace: "quickshell:bar"
-                // Overlay layer only while special workspace sits on top of a fullscreen window on this monitor,
-                // else Top layer so fullscreen apps cover the bar as normal (Hyprland buries Top layer under fullscreen+special).
-                WlrLayershell.layer: (monitorHasFullscreen && monitorHasSpecialOpen) ? WlrLayer.Overlay : WlrLayer.Top
+                // WlrLayershell is a Wayland-only attached type - merely writing
+                // WlrLayershell.* on a PanelWindow forces Quickshell to create
+                // that attachment regardless of the bound value, and creating it
+                // hard-fails under i3/X11 ("Could not create attached properties
+                // object 'qs::wayland::layershell::WlrLayerShell'"), taking the
+                // whole bar down with it. Gating the *references* behind a
+                // Loader that's only active on Wayland (rather than gating the
+                // values) keeps the exact same reactive behavior on Wayland
+                // while never touching WlrLayershell at all on X11 -
+                // PanelWindow's own plain properties (exclusionMode,
+                // exclusiveZone, anchors, margins, above) still work there via
+                // Quickshell's own X11 backend.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding {
+                            target: barRoot.WlrLayershell
+                            property: "namespace"
+                            value: "quickshell:bar"
+                        }
+                        Binding {
+                            target: barRoot.WlrLayershell
+                            property: "layer"
+                            // Overlay layer only while special workspace sits on top of a fullscreen window on this monitor,
+                            // else Top layer so fullscreen apps cover the bar as normal (Hyprland buries Top layer under fullscreen+special).
+                            value: (barRoot.monitorHasFullscreen && barRoot.monitorHasSpecialOpen) ? WlrLayer.Overlay : WlrLayer.Top
+                        }
+                    }
+                }
                 implicitHeight: Appearance.sizes.barHeight + Appearance.rounding.screenRounding
                 // When Overlay-layer, bar shares a layer with the screen-corner click zones (ScreenCorners.qml)
                 // and same-layer overlap is resolved by stacking, not layer priority - bar was winning and

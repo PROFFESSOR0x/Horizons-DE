@@ -161,11 +161,32 @@ Variants {
 
         screen: modelData
         exclusionMode: ExclusionMode.Ignore
-        WlrLayershell.layer: (GlobalStates.screenLocked && !scaleAnim.running) ? WlrLayer.Overlay : WlrLayer.Bottom
-        WlrLayershell.namespace: "quickshell:background"
-        WlrLayershell.keyboardFocus: GlobalStates.desktopWidgetKeyboardFocus
-            ? WlrKeyboardFocus.OnDemand
-            : WlrKeyboardFocus.None
+        // See Bar.qml for why this is gated behind a Wayland-only Loader
+        // instead of setting WlrLayershell.* directly: merely referencing it
+        // forces attachment creation regardless of the value, which hard-fails
+        // under i3/X11 and was taking the whole wallpaper surface down with it.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding {
+                    target: bgRoot.WlrLayershell
+                    property: "layer"
+                    value: (GlobalStates.screenLocked && !scaleAnim.running) ? WlrLayer.Overlay : WlrLayer.Bottom
+                }
+                Binding {
+                    target: bgRoot.WlrLayershell
+                    property: "namespace"
+                    value: "quickshell:background"
+                }
+                Binding {
+                    target: bgRoot.WlrLayershell
+                    property: "keyboardFocus"
+                    value: GlobalStates.desktopWidgetKeyboardFocus
+                        ? WlrKeyboardFocus.OnDemand
+                        : WlrKeyboardFocus.None
+                }
+            }
+        }
         anchors {
             top: true
             bottom: true
