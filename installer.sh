@@ -905,6 +905,91 @@ migrate_legacy_configs(){
   return 0
 }
 
+# ── Remove a previously-installed hyprglass ──────────────────────────────────
+# hyprglass (the vendored shell/plugins/hyprglass Hyprland plugin) was removed
+# from this repo in favor of Hyprland's own native decoration:blur:variant.
+# A plain re-sync of shell/ (install_qs's rsync --delete) already removes the
+# deployed plugin .so from $QS_CONFIG_DIR, but that step can be skipped on an
+# "already up to date" update, and several other hyprglass traces live
+# outside anything install_qs touches at all: a plugin actually loaded into a
+# *running* Hyprland, one added via `hyprpm`, and the generated
+# shellOverrides/hyprglass.lua. Runs unconditionally and idempotently (a
+# clean install just no-ops silently) so it always fires on install *and*
+# update, not just for users who remember to ask for it.
+cleanup_hyprglass(){
+  step "$(L "Remove any previously-installed hyprglass" "إزالة أي نسخة مثبتة مسبقاً من hyprglass")"
+  local found=false
+
+  # Unload from a *running* Hyprland first — files can be deleted safely
+  # regardless, but the compositor keeps a crashy plugin mapped into its own
+  # process until it's told to unload (or Hyprland itself restarts).
+  if command -v hyprctl &>/dev/null && hyprctl -j plugin list &>/dev/null; then
+    local loaded_paths
+    loaded_paths=$(hyprctl -j plugin list 2>/dev/null | grep -oP '"path"\s*:\s*"\K[^"]*hyprglass[^"]*' || true)
+    if [[ -n "$loaded_paths" ]]; then
+      while IFS= read -r p; do
+        [[ -n "$p" ]] || continue
+        warn "Unloading hyprglass from the running Hyprland: $p"
+        run hyprctl plugin unload "$p"
+        found=true
+      done <<< "$loaded_paths"
+    fi
+  fi
+
+  # hyprpm-managed install (the old README suggested `hyprpm add .../hyprglass`
+  # as an alternative to the bundled build — not something install_qs touches).
+  if command -v hyprpm &>/dev/null && hyprpm list 2>/dev/null | grep -qi hyprglass; then
+    warn "Found hyprglass installed via hyprpm — removing."
+    run hyprpm remove hyprglass
+    found=true
+  fi
+
+  # Deployed files nothing else would clean up on a skipped/partial sync.
+  local stale_paths=(
+    "$QS_CONFIG_DIR/plugins/hyprglass"
+    "$XDG_CONFIG_HOME/hypr/hyprland/shellOverrides/hyprglass.lua"
+  )
+  local p
+  for p in "${stale_paths[@]}"; do
+    if [[ -e "$p" ]]; then
+      warn "Removing stale hyprglass file: $p"
+      run rm -rf "$p"
+      found=true
+    fi
+  done
+
+  # A stray classic-syntax hyprland.conf whose only job was loading the
+  # plugin (`plugin = /path/to/hyprglass.so`) — harmless to Hyprland's own
+  # config resolution either way, but pure clutter now, and worth clearing
+  # out rather than leaving a dead reference to a file we just deleted.
+  local legacy_conf="$XDG_CONFIG_HOME/hypr/hyprland.conf"
+  if [[ -f "$legacy_conf" ]] && grep -qi hyprglass "$legacy_conf" 2>/dev/null; then
+    warn "Found a legacy hyprland.conf referencing hyprglass: $legacy_conf"
+    if [[ "$DRY_RUN" == true ]]; then
+      info "[dry-run] would strip hyprglass line(s) from $legacy_conf (removing the file entirely if that's all it contained)"
+    else
+      sed -i '/hyprglass/Id' "$legacy_conf" 2>/dev/null || true
+      if [[ ! -s "$legacy_conf" ]]; then
+        rm -f "$legacy_conf"
+        ok "Removed now-empty legacy $legacy_conf"
+      else
+        ok "Stripped hyprglass reference(s) from $legacy_conf"
+      fi
+    fi
+    found=true
+  fi
+
+  if [[ "$found" == true ]]; then
+    if command -v hyprctl &>/dev/null && hyprctl version &>/dev/null 2>&1; then
+      run hyprctl reload
+    fi
+    ok "hyprglass cleaned up."
+  else
+    info "No installed hyprglass found — nothing to remove."
+  fi
+  return 0
+}
+
 # ── Backup ────────────────────────────────────────────────────────────────────
 do_backup(){
   [[ "$DO_BACKUP" == false || "$SKIP_BACKUP" == true ]] && { info "$(L "Skipping backup (--skip-backup)" "تخطي النسخ الاحتياطي (--skip-backup)")"; return 0; }
@@ -1515,6 +1600,7 @@ STEPS_TOTAL=0
 ((STEPS_TOTAL+=1)) # target requirements
 ((STEPS_TOTAL+=1)) # check
 ((STEPS_TOTAL+=1)) # migrate
+((STEPS_TOTAL+=1)) # hyprglass cleanup
 [[ "$DO_BACKUP" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_SYSUPDATE" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_DOTS" == true ]] && ((STEPS_TOTAL+=1)) || true
@@ -1534,6 +1620,7 @@ handle_existing_desktop_configs; _done
 install_target_requirements; _done
 check_requirements;      _done
 migrate_legacy_configs;  _done
+cleanup_hyprglass;       _done
 if [[ "$DO_BACKUP" == true ]]; then do_backup; _done; fi
 if [[ "$DO_SYSUPDATE" == true ]]; then do_sysupdate; _done; fi
 if [[ "$DO_DOTS" == true ]]; then install_dots; _done; fi
