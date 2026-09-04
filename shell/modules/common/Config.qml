@@ -611,6 +611,15 @@ Singleton {
                 property string terminal: "kitty -1" // This is only for shell actions
                 property string update: "kitty -1 --hold=yes fish -i -c 'pkexec pacman -Syu'"
                 property string volumeMixer: `~/.config/hypr/hyprland/scripts/launch_first_available.sh "pavucontrol-qt" "pavucontrol"`
+                // What Super (tap) / Settings > Services > Search opens.
+                // "quickshell" is the shell's own built-in search/overview
+                // (modules/ii/overview/Overview.qml) - the other three are
+                // external tools the shell hands off to instead, each
+                // expected to already be installed and (for walker) running
+                // its companion "elephant" service. See Overview.qml's
+                // searchToggle/searchToggleRelease handlers for the actual
+                // launch commands.
+                property string launcher: "quickshell" // quickshell | walker | vicinae | fuzzel
             }
 
             property JsonObject settings: JsonObject {

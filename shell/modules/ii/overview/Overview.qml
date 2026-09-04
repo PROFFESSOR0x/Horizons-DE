@@ -15,6 +15,32 @@ Scope {
     id: overviewScope
     property bool dontAutoCancelSearch: false
     readonly property string launcherPosition: Config?.options.overview.position ?? "top"
+
+    // Settings > Services > Search picks what Super (tap) actually opens.
+    // "quickshell" (default) toggles this shell's own overview/search
+    // surface as before; anything else hands off to that external tool
+    // instead, following the exact kill-if-running/spawn convention already
+    // used by the fuzzel fallback bind in hyprland/keybinds.lua ("pkill X
+    // || X") so behavior stays consistent with the rest of this config.
+    // walker additionally needs its "elephant" companion service already
+    // running; vicinae needs its "vicinae-server" daemon already running -
+    // neither is started here, both are expected to autostart on their own.
+    function toggleSearchLauncher() {
+        const launcher = Config?.options.apps?.launcher ?? "quickshell";
+        switch (launcher) {
+        case "walker":
+            Quickshell.execDetached(["bash", "-c", "pkill -x walker || walker"]);
+            break;
+        case "vicinae":
+            Quickshell.execDetached(["bash", "-c", "vicinae"]);
+            break;
+        case "fuzzel":
+            Quickshell.execDetached(["bash", "-c", "pkill -x fuzzel || fuzzel"]);
+            break;
+        default:
+            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+        }
+    }
     readonly property bool isBottom: launcherPosition === "bottom"
         readonly property bool isCenter: launcherPosition === "center"
 
@@ -185,7 +211,7 @@ Scope {
         target: "search"
 
         function toggle() {
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+            overviewScope.toggleSearchLauncher();
         }
         function workspacesToggle() {
             GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
@@ -209,7 +235,7 @@ Scope {
         description: "Toggles search on press"
 
         onPressed: {
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+            overviewScope.toggleSearchLauncher();
         }
     }
     CompositorGlobalShortcut {
@@ -241,7 +267,7 @@ Scope {
                 GlobalStates.superReleaseMightTrigger = true;
                 return;
             }
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+            overviewScope.toggleSearchLauncher();
         }
     }
     CompositorGlobalShortcut {

@@ -267,6 +267,28 @@ ContentPage {
             title: Translation.tr("Search")
 
             GroupedList {
+                ConfigSelectionArray {
+                    icon: "rocket_launch"
+                    text: Translation.tr("Launcher")
+                    currentValue: Config.options.apps.launcher
+                    onSelected: newValue => { Config.options.apps.launcher = newValue }
+                    options: [
+                        { displayName: Translation.tr("Quickshell (built-in)"), icon: "search", value: "quickshell" },
+                        { displayName: Translation.tr("Walker"), icon: "rocket_launch", value: "walker" },
+                        { displayName: Translation.tr("Vicinae"), icon: "auto_awesome", value: "vicinae" },
+                        { displayName: Translation.tr("Fuzzel"), icon: "list", value: "fuzzel" }
+                    ]
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("What tapping Super opens. \"Quickshell\" is this shell's own built-in search/overview and needs nothing extra. The other three are separate apps this doesn't install for you — install and get each actually running *before* switching to it here, or Super will just do nothing:\n"
+                        + "• Walker (AUR: walker or walker-bin) also needs its \"elephant\" service installed and running separately (yay -S elephant) — some walker-bin AUR builds don't pull it in automatically.\n"
+                        + "• Vicinae needs its \"vicinae-server\" daemon running. Prefer AUR vicinae-bin over plain vicinae — the source-build AUR package has a known-broken PKGBUILD as of this writing.\n"
+                        + "• Fuzzel (AUR/repo: fuzzel) works standalone, no extra service needed.")
+                }
                 ConfigSwitch {
                     text: Translation.tr("Use Levenshtein distance-based algorithm instead of fuzzy")
                     checked: Config.options.search.sloppy
