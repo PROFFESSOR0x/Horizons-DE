@@ -16,8 +16,8 @@ Settings > Hyprland > Blur Style in the shell.
 ## Install — Horizons Installer v2.0
 
 ```bash
-git clone https://github.com/PROFFESSOR0x/end4-pC.git End4-PXpC
-cd End4-PXpC
+git clone https://github.com/PROFFESSOR0x/Horizons-DE.git Horizons-DE
+cd Horizons-DE
 ./installer.sh                          # interactive (profile: core)
 ./installer.sh --profile full --force   # full non-interactive
 ./installer.sh --dry-run --profile ultra # preview what would be done

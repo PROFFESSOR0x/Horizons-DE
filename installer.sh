@@ -1394,7 +1394,7 @@ print_summary(){
   printf "  ${C}•  $(L "Run ${IV} ./installer.sh update ${RST}${C} to update" "شغّل ${IV} ./installer.sh update ${RST}${C} للتحديث")${RST}\n"
   printf "  ${C}•  $(L "Log file:" "ملف السجل:") ${UL}%s${RST}\n" "$LOG_FILE"
   printf "\n"
-  printf "  ${DM}${IT}Source: https://github.com/PROFFESSOR0x/end4-pC${RST}\n"
+  printf "  ${DM}${IT}Source: https://github.com/PROFFESSOR0x/Horizons-DE${RST}\n"
   printf "\n"
   printf "${M}$(printf '%0.s─' $(seq 1 60))${RST}\n"
   printf "\n"

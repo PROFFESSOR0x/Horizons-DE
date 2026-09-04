@@ -55,6 +55,12 @@ horizons_state_write() {
     local gitinfo
     gitinfo=$(_hz_git_info)
     IFS='|' read -r git_commit git_branch git_remote git_dirty <<< "$gitinfo"
+    # Absolute path to this clone, persisted so callers with no working-directory
+    # context of their own (the running shell, a systemd timer, …) can still
+    # find this repo later to check/pull/re-apply updates. Without this, only
+    # invoking the scripts directly from inside the clone would ever work.
+    local repo_root
+    repo_root=$(realpath "${REPO_ROOT:-$(pwd)}" 2>/dev/null || echo "${REPO_ROOT:-$(pwd)}")
 
     local now_iso now_human epoch
     now_iso=$(_hz_now_iso)
@@ -83,6 +89,7 @@ horizons_state_write() {
   "git_branch": "$git_branch",
   "git_remote": "$git_remote",
   "git_dirty": $git_dirty,
+  "repo_root": "$repo_root",
   "distro": "$distro",
   "arch": "$(uname -m)",
   "lang": "$lang",
@@ -113,6 +120,7 @@ epoch=$epoch
 git_commit=$git_commit
 git_branch=$git_branch
 git_remote=$git_remote
+repo_root=$repo_root
 profile=$profile
 components=$components
 display_protocol=$protocol

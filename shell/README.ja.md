@@ -48,8 +48,8 @@
 > このフォークは独自の設定フォルダーを個別に管理するため、既存の設定を上書きまたは変更することは**ありません**。ただし、[illogical-impulse](https://github.com/end-4/dots-hyprland) がインストールされ、実行中である必要があります。
 
 ```bash
-git clone https://github.com/PROFFESSOR0x/end4-pC.git End4-PXpC
-cd End4-PXpC
+git clone https://github.com/PROFFESSOR0x/Horizons-DE.git Horizons-DE
+cd Horizons-DE
 ./installer.sh
 ```
 
