@@ -12,8 +12,21 @@ Item {
     property real smallRadius: Appearance.rounding.unsharpenmore
     property color bgcolor: Appearance.colors.colLayer1
     property real itemVerticalPadding: 24
+    // Config* rows have genuinely different natural heights (a ConfigSwitch
+    // is just an icon/label/toggle; a ConfigTextArea carries a description
+    // line and an input field), which otherwise makes their background
+    // pills visibly different sizes row to row. Padding every row up to at
+    // least this tall (via extra top/bottom margin, split evenly so the
+    // control stays vertically centered) keeps the pills a consistent
+    // height without touching genuinely-taller rows (wrapped multi-line
+    // text, etc.) — they simply exceed the minimum and keep their own size.
+    property real minRowHeight: 48
     Layout.fillWidth: true
     implicitHeight: contentArea.implicitHeight
+
+    function extraPadFor(item) {
+        return item ? Math.max(0, (root.minRowHeight - item.implicitHeight) / 2) : 0
+    }
 
     ColumnLayout {
         id: contentArea
@@ -23,11 +36,14 @@ Item {
         Component.onCompleted: {
             // Reserve the same vertical space the old wrapper rectangles
             // supplied, but retain the original layout parent of each row.
+            // Margins are bound (not just set once) so a row that changes
+            // its own natural height later (e.g. a description wrapping to
+            // a 2nd line) keeps its pill sized correctly.
             for (let i = 0; i < children.length; ++i) {
                 const child = children[i]
-                child.Layout.topMargin = root.itemVerticalPadding / 2
-                child.Layout.bottomMargin = root.itemVerticalPadding / 2
                 child.Layout.fillWidth = true
+                child.Layout.topMargin = Qt.binding(() => root.itemVerticalPadding / 2 + root.extraPadFor(child))
+                child.Layout.bottomMargin = Qt.binding(() => root.itemVerticalPadding / 2 + root.extraPadFor(child))
             }
         }
     }
@@ -54,10 +70,12 @@ Item {
                 return true
             }
 
+            readonly property real extraPad: root.extraPadFor(row)
+
             x: row?.x ?? 0
-            y: (row?.y ?? 0) - root.itemVerticalPadding / 2
+            y: (row?.y ?? 0) - root.itemVerticalPadding / 2 - extraPad
             width: row?.width ?? 0
-            height: itemVisible ? (row.height + root.itemVerticalPadding) : 0
+            height: itemVisible ? (row.height + root.itemVerticalPadding + 2 * extraPad) : 0
             visible: itemVisible
             z: -1
             color: root.bgcolor
