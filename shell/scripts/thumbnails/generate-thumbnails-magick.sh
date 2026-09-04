@@ -29,7 +29,22 @@ md5() {
 }
 
 urlencode() {
-    # Percent-encode a string for use in a URI, but do not encode slashes
+    # Percent-encode a string for use in a URI, but do not encode slashes.
+    # Must match QML's encodeURIComponent()-based encoding byte-for-byte, or
+    # the MD5 hash computed here diverges from the one ThumbnailImage.qml
+    # looks the cached thumbnail up under and it's never found.
+    #
+    # Forcing the C locale for this function is required for non-ASCII
+    # (e.g. Arabic, accented) filenames: in a UTF-8 locale, bash's
+    # character-indexing (${str:$i:1}) and length (${#str}) operate on
+    # decoded Unicode *characters*, but `printf '%d' "'$c"` only ever reads
+    # the first *byte* of whatever it's given - so a multi-byte character
+    # silently encoded to the percent-escape of just its first byte,
+    # producing the wrong URI (and thus the wrong hash) for any filename
+    # with non-ASCII characters. In the C locale, indexing/length instead
+    # work byte-by-byte, so each byte of a multi-byte sequence is visited
+    # and escaped on its own - the correct behavior for percent-encoding.
+    local LC_ALL=C
     local str="$1"
     local encoded=""
     local c
@@ -37,7 +52,7 @@ urlencode() {
         c="${str:$i:1}"
         case "$c" in
             [a-zA-Z0-9.~_-]|/|'('|')'|'*') encoded+="$c" ;;
-            *) printf -v hex '%%%02X' "'${c}'"; encoded+="$hex" ;;
+            *) printf -v hex '%%%02X' "'${c}"; encoded+="$hex" ;;
         esac
     done
     echo "$encoded"

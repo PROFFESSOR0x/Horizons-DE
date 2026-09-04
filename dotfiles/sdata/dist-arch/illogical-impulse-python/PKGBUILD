@@ -1,7 +1,7 @@
 groups=(illogical-impulse)
 pkgname=illogical-impulse-python
 pkgver=1.1
-pkgrel=5
+pkgrel=6
 pkgdesc='Illogical Impulse Python Dependencies'
 arch=(any)
 license=(None)
@@ -13,4 +13,10 @@ depends=(
   libsoup3
   libportal-gtk4
   gobject-introspection
+  # Provides the GnomeDesktop-4.0 GIR typelib that scripts/thumbnails/thumbgen.py
+  # needs (gi.require_version("GnomeDesktop", "4.0")) - pygobject alone (pip,
+  # in the venv) only gives the binding machinery, not this typelib, so
+  # thumbnail generation silently fell back to (or failed alongside) the
+  # ImageMagick path without it.
+  gnome-desktop
 )

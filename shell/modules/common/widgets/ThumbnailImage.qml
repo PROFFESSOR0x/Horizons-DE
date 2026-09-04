@@ -22,7 +22,16 @@ StyledImage {
         const md5Hash = Qt.md5(`file://${encodedUrlWithoutFileProtocol}`);
         return `${Directories.genericCache}/thumbnails/${thumbnailSizeName}/${md5Hash}.png`;
     }
-    source: thumbnailPath
+    // If the cached freedesktop-spec thumbnail never shows up (missing
+    // generator dependency, a hash/path mismatch between whatever wrote it
+    // and thumbnailPath's own computation, a corrupt cache entry, etc.) fall
+    // back to decoding the actual source file directly rather than leaving a
+    // permanently blank tile - sourceSize (set by callers) keeps that decode
+    // cheap. useFallback only latches on *after* giving thumbnail generation
+    // a moment to finish (fallbackTimer), so the lightweight cached
+    // thumbnail is still preferred whenever it's actually available.
+    property bool useFallback: false
+    source: useFallback ? sourcePath : thumbnailPath
 
     asynchronous: true
     smooth: true
@@ -31,6 +40,19 @@ StyledImage {
     opacity: status === Image.Ready ? 1 : 0
     Behavior on opacity {
         animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+    }
+
+    onStatusChanged: {
+        if (status === Image.Error && !useFallback) {
+            fallbackTimer.restart();
+        } else if (status === Image.Ready) {
+            fallbackTimer.stop();
+        }
+    }
+    Timer {
+        id: fallbackTimer
+        interval: 300
+        onTriggered: root.useFallback = true
     }
 
     onSourceSizeChanged: {
