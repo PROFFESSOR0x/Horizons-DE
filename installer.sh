@@ -1393,7 +1393,29 @@ configure_i3(){
   local i3_config="$XDG_CONFIG_HOME/i3/config"
   local horizons_i3="$XDG_CONFIG_HOME/i3/horizons.conf"
   local source_i3="$REPO_ROOT/i3/horizons.conf"
-  [[ -f "$i3_config" ]] || return 0
+  # A brand-new i3 install has no config yet until i3-config-wizard runs (or
+  # never gets one at all, e.g. launched non-interactively) - this used to
+  # silently skip integration entirely in that case, so Horizons never got
+  # wired up on a truly fresh i3/X11 machine. Seed one from i3's own
+  # packaged default (same template i3-config-wizard itself offers) instead
+  # of leaving it to chance.
+  if [[ ! -f "$i3_config" ]]; then
+    local i3_default_config=""
+    for candidate in /etc/i3/config /usr/share/i3/config /usr/etc/i3/config; do
+      [[ -f "$candidate" ]] && { i3_default_config="$candidate"; break; }
+    done
+    if [[ -z "$i3_default_config" ]]; then
+      warn "$(L "No i3 config found and no packaged i3 default template either — skipping i3 integration." "لا يوجد ملف إعداد i3 ولا قالب i3 الافتراضي المرفق — تخطي تكامل i3.")"
+      return 0
+    fi
+    info "$(L "No i3 config yet — seeding one from" "لا يوجد إعداد i3 بعد — سيتم إنشاؤه من"): $i3_default_config"
+    if [[ "$DRY_RUN" == true ]]; then
+      info "[dry-run] would create $i3_config from $i3_default_config"
+    else
+      run mkdir -p "$(dirname "$i3_config")"
+      run cp "$i3_default_config" "$i3_config"
+    fi
+  fi
 
   step "$(L "Configure i3/X11 shell" "إعداد واجهة i3/X11")"
   if grep -Fq 'include ~/.config/i3/horizons.conf' "$i3_config" 2>/dev/null && [[ -f "$horizons_i3" ]]; then
