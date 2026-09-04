@@ -397,6 +397,50 @@ ContentPage {
                             }
                         }
                     }
+
+                    ConfigRow {
+                        uniform: true
+                        ConfigTextArea {
+                            Layout.fillWidth: true
+                            buttonIcon: "description"
+                            fieldWidth: 100
+                            text: Translation.tr("Files")
+                            value: Config.options.search.prefix.files
+                            onValueChanged: {
+                                Config.options.search.prefix.files = value;
+                            }
+                        }
+                        ConfigTextArea {
+                            Layout.fillWidth: true
+                            buttonIcon: "dns"
+                            fieldWidth: 100
+                            text: Translation.tr("SSH hosts")
+                            value: Config.options.search.prefix.sshHosts
+                            onValueChanged: {
+                                Config.options.search.prefix.sshHosts = value;
+                            }
+                        }
+                    }
+                    ConfigRow {
+                        uniform: true
+                        ConfigTextArea {
+                            Layout.fillWidth: true
+                            buttonIcon: "settings_applications"
+                            fieldWidth: 100
+                            text: Translation.tr("System services")
+                            value: Config.options.search.prefix.systemServices
+                            onValueChanged: {
+                                Config.options.search.prefix.systemServices = value;
+                            }
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Files searches plocate's system-wide index (falls back to mlocate's locate, then a live find under $HOME if neither index exists yet — run `sudo updatedb` once after installing plocate). System services lists systemd user + system units; starting/stopping/restarting a system-wide one prompts for authentication via pkexec.")
+                    }
                 }
             }
             ContentSubsection {
