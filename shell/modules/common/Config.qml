@@ -1449,6 +1449,22 @@ Singleton {
                     property string imageSearchEngineBaseUrl: "https://lens.google.com/uploadbyurl?url="
                     property bool useCircleSelection: false
                 }
+                // Per-mode settings for the file/SSH-host/systemd-service search
+                // prefixes (LauncherSearch.qml) - separate from prefix.* (which is
+                // just the trigger character) so each mode can be tuned or turned
+                // off independently.
+                property JsonObject extras: JsonObject {
+                    property bool filesEnable: true
+                    property int filesMaxResults: 40
+                    property bool sshHostsEnable: true
+                    property bool systemServicesEnable: true
+                    property int systemServicesMaxResults: 40
+                    // System-scope units need pkexec to start/stop/restart; off by
+                    // default is *not* the choice here since it's opt-out, not
+                    // opt-in, but this lets someone who'd rather not see
+                    // privileged actions in a launcher hide them entirely.
+                    property bool systemServicesIncludeSystemScope: true
+                }
             }
 
             property JsonObject sidebar: JsonObject {

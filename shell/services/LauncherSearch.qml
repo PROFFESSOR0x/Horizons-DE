@@ -289,13 +289,14 @@ Singleton {
                 return;
             }
             root.fileSearchRunning = true;
+            const maxResults = Math.max(1, Config.options.search.extras.filesMaxResults ?? 40);
             // $0 is an unused label, $1 is the actual (unescaped, safe from
             // shell injection since it's a positional param, not interpolated
             // into the script text) search term.
             filesProc.command = ["bash", "-c",
-                'plocate -i -l 40 -- "$1" 2>/dev/null' +
-                ' || locate -i -l 40 -- "$1" 2>/dev/null' +
-                ' || find "$HOME" -iname "*$1*" 2>/dev/null | head -n 40',
+                `plocate -i -l ${maxResults} -- "$1" 2>/dev/null` +
+                ` || locate -i -l ${maxResults} -- "$1" 2>/dev/null` +
+                ` || find "$HOME" -iname "*$1*" 2>/dev/null | head -n ${maxResults}`,
                 "file-search", term];
             filesProc.running = true;
         }
@@ -492,6 +493,7 @@ Singleton {
                 });
             }).filter(Boolean);
         } else if (root.query.startsWith(Config.options.search.prefix.files)) {
+            if (!Config.options.search.extras.filesEnable) return [];
             // Local files (plocate/locate/find - see filesProc above)
             fileResultsTimer.restart();
             const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.files).trim();
@@ -528,6 +530,7 @@ Singleton {
                 });
             });
         } else if (root.query.startsWith(Config.options.search.prefix.sshHosts)) {
+            if (!Config.options.search.extras.sshHostsEnable) return [];
             // SSH quick-connect (~/.ssh/config Host entries - see sshConfigFile above)
             const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.sshHosts).toLowerCase().trim();
             return root.sshHostNames.filter(host => searchString.length === 0 || host.toLowerCase().includes(searchString)).map(host => {
@@ -544,10 +547,16 @@ Singleton {
                 });
             });
         } else if (root.query.startsWith(Config.options.search.prefix.systemServices)) {
+            if (!Config.options.search.extras.systemServicesEnable) return [];
             // systemd services (list cached once - see systemServiceUnits above;
             // start/stop/restart run the real systemctl call on selection only)
             const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.systemServices).toLowerCase().trim();
-            return root.systemServiceUnits.filter(unit => searchString.length === 0 || unit.name.toLowerCase().includes(searchString)).slice(0, 40).map(unit => {
+            const includeSystemScope = Config.options.search.extras.systemServicesIncludeSystemScope ?? true;
+            const maxResults = Math.max(1, Config.options.search.extras.systemServicesMaxResults ?? 40);
+            return root.systemServiceUnits
+                .filter(unit => includeSystemScope || unit.scope === "user")
+                .filter(unit => searchString.length === 0 || unit.name.toLowerCase().includes(searchString))
+                .slice(0, maxResults).map(unit => {
                 return resultComp.createObject(null, {
                     rawValue: unit.name,
                     name: unit.name,

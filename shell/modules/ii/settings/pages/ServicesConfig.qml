@@ -445,6 +445,75 @@ ContentPage {
                 }
             }
             ContentSubsection {
+                title: Translation.tr("Files, SSH & services")
+                GroupedList {
+                    ConfigSwitch {
+                        buttonIcon: "folder"
+                        text: Translation.tr("Enable file search")
+                        checked: Config.options.search.extras.filesEnable
+                        onCheckedChanged: {
+                            Config.options.search.extras.filesEnable = checked;
+                        }
+                    }
+                    ConfigSpinBox {
+                        icon: "format_list_numbered"
+                        text: Translation.tr("Max file results")
+                        value: Config.options.search.extras.filesMaxResults
+                        from: 5
+                        to: 200
+                        stepSize: 5
+                        enabled: Config.options.search.extras.filesEnable
+                        onValueChanged: {
+                            Config.options.search.extras.filesMaxResults = value;
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "lan"
+                        text: Translation.tr("Enable SSH quick-connect")
+                        checked: Config.options.search.extras.sshHostsEnable
+                        onCheckedChanged: {
+                            Config.options.search.extras.sshHostsEnable = checked;
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "settings_applications"
+                        text: Translation.tr("Enable systemd service search")
+                        checked: Config.options.search.extras.systemServicesEnable
+                        onCheckedChanged: {
+                            Config.options.search.extras.systemServicesEnable = checked;
+                        }
+                    }
+                    ConfigSpinBox {
+                        icon: "format_list_numbered"
+                        text: Translation.tr("Max service results")
+                        value: Config.options.search.extras.systemServicesMaxResults
+                        from: 5
+                        to: 200
+                        stepSize: 5
+                        enabled: Config.options.search.extras.systemServicesEnable
+                        onValueChanged: {
+                            Config.options.search.extras.systemServicesMaxResults = value;
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "shield_lock"
+                        text: Translation.tr("Include system-wide services (needs pkexec to control)")
+                        checked: Config.options.search.extras.systemServicesIncludeSystemScope
+                        enabled: Config.options.search.extras.systemServicesEnable
+                        onCheckedChanged: {
+                            Config.options.search.extras.systemServicesIncludeSystemScope = checked;
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Turning off \"Include system-wide services\" keeps only your user units in the ! search — nothing that would ever prompt for a password.")
+                    }
+                }
+            }
+            ContentSubsection {
                 title: Translation.tr("Web search")
 
                 GroupedList {

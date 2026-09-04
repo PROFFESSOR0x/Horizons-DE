@@ -19,7 +19,7 @@ RowLayout {
         searchInput.forceActiveFocus();
     }
 
-    enum SearchPrefixType { Action, App, Clipboard, Emojis, Symbols, Math, ShellCommand, WebSearch, Keybinds, DefaultSearch }
+    enum SearchPrefixType { Action, App, Clipboard, Emojis, Symbols, Math, ShellCommand, WebSearch, Keybinds, Files, SshHosts, SystemServices, DefaultSearch }
 
     property var searchPrefixType: {
         if (root.searchingText.startsWith(Config.options.search.prefix.action)) return SearchBar.SearchPrefixType.Action;
@@ -31,6 +31,9 @@ RowLayout {
         if (root.searchingText.startsWith(Config.options.search.prefix.shellCommand)) return SearchBar.SearchPrefixType.ShellCommand;
         if (root.searchingText.startsWith(Config.options.search.prefix.webSearch)) return SearchBar.SearchPrefixType.WebSearch;
         if (root.searchingText.startsWith(Config.options.search.prefix.keybinds ?? "<")) return SearchBar.SearchPrefixType.Keybinds;
+        if (root.searchingText.startsWith(Config.options.search.prefix.files ?? "~")) return SearchBar.SearchPrefixType.Files;
+        if (root.searchingText.startsWith(Config.options.search.prefix.sshHosts ?? "@")) return SearchBar.SearchPrefixType.SshHosts;
+        if (root.searchingText.startsWith(Config.options.search.prefix.systemServices ?? "!")) return SearchBar.SearchPrefixType.SystemServices;
         return SearchBar.SearchPrefixType.DefaultSearch;
     }
     
@@ -48,6 +51,9 @@ RowLayout {
             case SearchBar.SearchPrefixType.ShellCommand: return MaterialShape.Shape.PixelCircle;
             case SearchBar.SearchPrefixType.WebSearch: return MaterialShape.Shape.SoftBurst;
             case SearchBar.SearchPrefixType.Keybinds: return MaterialShape.Shape.Cookie4Sided;
+            case SearchBar.SearchPrefixType.Files: return MaterialShape.Shape.Arch;
+            case SearchBar.SearchPrefixType.SshHosts: return MaterialShape.Shape.Pentagon;
+            case SearchBar.SearchPrefixType.SystemServices: return MaterialShape.Shape.Cookie6Sided;
             default: return MaterialShape.Shape.Cookie7Sided;
         }
         text: switch (root.searchPrefixType) {
@@ -61,6 +67,9 @@ RowLayout {
             case SearchBar.SearchPrefixType.WebSearch: return "travel_explore";
             case SearchBar.SearchPrefixType.DefaultSearch: return "search";
             case SearchBar.SearchPrefixType.Keybinds: return "keyboard_command_key";
+            case SearchBar.SearchPrefixType.Files: return "folder";
+            case SearchBar.SearchPrefixType.SshHosts: return "lan";
+            case SearchBar.SearchPrefixType.SystemServices: return "settings_applications";
             default: return "search";
         }
     }
@@ -71,7 +80,14 @@ RowLayout {
         implicitHeight: 40
         focus: GlobalStates.overviewOpen
         font.pixelSize: Appearance.font.pixelSize.small
-        placeholderText: Translation.tr("Search, calculate or run")
+        // The file/SSH-host/systemd-service search modes (LauncherSearch.qml)
+        // are otherwise invisible until someone already knows their prefix
+        // character exists - hint at them here since the placeholder is the
+        // one thing shown before any text is typed.
+        placeholderText: Translation.tr("Search, calculate or run (%1files %2ssh %3services)")
+            .arg(Config.options.search.prefix.files ?? "~")
+            .arg(Config.options.search.prefix.sshHosts ?? "@")
+            .arg(Config.options.search.prefix.systemServices ?? "!")
         implicitWidth: root.searchingText == "" ? Appearance.sizes.searchWidthCollapsed : Appearance.sizes.searchWidth
 
         Behavior on implicitWidth {
