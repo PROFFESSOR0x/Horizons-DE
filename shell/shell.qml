@@ -50,11 +50,6 @@ ShellRoot {
         Wallpapers.load()
         Updates.load()
         LyricsService.restartLyrics()
-        // Hyprglass service — access to trigger singleton creation and initial apply
-        if (WM.compositor === "hyprland") {
-            // Touch Hyprglass to ensure it loads and syncs plugin config
-            Hyprglass.apply()
-        }
     }
     
     PanelFamilyLoader {

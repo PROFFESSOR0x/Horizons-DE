@@ -1,69 +1,14 @@
 #!/usr/bin/env bash
 # install/lib/build.sh — Horizons build-from-source helpers
-# Builds quickshell (via PKGBUILD) and hyprglass (via make / hyprpm) from source.
+# Builds quickshell (via PKGBUILD) from source.
 
-# Expects: REPO_ROOT, QS_REPO, HYPRGLASS_DIR, DISTRO vars, and UI helpers (info, warn, ok, err, run) if available.
+# Expects: REPO_ROOT, QS_REPO, DISTRO vars, and UI helpers (info, warn, ok, err, run) if available.
 # Falls back to plain echo if not.
 
 _build_info() { if declare -f info &>/dev/null; then info "$*"; else echo "[INFO] $*"; fi; }
 _build_warn() { if declare -f warn &>/dev/null; then warn "$*"; else echo "[WARN] $*"; fi; }
 _build_ok()   { if declare -f ok &>/dev/null; then ok "$*"; else echo "[OK] $*"; fi; }
 _build_err()  { if declare -f err &>/dev/null; then err "$*"; else echo "[ERR] $*" >&2; fi; }
-
-# ── hyprglass (primary: hz_) ──────────────────────────────────────────────────
-hz_build_hyprglass() {
-    local hyprglass_dir="${HYPRGLASS_DIR:-$REPO_ROOT/shell/plugins/hyprglass}"
-    local force="${1:-false}"
-
-    if [[ ! -d "$hyprglass_dir" ]]; then
-        _build_warn "hyprglass plugin dir not found at $hyprglass_dir — skipping."
-        return 0
-    fi
-
-    if [[ -f "$hyprglass_dir/hyprglass.so" && "$force" != "true" ]]; then
-        _build_info "hyprglass.so already exists — skipping build (use --build-force to rebuild)."
-        return 0
-    fi
-
-    if command -v hyprpm &>/dev/null; then
-        _build_info "hyprpm found — alternative: hyprpm add https://github.com/hyprnux/hyprglass && hyprpm enable hyprglass"
-    fi
-
-    local missing=()
-    for t in make g++ pkg-config; do command -v "$t" &>/dev/null || missing+=("$t"); done
-    if [[ ${#missing[@]} -gt 0 ]]; then
-        _build_warn "Missing build tools: ${missing[*]} — skipping hyprglass build."
-        _build_warn "Install base-devel (Arch) / build-essential (Debian) and re-run with --with-build."
-        return 0
-    fi
-
-    _build_info "Building hyprglass.so from source (make)…"
-    if (cd "$hyprglass_dir" && make -j"$(nproc 2>/dev/null || echo 4)"); then
-        _build_ok "hyprglass.so built at $hyprglass_dir/hyprglass.so"
-        local qs_config_dir="${QS_CONFIG_DIR:-$XDG_CONFIG_HOME/quickshell/horizons}"
-        if [[ -d "$qs_config_dir" ]]; then
-            mkdir -p "$qs_config_dir/plugins/hyprglass"
-            cp -f "$hyprglass_dir/hyprglass.so" "$qs_config_dir/plugins/hyprglass/hyprglass.so"
-            _build_ok "Deployed hyprglass.so to $qs_config_dir/plugins/hyprglass/"
-        fi
-        return 0
-    else
-        _build_warn "hyprglass build failed — missing dev headers (hyprland, pixman, libdrm, wayland)?"
-        _build_warn "Try: sudo pacman -S hyprland pixman libdrm wayland wayland-protocols (Arch)"
-        _build_warn "Continuing without fresh plugin build."
-        return 0
-    fi
-}
-build_hyprglass(){ hz_build_hyprglass "$@"; }
-
-hz_build_hyprglass_clean() {
-    local hyprglass_dir="${HYPRGLASS_DIR:-$REPO_ROOT/shell/plugins/hyprglass}"
-    if [[ -d "$hyprglass_dir" ]]; then
-        (cd "$hyprglass_dir" && make clean 2>/dev/null || rm -f hyprglass.so src/*.o)
-        _build_ok "hyprglass cleaned."
-    fi
-}
-build_hyprglass_clean(){ hz_build_hyprglass_clean "$@"; }
 
 # ── quickshell (primary: hz_) ─────────────────────────────────────────────────
 hz_build_quickshell() {
@@ -131,9 +76,8 @@ build_quickshell(){ hz_build_quickshell "$@"; }
 # ── all ───────────────────────────────────────────────────────────────────────
 hz_build_all() {
     local force="${1:-false}"
-    _build_info "Build profile: all (quickshell + hyprglass)"
+    _build_info "Build profile: all (quickshell)"
     hz_build_quickshell "$force"
-    hz_build_hyprglass "$force"
 }
 build_all(){ hz_build_all "$@"; }
 

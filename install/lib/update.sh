@@ -104,7 +104,7 @@ horizons_update_pull() {
         if declare -f horizons_state_write &>/dev/null; then
             local prof comp
             prof=$(horizons_state_get profile 2>/dev/null || echo "full")
-            comp=$(horizons_state_get components 2>/dev/null || echo "dots,shell,hyprglass")
+            comp=$(horizons_state_get components 2>/dev/null || echo "dots,shell")
             horizons_state_write "$prof" "$comp"
         fi
         return 0

@@ -27,13 +27,13 @@
 #   -v, --verbose           Verbose output
 #       --dry-run           Show what would be done, don't execute
 #       --profile <name>    minimal | core (default) | full | ultra
-#       --components <csv>  Comma-separated overrides: dots,shell,hyprglass,bundled,build,deps,sysupdate,backup
+#       --components <csv>  Comma-separated overrides: dots,shell,bundled,build,deps,sysupdate,backup
 #                           Prefix with ^/- /no- to disable: --components no-dots,^bundled
 #       --with-deps         Install dependencies (default: via profile)
 #       --skip-deps         Skip dependencies
 #       --with-sysupdate    Full system upgrade (pacman -Syu / dnf upgrade)
 #       --skip-sysupdate    Skip system upgrade (default)
-#       --with-build        Build quickshell + hyprglass from source
+#       --with-build        Build quickshell from source
 #       --skip-build        Skip building
 #       --with-bundled      Install bundled extras (Rubik, Gabarito, Bibata, GoogleSans)
 #       --skip-bundled      Skip bundled extras
@@ -44,7 +44,6 @@
 #       --build-force       Force rebuild even if binaries exist
 #       --skip-dots         (compat) Skip dotfiles base install
 #       --skip-qs           (compat) Skip Quickshell shell config
-#       --skip-hyprglass    Skip hyprglass plugin build
 #       --log-file <path>   Custom log file
 #       --show-profiles     List available profiles and exit
 #       --lang <en|ar>      Installer language (default: interactive prompt, or en)
@@ -72,7 +71,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR"
 QS_REPO="$REPO_ROOT/shell"
 DOTS_REPO="$REPO_ROOT/dotfiles"
-HYPRGLASS_DIR="$QS_REPO/plugins/hyprglass"
 
 # Source shared libs (order matters)
 # shellcheck source=install/lib/distro.sh
@@ -107,7 +105,6 @@ HORIZONS_PROFILE="core"
 COMPONENTS_CSV=""
 DO_DOTS=true
 DO_SHELL=true
-DO_HYPRGLASS=true
 DO_BUNDLED=false
 DO_BUILD=false
 DO_SYSUPDATE=false
@@ -120,7 +117,6 @@ SKIP_DEPS=false
 SKIP_DOTS=false
 SKIP_QS=false
 SKIP_BACKUP=false
-SKIP_HYPRGLASS=false
 SKIP_SYSUPDATE=false
 WITH_VIA_NIX=false
 FONTSET_DIR_NAME=""
@@ -251,7 +247,6 @@ while [[ $# -gt 0 ]]; do
     --skip-backup) DO_BACKUP=false; SKIP_BACKUP=true; shift ;;
     --skip-dots) SKIP_DOTS=true; shift ;;
     --skip-qs|--skip-quickshell) SKIP_QS=true; shift ;;
-    --skip-hyprglass) SKIP_HYPRGLASS=true; shift ;;
     --with-fontset|--fontset) FONTSET_DIR_NAME="$2"; shift 2 ;;
     --via-nix) WITH_VIA_NIX=true; INSTALL_VIA_NIX=true; shift ;;
     --log-file) LOG_FILE="$2"; shift 2 ;;
@@ -282,7 +277,6 @@ if declare -f horizons_profile_resolve &>/dev/null; then
     [[ "$SKIP_DOTS" == true ]] && DO_DOTS=false
     [[ "$SKIP_QS" == true ]] && DO_SHELL=false
     [[ "$SKIP_BACKUP" == true ]] && DO_BACKUP=false
-    [[ "$SKIP_HYPRGLASS" == true ]] && DO_HYPRGLASS=false
     [[ "$SKIP_SYSUPDATE" == true ]] && DO_SYSUPDATE=false
     if [[ -n "$COMPONENTS_CSV" ]]; then
         horizons_components_apply "$COMPONENTS_CSV"
@@ -310,7 +304,6 @@ SKIP_SYSUPDATE=$([[ "$DO_SYSUPDATE" == true ]] && echo false || echo true)
 COMPONENTS_STR=""
 [[ "$DO_DOTS" == true ]] && COMPONENTS_STR+="dots,"
 [[ "$DO_SHELL" == true ]] && COMPONENTS_STR+="shell,"
-[[ "$DO_HYPRGLASS" == true ]] && COMPONENTS_STR+="hyprglass,"
 [[ "$DO_BUNDLED" == true ]] && COMPONENTS_STR+="bundled,"
 [[ "$DO_BUILD" == true ]] && COMPONENTS_STR+="build,"
 [[ "$DO_DEPS" == true ]] && COMPONENTS_STR+="deps,"
@@ -802,49 +795,6 @@ install_dots(){
   fi
 }
 
-# ── Build plugins (hyprglass) ────────────────────────────────────────────────
-build_hyprglass(){
-  [[ "$DO_HYPRGLASS" == false || "$SKIP_HYPRGLASS" == true ]] && { info "$(L "Skipping hyprglass plugin (profile: $HORIZONS_PROFILE)" "تخطي إضافة hyprglass (الملف: $HORIZONS_PROFILE)")"; return 0; }
-  step "$(L "Build hyprglass plugin" "بناء إضافة hyprglass")"
-  if [[ "$DRY_RUN" == true ]]; then
-    info "[dry-run] would build hyprglass.so via make (skip with --skip-hyprglass)"
-    return 0
-  fi
-  # Prefer lib helper (hz_ prefix to avoid recursion)
-  if declare -f hz_build_hyprglass &>/dev/null; then
-      if [[ "$ASK" == false || "$FORCE" == true ]]; then
-          if [[ "$BUILD_FORCE" == true ]]; then hz_build_hyprglass true; else hz_build_hyprglass false; fi
-          return 0
-      fi
-  elif declare -f build_hyprglass &>/dev/null && [[ "$(type -t build_hyprglass)" != "function" || "$(declare -f build_hyprglass | grep -c "hz_build")" -eq 0 ]]; then
-      # Fallback if only plain build_hyprglass from lib is available (before alias) — avoid recursion by checking
-      :
-  fi
-  # Fallback inline logic (if lib not loaded)
-  if [[ ! -d "$HYPRGLASS_DIR" ]]; then
-    warn "hyprglass plugin dir not found at $HYPRGLASS_DIR — skipping."
-    return 0
-  fi
-  if command -v hyprpm &>/dev/null; then
-    info "hyprpm found — alternative: hyprpm add https://github.com/hyprnux/hyprglass && hyprpm enable hyprglass"
-  fi
-  if ! command -v make &>/dev/null || ! command -v g++ &>/dev/null; then
-    warn "make/g++ not found — skipping hyprglass build."
-    warn "Install build-essential/base-devel and re-run with --with-build."
-    return 0
-  fi
-  if ! confirm "$(L "Build hyprglass.so from source now (make)?" "بناء hyprglass.so من المصدر الآن (make)؟")"; then
-    info "$(L "Skipping hyprglass build." "تخطي بناء hyprglass.")"
-    return 0
-  fi
-  if (cd "$HYPRGLASS_DIR" && make -j"$(nproc 2>/dev/null || echo 4)"); then
-    ok "hyprglass.so built at $HYPRGLASS_DIR/hyprglass.so"
-  else
-    warn "hyprglass build failed — missing dev headers (hyprland, pixman, libdrm)?"
-    warn "Continuing without fresh build."
-  fi
-}
-
 # ── QuickShell build (optional, via PKGBUILD) ─────────────────────────────────
 build_quickshell_step(){
   [[ "$DO_BUILD" == false && "$BUILD_FORCE" == false ]] && return 0
@@ -925,19 +875,12 @@ install_qs(){
   rsync -av --delete \
     --exclude='.git' \
     --exclude='installer.sh' \
-    --exclude='plugins/hyprglass/src/*.o' \
-    --exclude='plugins/hyprglass/*.so' \
     --out-format='%n' \
     "$QS_REPO/" "$QS_CONFIG_DIR/" 2>&1 | while IFS= read -r line; do
       ((copied++)) || true
       progress "$copied" "$total" "$line"
     done
   printf "\n"
-  if [[ -f "$HYPRGLASS_DIR/hyprglass.so" ]]; then
-    run mkdir -p "$QS_CONFIG_DIR/plugins/hyprglass"
-    run cp "$HYPRGLASS_DIR/hyprglass.so" "$QS_CONFIG_DIR/plugins/hyprglass/hyprglass.so"
-    ok "Deployed hyprglass.so to $QS_CONFIG_DIR/plugins/hyprglass/"
-  fi
   ok "Quickshell config installed."
 }
 
@@ -1209,7 +1152,6 @@ case "$COMMAND" in
     elif declare -f build_all &>/dev/null; then
         if [[ "$BUILD_FORCE" == true ]]; then build_all true; else build_all false; fi
     else
-        build_hyprglass
         build_quickshell_step
     fi
     write_horizons_state
@@ -1247,7 +1189,6 @@ if [[ "$ASK" == true && "$FORCE" == false ]]; then
   [[ "$DO_BACKUP" == true ]]    && printf "  ${G}✔${RST} $(L "Backup existing config" "نسخ احتياطي للإعدادات")\n" || printf "  ${DM}○ $(L "Skip backup" "تخطي النسخ الاحتياطي")${RST}\n"
   [[ "$DO_DOTS" == true ]]      && printf "  ${G}✔${RST} $(L "Dotfiles base (dotfiles/setup install)" "ملفات النقاط (dotfiles/setup install)")\n" || printf "  ${DM}○ $(L "Skip dots" "تخطي ملفات النقاط")${RST}\n"
   [[ "$DO_BUILD" == true ]]     && printf "  ${G}✔${RST} $(L "Build quickshell from source" "بناء quickshell من المصدر")\n" || printf "  ${DM}○ $(L "Skip quickshell build" "تخطي بناء quickshell")${RST}\n"
-  [[ "$DO_HYPRGLASS" == true ]] && printf "  ${G}✔${RST} $(L "Build hyprglass plugin" "بناء إضافة hyprglass")\n" || printf "  ${DM}○ $(L "Skip hyprglass" "تخطي hyprglass")${RST}\n"
   [[ "$DO_BUNDLED" == true ]]   && printf "  ${G}✔${RST} $(L "Bundled extras (fonts/bibata)" "الإضافات المرفقة (خطوط/bibata)")\n" || printf "  ${DM}○ $(L "Skip bundled" "تخطي الإضافات")${RST}\n"
   [[ "$DO_SHELL" == true ]]     && printf "  ${G}✔${RST} $(L "Horizons Quickshell config" "إعدادات Horizons لـ Quickshell")\n" || printf "  ${DM}○ $(L "Skip shell" "تخطي الواجهة")${RST}\n"
   printf "  ${DM}•${RST}  $(L "Configure Hyprland (qsConfig)" "إعداد Hyprland (qsConfig)")\n"
@@ -1275,7 +1216,6 @@ STEPS_TOTAL=0
 [[ "$DO_SYSUPDATE" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_DOTS" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_BUILD" == true ]] && ((STEPS_TOTAL+=1)) || true
-[[ "$DO_HYPRGLASS" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_BUNDLED" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_SHELL" == true ]] && ((STEPS_TOTAL+=1)) || true
 ((STEPS_TOTAL+=1)) # hyprland
@@ -1292,7 +1232,6 @@ if [[ "$DO_BACKUP" == true ]]; then do_backup; _done; fi
 if [[ "$DO_SYSUPDATE" == true ]]; then do_sysupdate; _done; fi
 if [[ "$DO_DOTS" == true ]]; then install_dots; _done; fi
 if [[ "$DO_BUILD" == true ]]; then build_quickshell_step; _done; fi
-if [[ "$DO_HYPRGLASS" == true ]]; then build_hyprglass; _done; fi
 if [[ "$DO_BUNDLED" == true ]]; then install_bundled; _done; fi
 if [[ "$DO_SHELL" == true ]]; then install_qs; _done; fi
 configure_hyprland;      _done

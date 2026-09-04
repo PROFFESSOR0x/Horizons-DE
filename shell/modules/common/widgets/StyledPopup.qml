@@ -102,7 +102,7 @@ LazyLoader {
             color: Appearance.colors.colLayer1
             radius: Appearance.rounding.normal + 4
             border.width: 1
-            border.color: Appearance.effectiveGlassEnabled
+            border.color: Appearance.liquidGlassEnabled
                 ? ColorUtils.transparentize(Appearance.colors.colOnLayer1, 0.86)
                 : Appearance.colors.colLayer0Border
 

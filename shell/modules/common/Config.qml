@@ -88,15 +88,15 @@ Singleton {
 
         // Back-compat shim for the blur/transparency/glass exclusivity rule.
         // Before this, blur (hyprland.decoration.blur.enabled), transparency
-        // (appearance.transparency.enable) and glass (appearance.glass.enable /
-        // appearance.hyprglass.enabled) could all be turned on independently and
-        // silently conflict. Pick whichever was already active, using the
-        // priority glass > transparency > blur > none (glass is the most
-        // deliberate/heavyweight choice a user would have made), so an existing
-        // user's look is preserved as closely as possible instead of the config
-        // being left in an ambiguous multi-enabled state.
+        // (appearance.transparency.enable) and glass (appearance.glass.enable)
+        // could all be turned on independently and silently conflict. Pick
+        // whichever was already active, using the priority glass > transparency
+        // > blur > none (glass is the most deliberate/heavyweight choice a user
+        // would have made), so an existing user's look is preserved as closely
+        // as possible instead of the config being left in an ambiguous
+        // multi-enabled state.
         if (!opts.appearance.visualEffectMigrated) {
-            const hadGlass = opts.appearance.hyprglass.enabled || opts.appearance.glass.enable;
+            const hadGlass = opts.appearance.glass.enable;
             const hadTransparency = opts.appearance.transparency.enable;
             const hadBlur = opts.hyprland.decoration.blur.enabled;
             let effect;
@@ -110,17 +110,24 @@ Singleton {
         }
     }
 
-    // Enforces that exactly one of blur / transparency / glass (Hyprglass) is
-    // enabled in the JSON config, matching `effect`. This only touches
-    // Config.options; callers that need the change to actually reach the
-    // compositor/plugin (HyprlandConfig.set(...), Hyprglass.apply()) do so
-    // themselves after calling this — see InterfaceConfig.qml.
+    // Enforces that exactly one of blur / transparency / glass is enabled in
+    // the JSON config, matching `effect`. "Glass" ("Liquid Glass") is just
+    // Hyprland's native blur with the "acrylic" variant (decoration:blur:
+    // variant — see HyprlandConfig.qml's "Blur Style" control), not a separate
+    // mechanism, so it also turns blur.enabled on and only differs in variant.
+    // This only touches Config.options; callers that need the change to
+    // actually reach the compositor (HyprlandConfig.set(...)) do so themselves
+    // after calling this — see InterfaceConfig.qml.
     function applyVisualEffectExclusivity(effect) {
         const opts = root.options;
-        opts.hyprland.decoration.blur.enabled = effect === "blur";
+        opts.hyprland.decoration.blur.enabled = effect === "blur" || effect === "glass";
+        if (effect === "glass") {
+            opts.hyprland.decoration.blur.variant = "acrylic";
+        } else if (effect === "blur" && opts.hyprland.decoration.blur.variant === "acrylic") {
+            opts.hyprland.decoration.blur.variant = "kawase";
+        }
         opts.appearance.transparency.enable = effect === "transparency";
         opts.appearance.glass.enable = effect === "glass";
-        opts.appearance.hyprglass.enabled = effect === "glass";
     }
 
     Timer {
@@ -191,10 +198,9 @@ Singleton {
                 property bool extraBackgroundTint: true
                 property int fakeScreenRounding: 2 // 0: None | 1: Always | 2: When not fullscreen
                 // Blur (hyprland.decoration.blur.enabled), transparency
-                // (appearance.transparency.enable) and glass (appearance.glass.enable /
-                // appearance.hyprglass.enabled) all change how the same surfaces look and
-                // visibly conflict when stacked (e.g. Hyprglass compositing its own blur
-                // behind an already-alpha-transparent, separately-blurred panel). Settings
+                // (appearance.transparency.enable) and glass (appearance.glass.enable,
+                // backed by hyprland.decoration.blur.variant === "acrylic") all change
+                // how the same surfaces look and visibly conflict when stacked. Settings
                 // > Interface exposes them as one exclusive choice; this is the persisted
                 // selection. See Config.applyVisualEffectExclusivity().
                 property string visualEffect: "blur" // "none" | "blur" | "transparency" | "glass"
@@ -219,90 +225,11 @@ Singleton {
                 }
                 property JsonObject glass: JsonObject {
                     // Applies to every shared surface through Appearance.qml.
-                    // Kept for backward compat — synced to hyprglass plugin via Hyprglass service.
+                    // "Glass" ("Liquid Glass") is backed by Hyprland's own native
+                    // decoration:blur:variant=acrylic (see hyprland.decoration.blur
+                    // below) — no separate plugin involved.
                     property bool enable: false
                     property real opacity: 0.78
-                }
-                // Hyprglass — full fidelity to plugin:hyprglass:* (see hyprglass/src/PluginConfig.hpp)
-                // Shell transparency (appearance.glass) controls QML layers;
-                // hyprglass controls compositor window glass (blur/refraction/etc).
-                // When hyprglass.enabled, shell keeps transparency in sync automatically.
-                property JsonObject hyprglass: JsonObject {
-                    property bool enabled: false
-                    property bool manageWindowBlur: true
-                    property string defaultTheme: "dark" // dark | light
-                    // Opt-in: when true, defaultTheme is pushed automatically from the shell's
-                    // system dark/light theme (Appearance.m3colors.darkmode) instead of being
-                    // set manually. Off by default so existing manual choices aren't overridden.
-                    property bool autoThemeSync: false
-                    property string defaultPreset: "default" // default | high_contrast | subtle | clear | glass | custom
-                    // Global overridables — defaults from GlobalDefaults + theme fallbacks
-                    property real blurStrength: 2.0
-                    property int blurIterations: 3
-                    property real refractionStrength: 0.6
-                    property real chromaticAberration: 0.5
-                    property real fresnelStrength: 0.6
-                    property real specularStrength: 0.8
-                    property real glassOpacity: 1.0
-                    property real edgeThickness: 0.06
-                    property string tintColor: "0x8899aa22"
-                    property real lensDistortion: 0.5
-                    // Sentinel -1 means "use theme default" (dark 0.82 / light 1.12 etc.)
-                    property real brightness: -1
-                    property real contrast: -1
-                    property real saturation: -1
-                    property real vibrancy: -1
-                    property real vibrancyDarkness: -1
-                    property real adaptiveDim: -1
-                    property real adaptiveBoost: -1
-                    property JsonObject dark: JsonObject {
-                        property real blurStrength: -1
-                        property int blurIterations: -1
-                        property real refractionStrength: -1
-                        property real chromaticAberration: -1
-                        property real fresnelStrength: -1
-                        property real specularStrength: -1
-                        property real glassOpacity: -1
-                        property real edgeThickness: -1
-                        property string tintColor: ""
-                        property real lensDistortion: -1
-                        property real brightness: -1
-                        property real contrast: -1
-                        property real saturation: -1
-                        property real vibrancy: -1
-                        property real vibrancyDarkness: -1
-                        property real adaptiveDim: -1
-                        property real adaptiveBoost: -1
-                    }
-                    property JsonObject light: JsonObject {
-                        property real blurStrength: -1
-                        property int blurIterations: -1
-                        property real refractionStrength: -1
-                        property real chromaticAberration: -1
-                        property real fresnelStrength: -1
-                        property real specularStrength: -1
-                        property real glassOpacity: -1
-                        property real edgeThickness: -1
-                        property string tintColor: ""
-                        property real lensDistortion: -1
-                        property real brightness: -1
-                        property real contrast: -1
-                        property real saturation: -1
-                        property real vibrancy: -1
-                        property real vibrancyDarkness: -1
-                        property real adaptiveDim: -1
-                        property real adaptiveBoost: -1
-                    }
-                    property JsonObject layers: JsonObject {
-                        property bool enabled: false
-                        property string namespaces: "" // comma-separated whitelist, empty = all
-                        property string excludeNamespaces: ""
-                        property string preset: ""
-                        property string namespacePresets: "" // "ns:preset, ns2:preset2"
-                        property string namespaceMaskThresholds: "" // "ns=0.05, ns2=0.3"
-                    }
-                    // User presets — each { name, inherits, shared:{}, dark:{}, light:{} }
-                    property list<var> presets: []
                 }
                 property JsonObject motion: JsonObject {
                     // Smooth is non-overshooting; expressive keeps the legacy feel.
@@ -416,6 +343,69 @@ Singleton {
                         property bool special: false
                         property bool popups: false
                         property bool popupsIgnorealpha: true
+                        // Native blur variants (Hyprland decoration:blur:variant,
+                        // merged upstream 2026-08-22). "acrylic" is Hyprland's own
+                        // Liquid Glass-style effect — see Config.applyVisualEffectExclusivity()
+                        // and Settings > Hyprland > "Blur Style".
+                        property string variant: "kawase" // kawase|frost|ripple|drops|water|fluid_jar|prism|heat_shimmer|acrylic|aurora|haze
+                        // Shared params for the glass-family variants (decoration:blur:glass:*)
+                        property JsonObject glass: JsonObject {
+                            property real refraction: 20
+                            property real size: 40
+                            property real roughness: 1.0
+                        }
+                        // "Liquid Glass" variant params (decoration:blur:acrylic:*)
+                        property JsonObject acrylic: JsonObject {
+                            property real refraction: 24
+                            property real bulb: 48
+                            property real clarity: 0.82
+                            property real aberration: 0.025
+                            property string tint: "0x14EEF5FF"
+                        }
+                        // Remaining native variants (decoration:blur:<variant>:*).
+                        // kawase/frost/prism have no variant-specific params of
+                        // their own — prism reuses the shared `glass` block above.
+                        property JsonObject ripple: JsonObject {
+                            property real strength: 30
+                            property real radius: 400
+                            property real width: 32
+                            property real duration: 0.45
+                        }
+                        // 0 disables the animation; enabling costs more GPU.
+                        property JsonObject drops: JsonObject {
+                            property real speed: 3
+                        }
+                        property JsonObject water: JsonObject {
+                            property real strength: 32
+                            property real radius: 20
+                            property real speed: 0.76
+                            property real damping: 0.95
+                            property real duration: 12
+                        }
+                        property JsonObject fluidJar: JsonObject {
+                            property string color: "0xCC3399FF"
+                            property real speed: 3.7
+                            property real fillAmount: 0.5
+                            property real mass: 1.4
+                            property real precision: 2
+                            property real turbulence: 1.2
+                            property real distortion: 8
+                        }
+                        // 0 disables the animation; enabling costs more GPU.
+                        property JsonObject heatShimmer: JsonObject {
+                            property real speed: 1
+                        }
+                        // 0 freezes the animation; enabling costs more GPU.
+                        property JsonObject aurora: JsonObject {
+                            property real speed: 1
+                            property real intensity: 0.35
+                            property string color1: "0x29F0A0FF"
+                            property string color2: "0x7A4DFFFF"
+                        }
+                        property JsonObject haze: JsonObject {
+                            property real intensity: 0.35
+                            property real iridescence: 0.7
+                        }
                     }
                     property JsonObject shadow: JsonObject {
                         property bool enabled: true

@@ -48,7 +48,3 @@ require("hyprland.shellOverrides.main")
 if is_file_exists(HOME .. "/.config/hypr/hyprland/shellOverrides/animations.lua") then
     pcall(require, "hyprland.shellOverrides.animations")
 end
--- Hyprglass presets (auto-generated, optional). Loaded after plugin so hg.* is available.
-if is_file_exists(HOME .. "/.config/hypr/hyprland/shellOverrides/hyprglass.lua") then
-    pcall(require, "hyprland.shellOverrides.hyprglass")
-end

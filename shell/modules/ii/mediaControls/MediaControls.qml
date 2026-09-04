@@ -79,13 +79,16 @@ Scope {
 
     Process {
         id: cavaProc
+        // Only worth spawning cava (continuous audio capture + FFT) while a
+        // player is actually producing sound - an active-but-paused player
+        // would otherwise keep this running (and burning CPU) indefinitely.
         running: (GlobalStates.mediaControlsOpen ||
-            GlobalStates.sidebarRightOpen || 
+            GlobalStates.sidebarRightOpen ||
             Config.options.bar.layouts.leftLayout.includes("visualizer") ||
             Config.options.bar.layouts.middleLayout.includes("visualizer") ||
             Config.options.bar.layouts.rightLayout.includes("visualizer") ||
             Config.options.background.widgets.visualizer.enable)
-            && MprisController.activePlayer !== null
+            && (MprisController.activePlayer?.isPlaying ?? false)
         onRunningChanged: {
             if (!cavaProc.running) {
                 GlobalStates.visualizerPoints = [];

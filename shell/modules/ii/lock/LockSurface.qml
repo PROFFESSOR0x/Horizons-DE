@@ -109,6 +109,8 @@ MouseArea {
                 asynchronous: true
                 cache: true
                 visible: false
+                sourceSize.width: parent.width
+                sourceSize.height: parent.height
             }
             FastBlur {
                 anchors.fill: parent

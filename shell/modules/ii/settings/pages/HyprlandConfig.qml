@@ -72,6 +72,39 @@ ContentPage {
             "decoration:blur:vibrancy":             h.decoration.blur.vibrancy,
             "decoration:blur:xray":                 h.decoration.blur.xray ? 1 : 0,
             "decoration:blur:new_optimizations":    h.decoration.blur.newOptimizations ? 1 : 0,
+            "decoration:blur:variant":              h.decoration.blur.variant,
+            "decoration:blur:glass:refraction":     h.decoration.blur.glass.refraction,
+            "decoration:blur:glass:size":           h.decoration.blur.glass.size,
+            "decoration:blur:glass:roughness":      h.decoration.blur.glass.roughness,
+            "decoration:blur:acrylic:refraction":   h.decoration.blur.acrylic.refraction,
+            "decoration:blur:acrylic:bulb":         h.decoration.blur.acrylic.bulb,
+            "decoration:blur:acrylic:clarity":      h.decoration.blur.acrylic.clarity,
+            "decoration:blur:acrylic:aberration":   h.decoration.blur.acrylic.aberration,
+            "decoration:blur:acrylic:tint":         h.decoration.blur.acrylic.tint,
+            "decoration:blur:ripple:strength":      h.decoration.blur.ripple.strength,
+            "decoration:blur:ripple:radius":        h.decoration.blur.ripple.radius,
+            "decoration:blur:ripple:width":         h.decoration.blur.ripple.width,
+            "decoration:blur:ripple:duration":      h.decoration.blur.ripple.duration,
+            "decoration:blur:drops:speed":          h.decoration.blur.drops.speed,
+            "decoration:blur:water:strength":       h.decoration.blur.water.strength,
+            "decoration:blur:water:radius":         h.decoration.blur.water.radius,
+            "decoration:blur:water:speed":          h.decoration.blur.water.speed,
+            "decoration:blur:water:damping":        h.decoration.blur.water.damping,
+            "decoration:blur:water:duration":       h.decoration.blur.water.duration,
+            "decoration:blur:fluid_jar:color":      h.decoration.blur.fluidJar.color,
+            "decoration:blur:fluid_jar:speed":       h.decoration.blur.fluidJar.speed,
+            "decoration:blur:fluid_jar:fill_amount": h.decoration.blur.fluidJar.fillAmount,
+            "decoration:blur:fluid_jar:mass":        h.decoration.blur.fluidJar.mass,
+            "decoration:blur:fluid_jar:precision":   h.decoration.blur.fluidJar.precision,
+            "decoration:blur:fluid_jar:turbulence":  h.decoration.blur.fluidJar.turbulence,
+            "decoration:blur:fluid_jar:distortion":  h.decoration.blur.fluidJar.distortion,
+            "decoration:blur:heat_shimmer:speed":   h.decoration.blur.heatShimmer.speed,
+            "decoration:blur:aurora:speed":         h.decoration.blur.aurora.speed,
+            "decoration:blur:aurora:intensity":     h.decoration.blur.aurora.intensity,
+            "decoration:blur:aurora:color1":        h.decoration.blur.aurora.color1,
+            "decoration:blur:aurora:color2":        h.decoration.blur.aurora.color2,
+            "decoration:blur:haze:intensity":       h.decoration.blur.haze.intensity,
+            "decoration:blur:haze:iridescence":     h.decoration.blur.haze.iridescence,
             "decoration:active_opacity":            h.decoration.activeOpacity,
             "decoration:inactive_opacity":          h.decoration.inactiveOpacity,
             "decoration:fullscreen_opacity":        h.decoration.fullscreenOpacity,
@@ -1101,7 +1134,7 @@ ContentPage {
                         if (checked) {
                             Config.options.appearance.visualEffect = "blur"
                             Config.applyVisualEffectExclusivity("blur")
-                            Hyprglass.apply()
+                            HyprlandConfig.set("decoration:blur:variant", Config.options.hyprland.decoration.blur.variant)
                         } else {
                             Config.options.hyprland.decoration.blur.enabled = false
                             if (Config.options.appearance.visualEffect === "blur")
@@ -1162,6 +1195,442 @@ ContentPage {
                         if (checked === Config.options.hyprland.decoration.blur.newOptimizations) return
                         Config.options.hyprland.decoration.blur.newOptimizations = checked
                         HyprlandConfig.set("decoration:blur:new_optimizations", checked ? 1 : 0)
+                    }
+                }
+                ConfigSelectionArray {
+                    icon: "blur_on"
+                    text: Translation.tr("Blur Style")
+                    currentValue: Config.options.hyprland.decoration.blur.variant
+                    onSelected: newValue => {
+                        if (newValue === Config.options.hyprland.decoration.blur.variant) return
+                        Config.options.hyprland.decoration.blur.variant = newValue
+                        HyprlandConfig.set("decoration:blur:variant", newValue)
+                    }
+                    options: [
+                        { displayName: Translation.tr("Kawase (Classic)"), icon: "blur_on", value: "kawase" },
+                        { displayName: Translation.tr("Frost"), icon: "ac_unit", value: "frost" },
+                        { displayName: Translation.tr("Liquid Glass (Acrylic)"), icon: "water_drop", value: "acrylic" },
+                        { displayName: Translation.tr("Prism"), icon: "diamond", value: "prism" },
+                        { displayName: Translation.tr("Ripple"), icon: "waves", value: "ripple" },
+                        { displayName: Translation.tr("Drops"), icon: "water_drop", value: "drops" },
+                        { displayName: Translation.tr("Water"), icon: "water", value: "water" },
+                        { displayName: Translation.tr("Fluid Jar"), icon: "science", value: "fluid_jar" },
+                        { displayName: Translation.tr("Heat Shimmer"), icon: "thermostat", value: "heat_shimmer" },
+                        { displayName: Translation.tr("Aurora"), icon: "auto_awesome", value: "aurora" },
+                        { displayName: Translation.tr("Haze"), icon: "blur_circular", value: "haze" }
+                    ]
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("Native Hyprland blur variants (decoration:blur:variant, merged upstream Aug 2026) — applies to every window Hyprland blurs, not just this shell's panels. Fancier styles cost more GPU/CPU, especially the animated ones.")
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
+                    icon: "water"
+                    text: Translation.tr("Glass Refraction")
+                    value: Config.options.hyprland.decoration.blur.glass.refraction
+                    from: 0; to: 20; stepSize: 1
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.glass.refraction) return
+                        Config.options.hyprland.decoration.blur.glass.refraction = value
+                        HyprlandConfig.set("decoration:blur:glass:refraction", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
+                    icon: "texture"
+                    text: Translation.tr("Glass Pattern Size")
+                    value: Config.options.hyprland.decoration.blur.glass.size
+                    from: 4; to: 512; stepSize: 4
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.glass.size) return
+                        Config.options.hyprland.decoration.blur.glass.size = value
+                        HyprlandConfig.set("decoration:blur:glass:size", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
+                    icon: "grain"
+                    text: Translation.tr("Glass Roughness")
+                    value: Math.round(Config.options.hyprland.decoration.blur.glass.roughness * 100)
+                    from: 0; to: 100; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.glass.roughness) return
+                        Config.options.hyprland.decoration.blur.glass.roughness = v
+                        HyprlandConfig.set("decoration:blur:glass:roughness", v)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    icon: "water_drop"
+                    text: Translation.tr("Liquid Glass Refraction")
+                    value: Config.options.hyprland.decoration.blur.acrylic.refraction
+                    from: 0; to: 48; stepSize: 1
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.acrylic.refraction) return
+                        Config.options.hyprland.decoration.blur.acrylic.refraction = value
+                        HyprlandConfig.set("decoration:blur:acrylic:refraction", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    icon: "border_outer"
+                    text: Translation.tr("Liquid Glass Edge Width")
+                    value: Config.options.hyprland.decoration.blur.acrylic.bulb
+                    from: 4; to: 256; stepSize: 4
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.acrylic.bulb) return
+                        Config.options.hyprland.decoration.blur.acrylic.bulb = value
+                        HyprlandConfig.set("decoration:blur:acrylic:bulb", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    icon: "visibility"
+                    text: Translation.tr("Liquid Glass Clarity")
+                    value: Math.round(Config.options.hyprland.decoration.blur.acrylic.clarity * 100)
+                    from: 0; to: 100; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.acrylic.clarity) return
+                        Config.options.hyprland.decoration.blur.acrylic.clarity = v
+                        HyprlandConfig.set("decoration:blur:acrylic:clarity", v)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    icon: "palette"
+                    text: Translation.tr("Liquid Glass Chromatic Aberration")
+                    value: Math.round(Config.options.hyprland.decoration.blur.acrylic.aberration * 400)
+                    from: 0; to: 100; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 400.0
+                        if (v === Config.options.hyprland.decoration.blur.acrylic.aberration) return
+                        Config.options.hyprland.decoration.blur.acrylic.aberration = v
+                        HyprlandConfig.set("decoration:blur:acrylic:aberration", v)
+                    }
+                }
+                ConfigTextArea {
+                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    buttonIcon: "colorize"
+                    text: Translation.tr("Liquid Glass Tint (0xAARRGGBB)")
+                    value: Config.options.hyprland.decoration.blur.acrylic.tint
+                    placeholderText: "0x14EEF5FF"
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.acrylic.tint) return
+                        Config.options.hyprland.decoration.blur.acrylic.tint = value
+                        HyprlandConfig.set("decoration:blur:acrylic:tint", value)
+                    }
+                }
+                // ── Ripple ──────────────────────────────────────────────────
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "ripple"
+                    icon: "waves"
+                    text: Translation.tr("Ripple Strength")
+                    value: Config.options.hyprland.decoration.blur.ripple.strength
+                    from: 0; to: 32; stepSize: 1
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.ripple.strength) return
+                        Config.options.hyprland.decoration.blur.ripple.strength = value
+                        HyprlandConfig.set("decoration:blur:ripple:strength", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "ripple"
+                    icon: "radio_button_unchecked"
+                    text: Translation.tr("Ripple Radius")
+                    value: Config.options.hyprland.decoration.blur.ripple.radius
+                    from: 1; to: 1000; stepSize: 10
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.ripple.radius) return
+                        Config.options.hyprland.decoration.blur.ripple.radius = value
+                        HyprlandConfig.set("decoration:blur:ripple:radius", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "ripple"
+                    icon: "line_weight"
+                    text: Translation.tr("Ripple Wave Width")
+                    value: Config.options.hyprland.decoration.blur.ripple.width
+                    from: 1; to: 200; stepSize: 2
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.ripple.width) return
+                        Config.options.hyprland.decoration.blur.ripple.width = value
+                        HyprlandConfig.set("decoration:blur:ripple:width", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "ripple"
+                    icon: "timer"
+                    text: Translation.tr("Ripple Duration")
+                    value: Math.round(Config.options.hyprland.decoration.blur.ripple.duration * 100)
+                    from: 5; to: 500; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.ripple.duration) return
+                        Config.options.hyprland.decoration.blur.ripple.duration = v
+                        HyprlandConfig.set("decoration:blur:ripple:duration", v)
+                    }
+                }
+                // ── Drops ───────────────────────────────────────────────────
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "drops"
+                    icon: "water_drop"
+                    text: Translation.tr("Drops Speed (0 = still, costs more GPU above 0)")
+                    value: Config.options.hyprland.decoration.blur.drops.speed
+                    from: 0; to: 10; stepSize: 1
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.drops.speed) return
+                        Config.options.hyprland.decoration.blur.drops.speed = value
+                        HyprlandConfig.set("decoration:blur:drops:speed", value)
+                    }
+                }
+                // ── Water ───────────────────────────────────────────────────
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "water"
+                    icon: "water"
+                    text: Translation.tr("Water Strength")
+                    value: Config.options.hyprland.decoration.blur.water.strength
+                    from: 0; to: 32; stepSize: 1
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.water.strength) return
+                        Config.options.hyprland.decoration.blur.water.strength = value
+                        HyprlandConfig.set("decoration:blur:water:strength", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "water"
+                    icon: "radio_button_unchecked"
+                    text: Translation.tr("Water Pointer Radius")
+                    value: Config.options.hyprland.decoration.blur.water.radius
+                    from: 1; to: 1000; stepSize: 10
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.water.radius) return
+                        Config.options.hyprland.decoration.blur.water.radius = value
+                        HyprlandConfig.set("decoration:blur:water:radius", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "water"
+                    icon: "speed"
+                    text: Translation.tr("Water Propagation Speed")
+                    value: Math.round(Config.options.hyprland.decoration.blur.water.speed * 100)
+                    from: 0; to: 1000; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.water.speed) return
+                        Config.options.hyprland.decoration.blur.water.speed = v
+                        HyprlandConfig.set("decoration:blur:water:speed", v)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "water"
+                    icon: "trending_down"
+                    text: Translation.tr("Water Damping")
+                    value: Math.round(Config.options.hyprland.decoration.blur.water.damping * 100)
+                    from: 0; to: 100; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.water.damping) return
+                        Config.options.hyprland.decoration.blur.water.damping = v
+                        HyprlandConfig.set("decoration:blur:water:damping", v)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "water"
+                    icon: "timer"
+                    text: Translation.tr("Water Max Duration (s)")
+                    value: Math.round(Config.options.hyprland.decoration.blur.water.duration * 10)
+                    from: 5; to: 600; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 10.0
+                        if (v === Config.options.hyprland.decoration.blur.water.duration) return
+                        Config.options.hyprland.decoration.blur.water.duration = v
+                        HyprlandConfig.set("decoration:blur:water:duration", v)
+                    }
+                }
+                // ── Fluid Jar ───────────────────────────────────────────────
+                ConfigTextArea {
+                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    buttonIcon: "colorize"
+                    text: Translation.tr("Fluid Jar Color (0xAARRGGBB)")
+                    value: Config.options.hyprland.decoration.blur.fluidJar.color
+                    placeholderText: "0xCC3399FF"
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.fluidJar.color) return
+                        Config.options.hyprland.decoration.blur.fluidJar.color = value
+                        HyprlandConfig.set("decoration:blur:fluid_jar:color", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    icon: "speed"
+                    text: Translation.tr("Fluid Jar Speed")
+                    value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.speed * 100)
+                    from: 0; to: 1000; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.fluidJar.speed) return
+                        Config.options.hyprland.decoration.blur.fluidJar.speed = v
+                        HyprlandConfig.set("decoration:blur:fluid_jar:speed", v)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    icon: "opacity"
+                    text: Translation.tr("Fluid Jar Fill Amount")
+                    value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.fillAmount * 100)
+                    from: 0; to: 100; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.fluidJar.fillAmount) return
+                        Config.options.hyprland.decoration.blur.fluidJar.fillAmount = v
+                        HyprlandConfig.set("decoration:blur:fluid_jar:fill_amount", v)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    icon: "fitness_center"
+                    text: Translation.tr("Fluid Jar Mass")
+                    value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.mass * 100)
+                    from: 10; to: 1000; stepSize: 10
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.fluidJar.mass) return
+                        Config.options.hyprland.decoration.blur.fluidJar.mass = v
+                        HyprlandConfig.set("decoration:blur:fluid_jar:mass", v)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    icon: "grain"
+                    text: Translation.tr("Fluid Jar Precision (2x recommended, 4x+ expensive)")
+                    value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.precision * 100)
+                    from: 50; to: 800; stepSize: 10
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.fluidJar.precision) return
+                        Config.options.hyprland.decoration.blur.fluidJar.precision = v
+                        HyprlandConfig.set("decoration:blur:fluid_jar:precision", v)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    icon: "air"
+                    text: Translation.tr("Fluid Jar Turbulence")
+                    value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.turbulence * 100)
+                    from: 0; to: 500; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.fluidJar.turbulence) return
+                        Config.options.hyprland.decoration.blur.fluidJar.turbulence = v
+                        HyprlandConfig.set("decoration:blur:fluid_jar:turbulence", v)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    icon: "water"
+                    text: Translation.tr("Fluid Jar Distortion")
+                    value: Config.options.hyprland.decoration.blur.fluidJar.distortion
+                    from: 0; to: 10; stepSize: 1
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.fluidJar.distortion) return
+                        Config.options.hyprland.decoration.blur.fluidJar.distortion = value
+                        HyprlandConfig.set("decoration:blur:fluid_jar:distortion", value)
+                    }
+                }
+                // ── Heat Shimmer ────────────────────────────────────────────
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "heat_shimmer"
+                    icon: "thermostat"
+                    text: Translation.tr("Heat Shimmer Speed (0 = still, costs more GPU above 0)")
+                    value: Config.options.hyprland.decoration.blur.heatShimmer.speed
+                    from: 0; to: 10; stepSize: 1
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.heatShimmer.speed) return
+                        Config.options.hyprland.decoration.blur.heatShimmer.speed = value
+                        HyprlandConfig.set("decoration:blur:heat_shimmer:speed", value)
+                    }
+                }
+                // ── Aurora ──────────────────────────────────────────────────
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "aurora"
+                    icon: "auto_awesome"
+                    text: Translation.tr("Aurora Speed (0 = frozen, costs more GPU above 0)")
+                    value: Config.options.hyprland.decoration.blur.aurora.speed
+                    from: 0; to: 10; stepSize: 1
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.aurora.speed) return
+                        Config.options.hyprland.decoration.blur.aurora.speed = value
+                        HyprlandConfig.set("decoration:blur:aurora:speed", value)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "aurora"
+                    icon: "gradient"
+                    text: Translation.tr("Aurora Intensity")
+                    value: Math.round(Config.options.hyprland.decoration.blur.aurora.intensity * 100)
+                    from: 0; to: 100; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.aurora.intensity) return
+                        Config.options.hyprland.decoration.blur.aurora.intensity = v
+                        HyprlandConfig.set("decoration:blur:aurora:intensity", v)
+                    }
+                }
+                ConfigTextArea {
+                    visible: Config.options.hyprland.decoration.blur.variant === "aurora"
+                    buttonIcon: "colorize"
+                    text: Translation.tr("Aurora Color 1 (0xAARRGGBB)")
+                    value: Config.options.hyprland.decoration.blur.aurora.color1
+                    placeholderText: "0x29F0A0FF"
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.aurora.color1) return
+                        Config.options.hyprland.decoration.blur.aurora.color1 = value
+                        HyprlandConfig.set("decoration:blur:aurora:color1", value)
+                    }
+                }
+                ConfigTextArea {
+                    visible: Config.options.hyprland.decoration.blur.variant === "aurora"
+                    buttonIcon: "colorize"
+                    text: Translation.tr("Aurora Color 2 (0xAARRGGBB)")
+                    value: Config.options.hyprland.decoration.blur.aurora.color2
+                    placeholderText: "0x7A4DFFFF"
+                    onValueChanged: {
+                        if (value === Config.options.hyprland.decoration.blur.aurora.color2) return
+                        Config.options.hyprland.decoration.blur.aurora.color2 = value
+                        HyprlandConfig.set("decoration:blur:aurora:color2", value)
+                    }
+                }
+                // ── Haze ────────────────────────────────────────────────────
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "haze"
+                    icon: "blur_circular"
+                    text: Translation.tr("Haze Intensity")
+                    value: Math.round(Config.options.hyprland.decoration.blur.haze.intensity * 100)
+                    from: 0; to: 100; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.haze.intensity) return
+                        Config.options.hyprland.decoration.blur.haze.intensity = v
+                        HyprlandConfig.set("decoration:blur:haze:intensity", v)
+                    }
+                }
+                ConfigSpinBox {
+                    visible: Config.options.hyprland.decoration.blur.variant === "haze"
+                    icon: "auto_awesome"
+                    text: Translation.tr("Haze Iridescence")
+                    value: Math.round(Config.options.hyprland.decoration.blur.haze.iridescence * 100)
+                    from: 0; to: 100; stepSize: 5
+                    onValueChanged: {
+                        const v = value / 100.0
+                        if (v === Config.options.hyprland.decoration.blur.haze.iridescence) return
+                        Config.options.hyprland.decoration.blur.haze.iridescence = v
+                        HyprlandConfig.set("decoration:blur:haze:iridescence", v)
                     }
                 }
                 ConfigSpinBox {
@@ -2255,7 +2724,6 @@ ContentPage {
                                     if (modelData.monitor) props.push("monitor:" + modelData.monitor)
                                     if (modelData.size) props.push("size:" + modelData.size)
                                     if (modelData.workspace) props.push("ws:" + modelData.workspace)
-                                    if (modelData.hyprglassTag) props.push("glass:" + modelData.hyprglassTag)
                                     return props.join("  ")
                                 }
                                 Layout.fillWidth: true
@@ -2310,50 +2778,15 @@ ContentPage {
                             let arr = Config.options.hyprland.general.windowRules.slice()
                             let rule = { class: cls }
                             if (action) rule[action] = true
-                            const glassTag = newWrGlassTag.model[newWrGlassTag.currentIndex].value
-                            if (glassTag === "preset") {
-                                const presetName = newWrGlassPreset.text.trim()
-                                if (presetName) rule.hyprglassTag = "hyprglass_preset_" + presetName
-                            } else if (glassTag) {
-                                rule.hyprglassTag = glassTag
-                            }
                             arr.push(rule)
                             Config.options.hyprland.general.windowRules = arr
                             newWrClass.text = ""
-                            newWrGlassPreset.text = ""
                             windowRulesSection.saveWindowRules()
                         }
                         colBackground: Appearance.colors.colPrimaryContainer
                     }
                 }
-                // Hyprglass per-window tag row
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 6
-                    MaterialSymbol { text: "water_drop"; iconSize: 18; color: Appearance.colors.colSubtext }
-                    StyledComboBox {
-                        id: newWrGlassTag
-                        Layout.preferredWidth: 150
-                        model: [
-                            { displayName: Translation.tr("No glass tag"), value: "" },
-                            { displayName: Translation.tr("Disable glass"), value: "hyprglass_disabled" },
-                            { displayName: Translation.tr("Force enable glass"), value: "hyprglass_enabled" },
-                            { displayName: Translation.tr("Force dark theme"), value: "hyprglass_theme_dark" },
-                            { displayName: Translation.tr("Force light theme"), value: "hyprglass_theme_light" },
-                            { displayName: Translation.tr("Custom preset..."), value: "preset" }
-                        ]
-                        textRole: "displayName"
-                    }
-                    Rectangle {
-                        visible: newWrGlassTag.model[newWrGlassTag.currentIndex].value === "preset"
-                        Layout.preferredWidth: 110; Layout.preferredHeight: 32
-                        radius: Appearance.rounding.small; color: Appearance.colors.colLayer2
-                        TextInput { id: newWrGlassPreset; anchors.fill: parent; anchors.margins: 6; verticalAlignment: TextInput.AlignVCenter; selectByMouse: true; color: Appearance.colors.colOnLayer1; font.pixelSize: Appearance.font.pixelSize.small }
-                        StyledText { visible: newWrGlassPreset.text.length===0; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 6; text: "preset name"; color: Appearance.colors.colSubtext; font.pixelSize: Appearance.font.pixelSize.small }
-                    }
-                    Item { Layout.fillWidth: true }
-                }
-                StyledText { Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Match by class name. Actions: Float, Pin, No Focus, No Shadow, No Blur. The glass tag row applies a hyprglass window tag (see Settings > Hyprglass) without hand-writing hyprctl dispatch tagwindow. For advanced rules, use the Custom Rules textarea below.") }
+                StyledText { Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Match by class name. Actions: Float, Pin, No Focus, No Shadow, No Blur (per-window blur/glass opt-out — blur itself is configured globally under Settings > Hyprland > Blur Style). For advanced rules, use the Custom Rules textarea below.") }
             }
             Process { id: saveWr2Proc; onExited: (code) => { wr2Status.text = code===0 ? Translation.tr("Saved") : Translation.tr("Failed"); clearWr2Status.restart() } }
             Timer { id: clearWr2Status; interval: 2000; onTriggered: wr2Status.text = "" }
@@ -2385,7 +2818,6 @@ ContentPage {
                     if (r.monitor) actionParts.push(`monitor = "${r.monitor}"`)
                     if (r.workspace) actionParts.push(`workspace = "${r.workspace}"`)
                     if (r.size) actionParts.push(`size = "${r.size}"`)
-                    if (r.hyprglassTag) actionParts.push(`tag = "+${r.hyprglassTag}"`)
                     lines.push(`{match={${matchParts.join(", ")}}, ${actionParts.join(", ")}}`)
                 }
                 const wrLines = lines.map(l => `hl.window_rule(${l})`).join("\n")
