@@ -149,6 +149,33 @@ Singleton {
         opts.appearance.glass.enable = effect === "glass";
     }
 
+    // Applies one of the 5 Settings > Quick performance/experience profiles
+    // (see PerformanceProfiles.qml) - writes every Config.options.* value the
+    // profile specifies via the existing setNestedValue() path-setter, then
+    // re-derives the blur/transparency/glass exclusivity flags from whatever
+    // visualEffect the (already capability-resolved) profile ended up with,
+    // exactly like the Interface page's own visual-effect picker does.
+    //
+    // Only touches Config.options - like applyVisualEffectExclusivity(), it
+    // never calls into HyprlandConfig.qml (avoiding a circular import back
+    // into this foundational singleton). The caller (a settings page) must
+    // still push the returned `hypr` keys via HyprlandConfig.setMany() and
+    // `animPreset` via HyprlandConfig.setAnimPreset() for the compositor-side
+    // half of the profile to actually reach Hyprland.
+    //
+    // blurVariantSupported should come from HyprlandData.blurVariantSupported
+    // - pass false (or omit) to always get the plain-blur fallback.
+    function applyPerformanceProfile(id, blurVariantSupported) {
+        const resolved = PerformanceProfiles.resolve(id, blurVariantSupported ?? false)
+        if (!resolved) return null
+        for (const key in resolved.config) {
+            root.setNestedValue(key, resolved.config[key])
+        }
+        root.applyVisualEffectExclusivity(root.options.appearance.visualEffect)
+        root.options.appearance.performanceProfile = id
+        return resolved
+    }
+
     Timer {
         id: fileReloadTimer
         interval: root.readWriteDelay
@@ -227,6 +254,12 @@ Singleton {
                 // (possibly simultaneously-enabled) blur/transparency/glass flags into a
                 // single visualEffect choice, so later user edits are never overwritten.
                 property bool visualEffectMigrated: false
+                // Last performance/experience profile applied from Settings > Quick
+                // (see PerformanceProfiles.qml + Config.applyPerformanceProfile()).
+                // Purely a "which button to highlight" marker - applying a profile is
+                // a one-time bulk mutation, not an enforced mode, so hand-tuning any
+                // individual setting afterward is never reverted or fought with.
+                property string performanceProfile: "balanced" // maxPerformance|performance|balanced|experience|maxExperience
                 property JsonObject fonts: JsonObject {
                     property string main: "Google Sans Flex"
                     property string numbers: "Google Sans Flex"

@@ -13,35 +13,11 @@ ContentPage {
     id: page
     forceWidth: true
 
-    // decoration:blur:variant (and the acrylic/glass/etc. sub-keys) only
-    // exist on Hyprland builds containing hyprwm/Hyprland PR #15661 (merged
-    // 2026-08-22) - not yet in any tagged release as of this writing, only
-    // in a from-source/-git build past that commit. hyprconfigurator.py's
-    // option_is_supported() check silently drops any option the running
-    // Hyprland doesn't recognize (by design, so it doesn't error on every
-    // reload for legitimately-missing options) - which means picking a
-    // variant does *nothing* with no visible error if this is unsupported.
-    // Checked once per page load; defaults to "assume supported" so a
-    // failed/slow hyprctl call never shows a false-positive warning.
-    property bool blurVariantSupported: true
-    Process {
-        id: checkBlurVariantSupport
-        running: true
-        command: ["hyprctl", "-j", "getoption", "decoration:blur:variant"]
-        stdout: StdioCollector { id: blurVariantSupportOutput }
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0) return; // hyprctl unreachable — stay optimistic
-            try {
-                const parsed = JSON.parse(blurVariantSupportOutput.text)
-                page.blurVariantSupported = !!(parsed && parsed.option === "decoration:blur:variant")
-            } catch (e) {
-                // hyprctl exited 0 but didn't return JSON — that's how it
-                // reports "no such option" (matches hyprconfigurator.py's
-                // option_is_supported()), i.e. genuinely unsupported.
-                page.blurVariantSupported = false
-            }
-        }
-    }
+    // decoration:blur:variant support is checked once, shared across every
+    // settings page, in services/HyprlandData.qml (see its
+    // blurVariantSupported / checkBlurVariantSupport() — same reasoning
+    // as before: PR #15661 isn't in any tagged Hyprland release yet).
+    readonly property bool blurVariantSupported: HyprlandData.blurVariantSupported
 
     function goTo(term) {
         const t = term.toLowerCase().trim()

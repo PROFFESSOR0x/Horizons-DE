@@ -23,6 +23,38 @@ Singleton {
     property var monitors: []
     property var layers: ({})
 
+    // decoration:blur:variant (hyprwm/Hyprland PR #15661, merged
+    // 2026-08-22) isn't in any tagged Hyprland release yet, only in a
+    // from-source/-git build past that commit — hyprconfigurator.py's
+    // option_is_supported() silently drops it on anything older, so picking
+    // a variant does nothing with no visible error. Checked once so any
+    // settings page (Hyprland > Blur Style, Quick > performance profiles)
+    // can show a real warning instead of a silent no-op. Defaults to
+    // "assume supported" so a failed/slow hyprctl call never shows a
+    // false-positive warning.
+    property bool blurVariantSupported: true
+    function checkBlurVariantSupport() {
+        if (WM.compositor !== "hyprland") return;
+        checkBlurVariantSupportProc.running = true;
+    }
+    Process {
+        id: checkBlurVariantSupportProc
+        command: ["hyprctl", "-j", "getoption", "decoration:blur:variant"]
+        stdout: StdioCollector { id: blurVariantSupportOutput }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0) return; // hyprctl unreachable — stay optimistic
+            try {
+                const parsed = JSON.parse(blurVariantSupportOutput.text)
+                root.blurVariantSupported = !!(parsed && parsed.option === "decoration:blur:variant")
+            } catch (e) {
+                // hyprctl exited 0 but didn't return JSON — that's how it
+                // reports "no such option" (matches hyprconfigurator.py's
+                // option_is_supported()), i.e. genuinely unsupported.
+                root.blurVariantSupported = false
+            }
+        }
+    }
+
     // Convenient stuff
 
     function toplevelsForWorkspace(workspace) {
@@ -110,6 +142,7 @@ Singleton {
 
     Component.onCompleted: {
         updateAll();
+        checkBlurVariantSupport();
     }
 
     Connections {
