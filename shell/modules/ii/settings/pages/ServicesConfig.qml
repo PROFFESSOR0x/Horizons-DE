@@ -284,10 +284,11 @@ ContentPage {
                     wrapMode: Text.Wrap
                     color: Appearance.colors.colSubtext
                     font.pixelSize: Appearance.font.pixelSize.small
-                    text: Translation.tr("What tapping Super opens. \"Quickshell\" is this shell's own built-in search/overview and needs nothing extra. The other three are separate apps this doesn't install for you — install and get each actually running *before* switching to it here, or Super will just do nothing:\n"
-                        + "• Walker (AUR: walker or walker-bin) also needs its \"elephant\" service installed and running separately (yay -S elephant) — some walker-bin AUR builds don't pull it in automatically.\n"
-                        + "• Vicinae needs its \"vicinae-server\" daemon running. Prefer AUR vicinae-bin over plain vicinae — the source-build AUR package has a known-broken PKGBUILD as of this writing.\n"
-                        + "• Fuzzel (AUR/repo: fuzzel) works standalone, no extra service needed.")
+                    text: Translation.tr("What tapping Super opens. \"Quickshell\" is this shell's own built-in search/overview and needs nothing extra. The other three are separate apps — install them (and their background service, where needed) *before* switching to one here, or Super will just do nothing:\n"
+                        + "• Walker + its \"elephant\" search backend — installer.sh --launchers walker (or answer \"yes\" when it asks). It also enables the elephant user service for you.\n"
+                        + "• Vicinae + its \"vicinae-server\" daemon — installer.sh --launchers vicinae (or answer \"yes\" when it asks). It also enables the vicinae user service for you.\n"
+                        + "• Fuzzel is already installed as a core dependency and works standalone, no extra service needed.\n"
+                        + "Re-run installer.sh any time to add Walker/Vicinae later — it never changes this setting for you, so come back here and pick one once it's installed.")
                 }
                 ConfigSwitch {
                     text: Translation.tr("Use Levenshtein distance-based algorithm instead of fuzzy")

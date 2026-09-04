@@ -41,6 +41,10 @@
 #       --skip-build        Skip building
 #       --with-bundled      Install bundled extras (Rubik, Gabarito, Bibata, GoogleSans)
 #       --skip-bundled      Skip bundled extras
+#       --launchers <csv>   Optional launchers to install: walker,vicinae (or "none").
+#                           Omit to be asked interactively; Fuzzel + the built-in
+#                           Quickshell launcher need nothing extra either way.
+#       --skip-launchers    Don't offer/install optional launchers at all
 #       --with-backup       Backup existing configs (default)
 #       --skip-backup       Skip backup
 #       --existing-config <action>  ask | keep | backup | delete detected non-Horizons configs
@@ -118,6 +122,12 @@ DO_SYSUPDATE=false
 DO_DEPS=true
 DO_BACKUP=true
 BUILD_FORCE=false
+
+# Optional launchers (Walker, Vicinae) — see install_launchers() below.
+# Fuzzel is already a hard dependency and the built-in Quickshell launcher
+# needs no package, so this is only ever about the two external ones.
+DO_LAUNCHERS=true
+LAUNCHERS_CSV=""
 
 # Installation target. Hyprland is a Wayland compositor; i3 is an X11 window
 # manager. These are deliberately stored independently from the profile.
@@ -265,6 +275,8 @@ while [[ $# -gt 0 ]]; do
     --build-force) BUILD_FORCE=true; DO_BUILD=true; shift ;;
     --with-bundled|--with-extra) DO_BUNDLED=true; shift ;;
     --skip-bundled|--skip-extra) DO_BUNDLED=false; shift ;;
+    --launchers) LAUNCHERS_CSV="${2,,}"; DO_LAUNCHERS=true; shift 2 ;;
+    --skip-launchers) DO_LAUNCHERS=false; shift ;;
     --with-backup) DO_BACKUP=true; SKIP_BACKUP=false; shift ;;
     --skip-backup) DO_BACKUP=false; SKIP_BACKUP=true; shift ;;
     --existing-config) EXISTING_CONFIG_ACTION="${2,,}"; shift 2 ;;
@@ -990,6 +1002,128 @@ cleanup_hyprglass(){
   return 0
 }
 
+# ── Optional launchers (Walker, Vicinae) ──────────────────────────────────────
+# Settings > Services > Search > Launcher (ServicesConfig.qml) lets the user
+# pick among the built-in Quickshell launcher, Walker, Vicinae, and Fuzzel —
+# but only Fuzzel ships as a hard dependency (illogical-impulse-widgets) and
+# the built-in one needs nothing extra. This step installs whichever of the
+# two *external* launchers the user actually wants, so picking them in
+# Settings isn't a dead end. Never edits config.json itself (a running
+# Quickshell owns that file); it just makes the binaries available and tells
+# the user to flip the Settings switch afterward.
+install_launchers(){
+  step "$(L "Optional launchers (Walker / Vicinae)" "أدوات تشغيل اختيارية (Walker / Vicinae)")"
+  info "$(L "Fuzzel is already installed as a core dependency, and the built-in Quickshell launcher needs nothing extra — this only installs the two external options." "Fuzzel مثبت مسبقاً كاعتماد أساسي، ومشغّل Quickshell المدمج لا يحتاج شيئاً إضافياً — هذه الخطوة تثبّت فقط الخيارين الخارجيين.")"
+
+  local selection="$LAUNCHERS_CSV"
+  if [[ -z "$selection" ]]; then
+    if [[ "$ASK" == false ]]; then
+      info "$(L "No --launchers selection in non-interactive mode; skipping (use --launchers walker,vicinae or --launchers none)." "لا يوجد اختيار --launchers في الوضع غير التفاعلي؛ سيتم التخطي (استخدم --launchers walker,vicinae أو --launchers none).")"
+      return 0
+    fi
+    local picks=()
+    confirm "$(L "Install Walker (+ its Elephant search backend)?" "تثبيت Walker (+ محرك البحث Elephant الخاص به)؟")" "n" && picks+=("walker")
+    confirm "$(L "Install Vicinae?" "تثبيت Vicinae؟")" "n" && picks+=("vicinae")
+    if [[ ${#picks[@]} -eq 0 ]]; then
+      info "$(L "No external launcher selected — keeping the built-in Quickshell launcher / Fuzzel." "لم يتم اختيار أداة تشغيل خارجية — سيتم الإبقاء على مشغّل Quickshell المدمج / Fuzzel.")"
+      return 0
+    fi
+    selection=$(IFS=,; echo "${picks[*]}")
+  fi
+
+  if [[ "$selection" == "none" ]]; then
+    info "$(L "Skipping external launchers (--launchers none)." "تخطي أدوات التشغيل الخارجية (--launchers none).")"
+    return 0
+  fi
+
+  local installed_any=false item
+  local old_ifs="$IFS"; IFS=','
+  for item in $selection; do
+    IFS="$old_ifs"
+    item="${item//[[:space:]]/}"
+    case "$item" in
+      walker)  install_launcher_walker  && installed_any=true ;;
+      vicinae) install_launcher_vicinae && installed_any=true ;;
+      fuzzel|quickshell|"") : ;; # already available, nothing to do
+      *) warn "$(L "Unknown launcher '$item' (expected: walker, vicinae, none)" "أداة تشغيل غير معروفة '$item' (المتوقع: walker أو vicinae أو none)")" ;;
+    esac
+    IFS=','
+  done
+  IFS="$old_ifs"
+
+  if [[ "$installed_any" == true ]]; then
+    ok "$(L "Launcher(s) installed. Pick one in Settings > Services > Search > Launcher to switch to it." "تم التثبيت. اختر أداة التشغيل من الإعدادات > الخدمات > البحث > أداة التشغيل لتفعيلها.")"
+  fi
+  return 0
+}
+
+# Walker (github.com/abenz1267/walker) needs its companion Elephant backend
+# daemon (github.com/abenz1267/elephant) running for search results.
+install_launcher_walker(){
+  step "$(L "Installing Walker" "تثبيت Walker")"
+  if [[ "${PKG_GROUP:-unknown}" != arch ]]; then
+    warn "$(L "Walker is only packaged for Arch/AUR right now — install it manually: https://github.com/abenz1267/walker" "Walker متوفر حالياً فقط عبر AUR على Arch — ثبّته يدوياً: https://github.com/abenz1267/walker")"
+    return 1
+  fi
+  if ! command -v yay &>/dev/null && ! command -v paru &>/dev/null; then
+    warn "$(L "No AUR helper (yay/paru) found — install one, then re-run with --launchers walker." "لم يتم العثور على أداة AUR (yay/paru) — ثبّت واحدة ثم أعد التشغيل مع --launchers walker.")"
+    return 1
+  fi
+
+  local all_ok=true
+  if ! command -v walker &>/dev/null; then
+    hz_install_aur_package Walker walker-bin || hz_install_aur_package Walker walker \
+      || { warn "$(L "Could not install Walker from the AUR." "تعذر تثبيت Walker من AUR.")"; all_ok=false; }
+  else
+    info "$(L "Walker is already installed." "Walker مثبت بالفعل.")"
+  fi
+
+  if ! command -v elephant &>/dev/null; then
+    hz_install_aur_package Elephant elephant-bin || hz_install_aur_package Elephant elephant \
+      || { warn "$(L "Could not install Elephant (Walker's search backend) from the AUR." "تعذر تثبيت Elephant (محرك بحث Walker) من AUR.")"; all_ok=false; }
+  else
+    info "$(L "Elephant is already installed." "Elephant مثبت بالفعل.")"
+  fi
+
+  # Elephant's own README explicitly warns against a system-level systemd
+  # service (it loses the user's session environment) — its CLI manages the
+  # correct user-scope unit (~/.config/systemd/user/elephant.service) for us.
+  if command -v elephant &>/dev/null; then
+    run elephant service enable
+  fi
+
+  [[ "$all_ok" == true ]] && command -v walker &>/dev/null
+}
+
+# Vicinae (github.com/vicinaehq/vicinae) ships its own systemd --user unit
+# (vicinae.service) inside the package itself — enabling it is all that's
+# needed to start vicinae-server in the background.
+install_launcher_vicinae(){
+  step "$(L "Installing Vicinae" "تثبيت Vicinae")"
+  if [[ "${PKG_GROUP:-unknown}" != arch ]]; then
+    warn "$(L "Vicinae isn't packaged for this distro yet — install it manually: https://docs.vicinae.com" "Vicinae غير متوفر كحزمة لهذا التوزيع بعد — ثبّته يدوياً: https://docs.vicinae.com")"
+    return 1
+  fi
+  if ! command -v yay &>/dev/null && ! command -v paru &>/dev/null; then
+    warn "$(L "No AUR helper (yay/paru) found — install one, then re-run with --launchers vicinae." "لم يتم العثور على أداة AUR (yay/paru) — ثبّت واحدة ثم أعد التشغيل مع --launchers vicinae.")"
+    return 1
+  fi
+
+  if ! command -v vicinae &>/dev/null; then
+    hz_install_aur_package Vicinae vicinae-bin || hz_install_aur_package Vicinae vicinae \
+      || { warn "$(L "Could not install Vicinae from the AUR." "تعذر تثبيت Vicinae من AUR.")"; return 1; }
+  else
+    info "$(L "Vicinae is already installed." "Vicinae مثبت بالفعل.")"
+  fi
+
+  if command -v systemctl &>/dev/null; then
+    run systemctl --user daemon-reload
+    run systemctl --user enable --now vicinae.service
+  fi
+
+  command -v vicinae &>/dev/null
+}
+
 # ── Backup ────────────────────────────────────────────────────────────────────
 do_backup(){
   [[ "$DO_BACKUP" == false || "$SKIP_BACKUP" == true ]] && { info "$(L "Skipping backup (--skip-backup)" "تخطي النسخ الاحتياطي (--skip-backup)")"; return 0; }
@@ -1577,6 +1711,15 @@ if [[ "$ASK" == true && "$FORCE" == false ]]; then
   [[ "$DO_BUILD" == true ]]     && printf "  ${G}✔${RST} $(L "Build quickshell from source" "بناء quickshell من المصدر")\n" || printf "  ${DM}○ $(L "Skip quickshell build" "تخطي بناء quickshell")${RST}\n"
   [[ "$DO_BUNDLED" == true ]]   && printf "  ${G}✔${RST} $(L "Bundled extras (fonts/bibata)" "الإضافات المرفقة (خطوط/bibata)")\n" || printf "  ${DM}○ $(L "Skip bundled" "تخطي الإضافات")${RST}\n"
   [[ "$DO_SHELL" == true ]]     && printf "  ${G}✔${RST} $(L "Horizons Quickshell config" "إعدادات Horizons لـ Quickshell")\n" || printf "  ${DM}○ $(L "Skip shell" "تخطي الواجهة")${RST}\n"
+  if [[ "$DO_LAUNCHERS" == true ]]; then
+    if [[ -n "$LAUNCHERS_CSV" ]]; then
+      printf "  ${G}✔${RST} $(L "Optional launchers:" "أدوات تشغيل اختيارية:") $LAUNCHERS_CSV\n"
+    else
+      printf "  ${G}✔${RST} $(L "Optional launchers (Walker/Vicinae — you'll be asked which)" "أدوات تشغيل اختيارية (Walker/Vicinae — سيتم سؤالك عن أيها)")\n"
+    fi
+  else
+    printf "  ${DM}○ $(L "Skip optional launchers" "تخطي أدوات التشغيل الاختيارية")${RST}\n"
+  fi
   printf "  ${DM}•${RST}  $(L "Configure Hyprland (qsConfig)" "إعداد Hyprland (qsConfig)")\n"
   printf "  ${DM}•${RST}  $(L "Settings keybind" "اختصار الإعدادات")\n"
   printf "  ${DM}•${RST}  $(L "Restart Quickshell" "إعادة تشغيل Quickshell")\n"
@@ -1607,6 +1750,7 @@ STEPS_TOTAL=0
 [[ "$DO_BUILD" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_BUNDLED" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_SHELL" == true ]] && ((STEPS_TOTAL+=1)) || true
+[[ "$DO_LAUNCHERS" == true ]] && ((STEPS_TOTAL+=1)) || true
 ((STEPS_TOTAL+=1)) # hyprland
 ((STEPS_TOTAL+=1)) # i3
 ((STEPS_TOTAL+=1)) # keybind
@@ -1627,6 +1771,7 @@ if [[ "$DO_DOTS" == true ]]; then install_dots; _done; fi
 if [[ "$DO_BUILD" == true ]]; then build_quickshell_step; _done; fi
 if [[ "$DO_BUNDLED" == true ]]; then install_bundled; _done; fi
 if [[ "$DO_SHELL" == true ]]; then install_qs; _done; fi
+if [[ "$DO_LAUNCHERS" == true ]]; then install_launchers; _done; fi
 configure_hyprland;      _done
 configure_i3;            _done
 configure_keybind;       _done
