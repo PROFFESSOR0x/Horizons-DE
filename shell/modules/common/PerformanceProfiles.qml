@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+import Quickshell
 
 /**
  * The 5 performance/experience profiles offered on Settings > Quick.
