@@ -1174,41 +1174,71 @@ ContentPage {
                             { displayName: Translation.tr("Right edge"), icon: "right_panel_open", value: "right" }
                         ]
                     }
+                    ConfigSpinBox {
+                        icon: "vertical_align_bottom"
+                        text: Translation.tr("Bottom margin")
+                        enabled: Config.options.lock.layout.passwordPlacement !== "center"
+                        value: Config.options.lock.layout.bottomMargin
+                        from: 0; to: 400; stepSize: 4
+                        onValueChanged: Config.options.lock.layout.bottomMargin = value
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Fine-tune each element below independently - the password box, and the left/right toolbars, each used to share one offset and could only move together. Now every one below moves on its own.")
+                    }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Element positions")
+
+                component ElementOffsetControls: GroupedList {
+                    required property string label
+                    required property string groupKey
+                    ConfigRow {
+                        uniform: true
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: label
+                            font.pixelSize: Appearance.font.pixelSize.normal
+                            color: Appearance.colors.colOnLayer1
+                        }
+                    }
                     ConfigRow {
                         uniform: true
                         ConfigSpinBox {
                             icon: "swap_horiz"
                             text: Translation.tr("Horizontal offset")
-                            value: Config.options.lock.layout.offsetX
-                            from: -600; to: 600; stepSize: 4
-                            onValueChanged: Config.options.lock.layout.offsetX = value
+                            value: Config.options.lock.layout[groupKey].offsetX
+                            from: -800; to: 800; stepSize: 4
+                            onValueChanged: Config.options.lock.layout[groupKey].offsetX = value
                         }
                         ConfigSpinBox {
                             icon: "swap_vert"
                             text: Translation.tr("Vertical offset")
-                            value: Config.options.lock.layout.offsetY
-                            from: -500; to: 500; stepSize: 4
-                            onValueChanged: Config.options.lock.layout.offsetY = value
-                        }
-                    }
-                    ConfigRow {
-                        uniform: true
-                        ConfigSpinBox {
-                            icon: "vertical_align_bottom"
-                            text: Translation.tr("Bottom margin")
-                            enabled: Config.options.lock.layout.passwordPlacement !== "center"
-                            value: Config.options.lock.layout.bottomMargin
-                            from: 0; to: 400; stepSize: 4
-                            onValueChanged: Config.options.lock.layout.bottomMargin = value
+                            value: Config.options.lock.layout[groupKey].offsetY
+                            from: -600; to: 600; stepSize: 4
+                            onValueChanged: Config.options.lock.layout[groupKey].offsetY = value
                         }
                         ConfigSpinBox {
                             icon: "zoom_in"
-                            text: Translation.tr("Controls scale (%)")
-                            value: Math.round(Config.options.lock.layout.scale * 100)
+                            text: Translation.tr("Scale (%)")
+                            value: Math.round(Config.options.lock.layout[groupKey].scale * 100)
                             from: 70; to: 160; stepSize: 5
-                            onValueChanged: Config.options.lock.layout.scale = value / 100
+                            onValueChanged: Config.options.lock.layout[groupKey].scale = value / 100
                         }
                     }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    ElementOffsetControls { Layout.fillWidth: true; label: Translation.tr("Password box"); groupKey: "password" }
+                    ElementOffsetControls { Layout.fillWidth: true; label: Translation.tr("Left toolbar (username, media, keyboard layout)"); groupKey: "leftToolbar"; visible: Config.options.lock.showLeftToolbar }
+                    ElementOffsetControls { Layout.fillWidth: true; label: Translation.tr("Right toolbar (battery, sleep, power)"); groupKey: "rightToolbar"; visible: Config.options.lock.showRightToolbar }
                 }
             }
 

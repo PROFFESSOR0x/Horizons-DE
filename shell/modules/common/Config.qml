@@ -1318,10 +1318,26 @@ Singleton {
                 }
                 property JsonObject layout: JsonObject {
                     property string passwordPlacement: "bottom" // bottom | center | left | right
-                    property int offsetX: 0
-                    property int offsetY: 0
                     property int bottomMargin: 20
-                    property real scale: 1.0
+                    // Independent offset/scale per element (previously one
+                    // shared offsetX/offsetY/scale moved the password box and
+                    // both toolbars together) - lets each be positioned on
+                    // its own instead of only all-together.
+                    property JsonObject password: JsonObject {
+                        property int offsetX: 0
+                        property int offsetY: 0
+                        property real scale: 1.0
+                    }
+                    property JsonObject leftToolbar: JsonObject {
+                        property int offsetX: 0
+                        property int offsetY: 0
+                        property real scale: 1.0
+                    }
+                    property JsonObject rightToolbar: JsonObject {
+                        property int offsetX: 0
+                        property int offsetY: 0
+                        property real scale: 1.0
+                    }
                 }
                 property bool materialShapeChars: true
             }
