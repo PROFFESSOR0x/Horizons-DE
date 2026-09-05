@@ -314,6 +314,14 @@ Item {
                             required property var modelData
                             required property var index
                             source: modelData.component
+                            // Settings pages can be large (HyprlandConfig.qml
+                            // especially) - loading one synchronously on first
+                            // visit was a real, if brief, main-thread hitch
+                            // every time Settings opened onto a heavy page.
+                            // Async moves the parse/compile/instantiate off
+                            // the UI thread; the opacity fade already covers
+                            // the short gap before `item` exists.
+                            asynchronous: true
 
                             active: Config.ready && (root.currentPage === index || item !== null)
 
@@ -353,6 +361,7 @@ Item {
                         active: false
                         anchors.fill: parent
                         source: Qt.resolvedUrl("pages/Profile.qml")
+                        asynchronous: true
 
                         property bool isActive: root.showingProfile
                         opacity: isActive ? 1 : 0
