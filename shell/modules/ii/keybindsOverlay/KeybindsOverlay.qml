@@ -155,11 +155,19 @@ Scope {
 
                 StyledText {
                     Layout.fillWidth: true
+                    wrapMode: Text.Wrap
                     font.pixelSize: Appearance.font.pixelSize.smaller
                     color: Appearance.colors.colSubtext
-                    text: Translation.tr("%1 sections • %2 total binds — read-only. Edit shortcuts in Settings > Keybinds.")
-                        .arg(HyprlandKeybinds.flatSections().length)
-                        .arg(HyprlandKeybinds.flatSections().reduce((a, s) => a + (s.keybinds?.length ?? 0), 0))
+                    // This list is sourced from Hyprland's own keybinds.lua
+                    // (HyprlandKeybinds.qml), which is naturally empty on
+                    // i3/X11 — say so instead of leaving an unexplained
+                    // blank sheet; i3's own binds live in
+                    // ~/.config/i3/horizons.conf as a plain text file.
+                    text: WM.compositor === "hyprland"
+                        ? Translation.tr("%1 sections • %2 total binds — read-only. Edit shortcuts in Settings > Keybinds.")
+                            .arg(HyprlandKeybinds.flatSections().length)
+                            .arg(HyprlandKeybinds.flatSections().reduce((a, s) => a + (s.keybinds?.length ?? 0), 0))
+                        : Translation.tr("This list reads Hyprland's own keybinds.lua, so it's empty on i3/X11 — i3's binds live in ~/.config/i3/horizons.conf instead.")
                 }
 
                 ContentPage {

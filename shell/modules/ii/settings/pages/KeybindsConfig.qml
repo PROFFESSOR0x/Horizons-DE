@@ -527,7 +527,27 @@ ContentPage {
         Layout.fillWidth: true
         spacing: 20
 
+        // This page (editor, conflict detection, Super+/ cheat-sheet data) is
+        // entirely Hyprland-only: it reads/writes hyprland/keybinds.lua and
+        // listens for Hyprland's own rawEvent, neither of which exists on
+        // i3/X11. It previously showed nothing at all there with no
+        // explanation — WM.compositor is checked here instead of leaving an
+        // i3 user staring at a permanently-empty keybinds list.
         ContentSection {
+            visible: WM.compositor !== "hyprland"
+            icon: "keyboard"
+            shape: MaterialShape.Shape.Cookie4Sided
+            title: Translation.tr("Keybinds — Actions & Shortcuts")
+            StyledText {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                color: Appearance.colors.colSubtext
+                text: Translation.tr("This editor reads and writes Hyprland's own keybinds.lua, so it's only available on Hyprland. On i3/X11, keybinds live in ~/.config/i3/horizons.conf (or your own i3 config) instead — it's a plain, commented text file, not something this editor can see or change. See docs/i3-quickshell-research.md in the repo for the full list of what each Hyprland keybind maps to on i3.")
+            }
+        }
+
+        ContentSection {
+            visible: WM.compositor === "hyprland"
             icon: "keyboard"
             shape: MaterialShape.Shape.Cookie4Sided
             title: Translation.tr("Keybinds — Actions & Shortcuts")
@@ -874,6 +894,7 @@ ContentPage {
         }
 
         ContentSection {
+            visible: WM.compositor === "hyprland"
             icon: "info"
             shape: MaterialShape.Shape.Ghostish
             title: Translation.tr("How it works")

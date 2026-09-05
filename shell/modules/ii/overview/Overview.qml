@@ -247,6 +247,16 @@ Scope {
         function clipboardToggle() {
             overviewScope.toggleClipboard();
         }
+        // overviewEmojiToggle/overviewSymbolsToggle (below) had no IPC
+        // equivalent — only reachable via the Hyprland-only portal global
+        // shortcut mechanism, so i3/X11 (and any other non-Hyprland target)
+        // had no way at all to reach the emoji/symbols search prefill.
+        function emojiToggle() {
+            overviewScope.toggleEmojis();
+        }
+        function symbolsToggle() {
+            overviewScope.toggleSymbols();
+        }
     }
 
     CompositorGlobalShortcut {
