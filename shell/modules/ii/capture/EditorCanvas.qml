@@ -3,6 +3,7 @@ import QtQuick
 import QtMultimedia
 import qs.modules.common
 import qs.modules.common.functions
+import qs.modules.common.utils
 import Quickshell
 import Quickshell.Io
 
@@ -227,6 +228,18 @@ Item {
     }
 
     // ---------------------------------------------------------------------------
+    // runOcr — text recognition on the original source file (not the
+    // annotated canvas: arrows/highlights/blur only ever hurt recognition
+    // accuracy, they don't add real text). Reuses ScreenshotAction's own
+    // wl-copy/xclip/xsel fallback chain instead of a third copy of it.
+    // ---------------------------------------------------------------------------
+    function runOcr(imagePath, onComplete) {
+        const q = StringUtils.shellSingleQuoteEscape
+        const cmd = "tesseract '" + q(imagePath) + "' stdout | " + ScreenshotAction.clipboardFromStdin("")
+        root.runProcess(ocrProcess, ["bash", "-c", cmd], onComplete)
+    }
+
+    // ---------------------------------------------------------------------------
     // copyToClipboard — same composite approach, into /tmp then wl-copy
     // ---------------------------------------------------------------------------
     function copyToClipboard(onComplete) {
@@ -374,6 +387,16 @@ Item {
         command: []
         onExited: exitCode => {
             console.log("[EditorCanvas] clipboard process exited:", exitCode)
+            const callback = completion
+            completion = null
+            if (callback) callback(exitCode === 0)
+        }
+    }
+    Process {
+        id: ocrProcess
+        property var completion: null
+        command: []
+        onExited: exitCode => {
             const callback = completion
             completion = null
             if (callback) callback(exitCode === 0)

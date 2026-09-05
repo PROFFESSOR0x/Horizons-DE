@@ -54,6 +54,34 @@ Singleton {
         return `if command -v grim >/dev/null 2>&1; then grim -; else import -window root png:-; fi`
     }
 
+    // imageResultMode "notification": crops once, then waits (notify-send
+    // -w) for the user to pick exactly one of Edit/Copy/Save/OCR — nothing
+    // happens automatically, unlike "editor"/"silent" which always copy.
+    // Mirrors record.sh's own notify-send -w --action=... idiom for videos,
+    // but that path only offers Edit/Open Folder; OCR/Copy/Save as
+    // first-class choices are new here.
+    function notificationCommand(cropCmd, croppedTemp, qsCmd, saveDir, format) {
+        // Set SAVE_DIR as a real shell variable rather than splicing a
+        // possibly-$(command-substitution) default path directly into a
+        // quoted string — mixing single-quoted (literal, safely escaped)
+        // and unquoted-for-substitution forms in one string is exactly the
+        // kind of quoting mismatch this codebase has already been bitten by
+        // (see generate-thumbnails-magick.sh's urlencode() fix history).
+        const saveDirSetup = saveDir !== ""
+            ? `SAVE_DIR='${StringUtils.shellSingleQuoteEscape(saveDir)}'`
+            : `SAVE_DIR="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Screenshots"`
+        return `${cropCmd} && ${saveDirSetup} && ` +
+            `ACTION=$(notify-send -w "Screenshot taken" "Choose what to do with it" -a 'Screenshot' ` +
+            `--action="edit=Edit" --action="copy=Copy" --action="save=Save" --action="ocr=Run OCR" ` +
+            `-i '${croppedTemp}' 2>/dev/null); ` +
+            `case "$ACTION" in ` +
+            `edit) ${qsCmd} ipc call captureEditor openImage '${croppedTemp}' ;; ` +
+            `copy) ${root.clipboardFromFile(croppedTemp, "image/png")} ;; ` +
+            `save) mkdir -p "$SAVE_DIR" && cp '${croppedTemp}' "$SAVE_DIR/screenshot-$(date '+%Y-%m-%d_%H.%M.%S').${format}" ;; ` +
+            `ocr) tesseract '${croppedTemp}' stdout | ${root.clipboardFromStdin("")} ;; ` +
+            `esac`
+    }
+
     function fullScreenCommand() {
         const format = Config.options.screenSnip.format === "jpg" ? "jpg" : "png"
         const scale = Math.max(25, Math.min(200, Config.options.screenSnip.scalePercent ?? 100))
@@ -80,15 +108,23 @@ Singleton {
             return `curl -sF files[]=@'${StringUtils.shellSingleQuoteEscape(filePath)}' ${root.fileUploadApiEndpoint} | jq -r '.files[0].url'`
         };
 
-        // Respect Screen Canvas auto-open setting for images.
-        // Edit action always opens the canvas — it's an explicit user request.
-        // Copy action only auto-opens when autoOpenImage is true.
-        const autoOpenImage = Config.options.screenCanvas.autoOpenImage
+        // imageResultMode replaces the old plain autoOpenImage boolean with a
+        // third choice: "editor" (old true) crops+copies+opens the canvas,
+        // "silent" (old false) crops+copies with no further UI, and the new
+        // "notification" posts an actionable notification instead of
+        // deciding anything for the user — Edit/Copy/Save/OCR are each only
+        // done if that specific button is clicked, matching the 4 explicit
+        // choices asked for rather than guessing which ones to also do
+        // automatically.
+        const imageResultMode = Config.options.screenCanvas.imageResultMode
 
         switch (action) {
             case ScreenshotAction.Action.Copy:
+                if (imageResultMode === "notification") {
+                    return ["bash", "-c", root.notificationCommand(cropCmd, croppedTemp, qsCmd, saveDir, format)]
+                }
                 if (saveDir === "") {
-                    if (autoOpenImage) {
+                    if (imageResultMode === "editor") {
                         return ["bash", "-c",
                             `${cropCmd} && ` +
                             `${root.clipboardFromFile(croppedTemp, "image/png")} && ` +
@@ -101,7 +137,7 @@ Singleton {
                         ]
                     }
                 }
-                if (autoOpenImage) {
+                if (imageResultMode === "editor") {
                     return ["bash", "-c",
                         `mkdir -p '${StringUtils.shellSingleQuoteEscape(saveDir)}' && ` +
                         `saveFileName="screenshot-$(date '+%Y-%m-%d_%H.%M.%S').${format}" && ` +

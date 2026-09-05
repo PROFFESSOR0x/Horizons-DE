@@ -200,25 +200,34 @@ if { is_wayland && pgrep wf-recorder > /dev/null; } || { ! is_wayland && x11_is_
         rm -f "$REC_TRACK_FILE"
     fi
     if [[ -n "$LAST_REC" && -f "$LAST_REC" ]]; then
-        # ── Screen Canvas: auto-open video editor ─────────────────────
-        AUTO_OPEN_VIDEO=$(jq -r '.screenCanvas.autoOpenVideo // true' "$CONFIG_FILE" 2>/dev/null)
-        if [[ "$AUTO_OPEN_VIDEO" == "true" ]]; then
-            qs -c horizons ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null || \
-            qs -p "$HOME/.config/quickshell/horizons" ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null || \
-            qs ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null || \
-            notify-send "Recording Saved" "$(basename "$LAST_REC") — opened in editor" -a 'Recorder' -i "video-x-generic" &
-        else
-            (
-                ACTION=$(notify-send -w "Recording Saved" "$(basename "$LAST_REC")" -a 'Recorder' --action="edit=Edit Video" --action="open=Open Folder" -i "video-x-generic" 2>/dev/null)
-                if [[ "$ACTION" == "edit" ]]; then
-                    qs -c horizons ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null || \
-                    qs -p "$HOME/.config/quickshell/horizons" ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null || \
-                    qs ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null
-                elif [[ "$ACTION" == "open" ]]; then
-                    xdg-open "$RECORDING_DIR" &
-                fi
-            ) & disown
-        fi
+        # ── Screen Canvas: what to do once the recording is done ──────
+        # imageResultMode's video counterpart - editor/notification/silent,
+        # not a plain "auto-open or not" boolean (see Config.qml's
+        # migrateLegacyConfig() for the one-time autoOpenVideo migration).
+        VIDEO_RESULT_MODE=$(jq -r '.screenCanvas.videoResultMode // "editor"' "$CONFIG_FILE" 2>/dev/null)
+        case "$VIDEO_RESULT_MODE" in
+            editor)
+                qs -c horizons ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null || \
+                qs -p "$HOME/.config/quickshell/horizons" ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null || \
+                qs ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null || \
+                notify-send "Recording Saved" "$(basename "$LAST_REC") — opened in editor" -a 'Recorder' -i "video-x-generic" &
+                ;;
+            silent)
+                notify-send "Recording Saved" "$(basename "$LAST_REC")" -a 'Recorder' -i "video-x-generic" &
+                ;;
+            *) # notification (also the fallback for any unrecognized value)
+                (
+                    ACTION=$(notify-send -w "Recording Saved" "$(basename "$LAST_REC")" -a 'Recorder' --action="edit=Edit Video" --action="open=Open Folder" -i "video-x-generic" 2>/dev/null)
+                    if [[ "$ACTION" == "edit" ]]; then
+                        qs -c horizons ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null || \
+                        qs -p "$HOME/.config/quickshell/horizons" ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null || \
+                        qs ipc call captureEditor openVideo "$LAST_REC" 2>/dev/null
+                    elif [[ "$ACTION" == "open" ]]; then
+                        xdg-open "$RECORDING_DIR" &
+                    fi
+                ) & disown
+                ;;
+        esac
     else
         notify-send "Recording Stopped" "Recording has finished" -a 'Recorder' &
     fi
@@ -272,25 +281,29 @@ else
             qs -p '' ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || \
             qs -c horizons ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || true
         else
-            # Auto-open based on Screen Canvas setting
-            AUTO_OPEN_VIDEO_END=$(jq -r '.screenCanvas.autoOpenVideo // true' "$CONFIG_FILE" 2>/dev/null)
-            if [[ "$AUTO_OPEN_VIDEO_END" == "true" ]]; then
-                qs -c horizons ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || \
-                qs -p "$HOME/.config/quickshell/horizons" ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || \
-                qs ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || true
-            else
-                # Show notification with edit action when auto-open is disabled
-                (
-                    ACTION=$(notify-send -w "Recording Saved" "$(basename "$TARGET_PATH")" -a 'Recorder' --action="edit=Edit Video" --action="open=Open Folder" -i "video-x-generic" 2>/dev/null)
-                    if [[ "$ACTION" == "edit" ]]; then
-                        qs -c horizons ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || \
-                        qs -p "$HOME/.config/quickshell/horizons" ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || \
-                        qs ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null
-                    elif [[ "$ACTION" == "open" ]]; then
-                        xdg-open "$RECORDING_DIR" &
-                    fi
-                ) & disown
-            fi
+            VIDEO_RESULT_MODE=$(jq -r '.screenCanvas.videoResultMode // "editor"' "$CONFIG_FILE" 2>/dev/null)
+            case "$VIDEO_RESULT_MODE" in
+                editor)
+                    qs -c horizons ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || \
+                    qs -p "$HOME/.config/quickshell/horizons" ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || \
+                    qs ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || true
+                    ;;
+                silent)
+                    notify-send "Recording Saved" "$(basename "$TARGET_PATH")" -a 'Recorder' -i "video-x-generic" &
+                    ;;
+                *) # notification (also the fallback for any unrecognized value)
+                    (
+                        ACTION=$(notify-send -w "Recording Saved" "$(basename "$TARGET_PATH")" -a 'Recorder' --action="edit=Edit Video" --action="open=Open Folder" -i "video-x-generic" 2>/dev/null)
+                        if [[ "$ACTION" == "edit" ]]; then
+                            qs -c horizons ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || \
+                            qs -p "$HOME/.config/quickshell/horizons" ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null || \
+                            qs ipc call captureEditor openVideo "$TARGET_PATH" 2>/dev/null
+                        elif [[ "$ACTION" == "open" ]]; then
+                            xdg-open "$RECORDING_DIR" &
+                        fi
+                    ) & disown
+                    ;;
+            esac
         fi
     fi
 fi

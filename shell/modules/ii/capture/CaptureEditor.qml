@@ -224,6 +224,21 @@ PanelWindow {
         })
     }
 
+    // Runs on root.imagePath (the source screenshot), not the annotated
+    // canvas — annotations (arrows/highlights/blur) exist to draw attention
+    // to or hide things, not to add readable text, so they'd only ever hurt
+    // recognition accuracy. Delegates to EditorCanvas.qml's own
+    // runProcess()/Process plumbing (same pattern saveImage()/
+    // copyToClipboard() already use) rather than duplicating it here.
+    function runOcr() {
+        if (!root.imagePath) return
+        if (root.sc.showNotifications) root.showToast(Translation.tr("Running OCR…"))
+        editorCanvas.runOcr(root.imagePath, success => {
+            if (!root.sc.showNotifications) return
+            root.showToast(success ? Translation.tr("Text copied to clipboard!") : Translation.tr("No text recognized"))
+        })
+    }
+
     FileDialog {
         id: imageSaveDialog
         title: Translation.tr("Save edited image as")
@@ -232,10 +247,15 @@ PanelWindow {
         onAccepted: editorCanvas.saveImage(root.imagePath, root.completeImageSave, FileUtils.trimFileProtocol(selectedFile))
     }
 
+    // Called both when a screenshot auto-opens (imageResultMode "editor")
+    // and whenever the user explicitly asks to open one (right-click Edit,
+    // the "notification" mode's Edit button, the Edit snip-action) — the
+    // caller already decided whether opening should happen at all
+    // (ScreenshotAction.qml only invokes this IPC call when appropriate for
+    // the current mode), so this function itself must always actually open
+    // rather than re-checking a setting that describes a different case
+    // than "the user just explicitly clicked Edit".
     function openImage(path) {
-        if (!root.sc.autoOpenImage) {
-            return
-        }
         if (player.playbackState === MediaPlayer.PlayingState) {
             player.pause()
         }
@@ -255,10 +275,12 @@ PanelWindow {
         dismissGuardTimer.restart()
     }
 
+    // Same reasoning as openImage() above: this must always actually open
+    // when called — record.sh's notify-send "Edit Video" action already
+    // relies on that (its own auto-open-video setting is off exactly when
+    // that notification path was reached in the first place, so this early
+    // return used to make "Edit Video" from the notification a silent no-op).
     function openVideo(path) {
-        if (!root.sc.autoOpenVideo) {
-            return
-        }
         player.stop()
         root.currentTool = root.sc.defaultTool || "pen"
         root.currentColor = root.sc.defaultColor || "#ff0000"
@@ -509,6 +531,9 @@ PanelWindow {
                 }
                 onCopyRequested: {
                     root.copyCurrent()
+                }
+                onOcrRequested: {
+                    root.runOcr()
                 }
             }
         }

@@ -21,6 +21,7 @@ RowLayout {
     signal clearRequested()
     signal saveRequested()
     signal copyRequested()
+    signal ocrRequested()
 
     spacing: 8
 
@@ -216,6 +217,30 @@ RowLayout {
                 onClicked: root.saveRequested()
             }
             StyledToolTip { text: "Save file" }
+        }
+
+        // OCR — text recognition on the currently-open image. Previously
+        // only reachable as its own standalone snip action (Super+Shift+X)
+        // with no way to run it on an image already open in the editor, and
+        // no visible affordance for it anywhere in this toolbar at all.
+        Rectangle {
+            visible: !root.isVideo
+            width: 36; height: 36; radius: 8
+            color: ocrMa.containsMouse ? Appearance.colors.colPrimaryContainer : "transparent"
+            MaterialSymbol {
+                anchors.centerIn: parent
+                text: "document_scanner"
+                iconSize: 18
+                color: Appearance.colors.colOnLayer1
+            }
+            MouseArea {
+                id: ocrMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.ocrRequested()
+            }
+            StyledToolTip { text: "Run OCR — copy recognized text to clipboard" }
         }
     }
 }

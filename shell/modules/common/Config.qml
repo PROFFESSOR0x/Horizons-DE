@@ -127,6 +127,17 @@ Singleton {
             opts.hyprland.misc.allowSessionLockRestore = false;
             opts.hyprland.misc.sessionLockRestoreMigrated = true;
         }
+
+        // One-time bool -> string migration for the screenshot/recording
+        // "what happens after capture" setting: autoOpenImage/autoOpenVideo
+        // only ever supported two behaviors (open the editor, or do nothing
+        // extra); imageResultMode/videoResultMode add "notification" as a
+        // third, so a plain boolean can no longer represent the choice.
+        if (!opts.screenCanvas.resultModeMigrated) {
+            opts.screenCanvas.imageResultMode = opts.screenCanvas.autoOpenImage ? "editor" : "silent";
+            opts.screenCanvas.videoResultMode = opts.screenCanvas.autoOpenVideo ? "editor" : "notification";
+            opts.screenCanvas.resultModeMigrated = true;
+        }
     }
 
     // Enforces that exactly one of blur / transparency / glass is enabled in
@@ -1569,8 +1580,25 @@ Singleton {
 
             property JsonObject screenCanvas: JsonObject {
                 // ── Auto-open behaviour ─────────────────────────────────────
-                property bool autoOpenImage: true          // Open editor automatically for screenshots
-                property bool autoOpenVideo: true          // Open editor automatically for screen recordings
+                // What happens right after a capture completes:
+                // "editor" - open the canvas automatically (old autoOpenImage/
+                //            autoOpenVideo == true)
+                // "notification" - show an actionable notification (Edit/Copy/
+                //            Save/OCR for images; Edit/Open Folder for videos)
+                //            and do nothing until the user picks one
+                // "silent" - just copy (images) or finish writing the file
+                //            (videos), no further UI at all (old == false)
+                // See Config.migrateLegacyConfig() for the one-time bool ->
+                // string migration.
+                property string imageResultMode: "editor"
+                property string videoResultMode: "editor"
+                property bool resultModeMigrated: false
+                // Deprecated, migration source only - see migrateLegacyConfig().
+                // Kept declared (not removed) so JsonObject still exposes an
+                // existing user's saved true/false value long enough to copy
+                // it into imageResultMode/videoResultMode above exactly once.
+                property bool autoOpenImage: true
+                property bool autoOpenVideo: true
                 // ── Close behaviour ─────────────────────────────────────────
                 property bool closeOnSaveImage: false      // Close canvas after saving image
                 property bool closeOnSaveVideo: false      // Close canvas after saving/exporting video

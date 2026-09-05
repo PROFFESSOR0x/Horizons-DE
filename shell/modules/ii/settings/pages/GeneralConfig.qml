@@ -197,28 +197,42 @@ ContentPage {
                 text: Translation.tr("Controls how the screenshot / video annotation canvas behaves: auto-open, close after save/copy, and editor defaults.")
             }
 
-            // ── Auto-open ───────────────────────────────────────────────
-            ContentSubsectionLabel { text: Translation.tr("Auto-open") }
+            // ── After capture ─────────────────────────────────────────────
+            ContentSubsectionLabel { text: Translation.tr("After capture") }
             GroupedList {
-                ConfigSwitch {
-                    buttonIcon: "photo_camera"
-                    text: Translation.tr("Auto-open editor for screenshots / images")
-                    checked: Config.options.screenCanvas.autoOpenImage
-                    onCheckedChanged: Config.options.screenCanvas.autoOpenImage = checked
+                ConfigSelectionArray {
+                    icon: "photo_camera"
+                    text: Translation.tr("Screenshots")
+                    currentValue: Config.options.screenCanvas.imageResultMode
+                    onSelected: newValue => Config.options.screenCanvas.imageResultMode = newValue
+                    options: [
+                        { displayName: Translation.tr("Open editor"), icon: "edit", value: "editor" },
+                        { displayName: Translation.tr("Notify"), icon: "notifications", value: "notification" },
+                        { displayName: Translation.tr("Just copy"), icon: "content_copy", value: "silent" }
+                    ]
                 }
-                ConfigSwitch {
-                    buttonIcon: "movie"
-                    text: Translation.tr("Auto-open editor for screen recordings / videos")
-                    checked: Config.options.screenCanvas.autoOpenVideo
-                    onCheckedChanged: Config.options.screenCanvas.autoOpenVideo = checked
+                ConfigSelectionArray {
+                    icon: "movie"
+                    text: Translation.tr("Recordings")
+                    currentValue: Config.options.screenCanvas.videoResultMode
+                    onSelected: newValue => Config.options.screenCanvas.videoResultMode = newValue
+                    options: [
+                        { displayName: Translation.tr("Open editor"), icon: "edit", value: "editor" },
+                        { displayName: Translation.tr("Notify"), icon: "notifications", value: "notification" },
+                        { displayName: Translation.tr("Just save"), icon: "save", value: "silent" }
+                    ]
                 }
                 StyledText {
-                    visible: !Config.options.screenCanvas.autoOpenImage && !Config.options.screenCanvas.autoOpenVideo
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     color: Appearance.colors.colSubtext
                     font.pixelSize: Appearance.font.pixelSize.smaller
-                    text: Translation.tr("Tip: when both are off, use right-click → Edit or the notification action to open the editor manually.")
+                    text: {
+                        const img = Config.options.screenCanvas.imageResultMode
+                        if (img === "notification") return Translation.tr("Notify: a notification with Edit / Copy / Save / Run OCR buttons appears instead — nothing happens until you pick one.")
+                        if (img === "silent") return Translation.tr("Just copy: the screenshot is copied to the clipboard only. Right-click → Edit still opens it manually any time.")
+                        return Translation.tr("Open editor: the canvas opens automatically every time.")
+                    }
                 }
             }
 
