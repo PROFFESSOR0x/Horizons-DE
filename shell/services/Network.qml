@@ -39,6 +39,12 @@ Singleton {
     property string publicIpAddress: ""
     property string gateway: ""
     property string macAddress: ""
+
+    // VPN connections (any nmcli "vpn" or "wireguard" type connection that's
+    // currently active) - refreshed on the same nmcli-monitor-driven cycle
+    // as everything else above instead of its own separate poller.
+    property list<string> activeVpnConnections: []
+    readonly property bool vpnActive: activeVpnConnections.length > 0
     property string materialSymbol: root.ethernet
         ? "lan"
         : (root.wifiEnabled && root.wifiStatus === "connected")
@@ -184,6 +190,7 @@ Singleton {
         updateNetworkStrength.running = true;
         updateNetworkDetails.running = true;
         updatePublicIp.running = true;
+        updateVpnStatus.startCheck();
     }
 
     Process {
@@ -242,6 +249,36 @@ Singleton {
             root.wifiStatus = wifiStatus;
             root.ethernet = hasEthernet;
             root.wifi = hasWifi;
+        }
+    }
+
+    Process {
+        id: updateVpnStatus
+        property string buffer
+        command: ["sh", "-c", "nmcli -t -f TYPE,NAME connection show --active"]
+        running: true
+        function startCheck() {
+            buffer = "";
+            updateVpnStatus.running = true;
+        }
+        stdout: SplitParser {
+            onRead: data => {
+                updateVpnStatus.buffer += data + "\n";
+            }
+        }
+        onExited: {
+            const vpns = [];
+            for (const line of updateVpnStatus.buffer.trim().split("\n")) {
+                if (!line) continue;
+                // nmcli -t fields are colon-separated; a connection NAME can
+                // itself contain colons, so only split on the first one.
+                const sep = line.indexOf(":");
+                if (sep < 0) continue;
+                const type = line.slice(0, sep);
+                const name = line.slice(sep + 1);
+                if (type === "vpn" || type === "wireguard") vpns.push(name);
+            }
+            root.activeVpnConnections = vpns;
         }
     }
 
