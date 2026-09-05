@@ -807,7 +807,7 @@ ContentPage {
                                     // Keyed by comment+key_str (not comment alone) so arming/
                                     // confirming delete on one chord of a multi-chord action
                                     // doesn't visually arm its sibling chords too.
-                                    property string identity: (bind.comment ?? "") + " " + (bind.key_str ?? "")
+                                    property string identity: (bind.comment ?? "") + " " + (bind.key_str ?? "")
                                     visible: hasCustomEntry
                                     buttonText: {
                                         if (!isCustomOnly) return Translation.tr("Reset")
