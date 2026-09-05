@@ -51,6 +51,21 @@ Scope {
         property bool monitorIsFocused: WM.focusedMonitor?.name === monitor?.name
         // When m3Island is active, its inline launcher replaces Overview - suppress duplicate
         readonly property bool m3IslandActive: Config.options.bar.barMode === "m3Island"
+        // Shared by the outer Loader below (a direct Column child, so its
+        // collapsed size drives columnLayout's implicitHeight and therefore
+        // the click-outside mask/HyprlandFocusGrab surface) and the actual
+        // workspaces widget's own Loader. Previously only the inner Loader
+        // checked showWorkspacesInLauncher - with that disabled, the outer
+        // Loader stayed active with a null-item Component wrapping a
+        // deactivated inner Loader, an extra layer of nesting that didn't
+        // reliably collapse to zero size the way a directly-inactive Loader
+        // does. The visible symptom: clicking in the dead space the
+        // workspaces grid used to occupy didn't dismiss the launcher,
+        // because that space was still technically part of the panel.
+        readonly property bool workspacesLauncherVisible: GlobalStates.overviewOpen
+            && (Config?.options.overview.enable ?? true)
+            && (Config?.options.overview.showWorkspacesInLauncher ?? true)
+            && panelWindow.searchingText === ""
         visible: GlobalStates.overviewOpen && !panelWindow.m3IslandActive
 
         // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
@@ -141,7 +156,7 @@ Scope {
 
             // Top/Center: search first, bottom: overview first (so search stays at screen edge)
             Loader {
-                active: overviewScope.isBottom
+                active: overviewScope.isBottom && panelWindow.workspacesLauncherVisible
                 visible: active
                 sourceComponent: overviewScope.isBottom ? overviewLoaderComponent : null
             }
@@ -154,7 +169,7 @@ Scope {
                 }
             }
             Loader {
-                active: !overviewScope.isBottom
+                active: !overviewScope.isBottom && panelWindow.workspacesLauncherVisible
                 visible: active
                 sourceComponent: !overviewScope.isBottom ? overviewLoaderComponent : null
             }
@@ -162,7 +177,7 @@ Scope {
             Component {
                 id: overviewLoaderComponent
                 Loader {
-                    active: GlobalStates.overviewOpen && (Config?.options.overview.enable ?? true) && (Config?.options.overview.showWorkspacesInLauncher ?? true) && panelWindow.searchingText === ""
+                    active: panelWindow.workspacesLauncherVisible
                     sourceComponent: (Config?.options.overview.style ?? "default") === "niri" ? niriComponent : defaultComponent
                     Component {
                         id: defaultComponent

@@ -699,7 +699,21 @@ Item {
         // Launcher - morphs from same pill
         M3LauncherInline {
             id: launcherInline
-            anchors.centerIn: parent
+            // Anchored to the top edge, not centered: root's own
+            // implicitHeight is launcherInline.implicitHeight + 12 (see
+            // above), so at rest centering leaves the same 6px on both
+            // sides either way - but root's *actual* height animates
+            // toward that target (Behavior on implicitHeight below) while
+            // launcherInline's own height jumps instantly as results
+            // appear/disappear. For that whole transition, root.height
+            // lags behind launcherInline.implicitHeight, and centering
+            // read that mismatch as "launcherInline (search bar included)
+            // needs to slide" every time. Top-anchoring means a lagging
+            // frame only ever shows up as extra/missing space below the
+            // results, never as the search bar moving.
+            anchors.top: parent.top
+            anchors.topMargin: 6
+            anchors.horizontalCenter: parent.horizontalCenter
             width: parent.width
             visible: root.isLauncher
             opacity: visible ? 1 : 0
