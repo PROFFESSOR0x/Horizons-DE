@@ -93,7 +93,14 @@ Singleton {
     property var filePath: Directories.notificationsPath
     property list<Notif> list: []
     property var popupList: list.filter((notif) => notif.popup);
-    property bool popupInhibited: (GlobalStates?.sidebarRightOpen ?? false) || silent
+    // Auto-DND is intentionally kept separate from `silent` itself (see
+    // Config.options.notifications.autoSilentOnScreenShare): it only ever
+    // affects this derived popup-gating flag, never the user's own manual
+    // toggle, so ending a screen share can't silently un-mute someone who
+    // muted notifications themselves, and the critical-alert bypass right
+    // below (showCriticalWhenQuiet) still applies the same way either way.
+    property bool autoSilentActive: (Config?.options?.notifications?.autoSilentOnScreenShare ?? true) && Privacy.screenSharing
+    property bool popupInhibited: (GlobalStates?.sidebarRightOpen ?? false) || silent || autoSilentActive
     property var latestTimeForApp: ({})
     Component {
         id: notifComponent

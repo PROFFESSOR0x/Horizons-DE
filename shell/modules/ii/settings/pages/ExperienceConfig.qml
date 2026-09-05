@@ -158,6 +158,19 @@ ContentPage {
                         onCheckedChanged: Config.options.notifications.showCriticalWhenQuiet = checked
                     }
                 }
+                ConfigSwitch {
+                    buttonIcon: "screen_share"
+                    text: Translation.tr("Auto-silence popups while screen sharing")
+                    checked: Config.options.notifications.autoSilentOnScreenShare
+                    onCheckedChanged: Config.options.notifications.autoSilentOnScreenShare = checked
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("Only mutes toast popups for as long as something is actually capturing your screen - notifications still land in the list, and this never touches the quiet-mode switch itself, so it can't un-mute you the moment sharing ends if you muted it yourself. Critical alerts still break through, same as quiet mode above.")
+                }
                 ConfigSpinBox {
                     icon: "stack"
                     text: Translation.tr("Maximum visible cards")

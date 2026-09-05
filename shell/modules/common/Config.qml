@@ -1343,6 +1343,14 @@ Singleton {
                 property int maxVisible: 4
                 property bool pauseOnHover: true
                 property bool showCriticalWhenQuiet: true
+                // Auto-DND: popups (not the persistent notification list)
+                // stay quiet for as long as Privacy.screenSharing is true -
+                // separate from the manual "silent" toggle so ending a share
+                // never silently un-mutes someone who'd muted notifications
+                // themselves, and starting one never silently overrides a
+                // critical-alert allowance. See Notifications.qml's
+                // popupInhibited/showCriticalWhenQuiet.
+                property bool autoSilentOnScreenShare: true
                 // Hovering a notification card briefly expands it, mirroring the
                 // M3 island's embedded card behavior on the main popup/history surfaces.
                 property bool expandOnHover: false
