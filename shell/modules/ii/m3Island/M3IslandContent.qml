@@ -186,9 +186,9 @@ Item {
     property real contentWidth: {
         if (isLauncher) return 500
         if (isNotification) return notificationWidth
-        if (isExpanded) return Math.max(expandedRow.implicitWidth + 8, clockCenter.implicitWidth + 120)
+        if (isExpanded) return Math.max(expandedRow.implicitWidth + 8, restingRow.implicitWidth + 120)
         if (isHoverPeek) return hoverRow.implicitWidth + 8
-        return clockCenter.implicitWidth + 16
+        return restingRow.implicitWidth + 16
     }
 
     // Helpers to resolve widget loader like TopIsland. A couple of widget ids
@@ -198,6 +198,12 @@ Item {
     function getWidgetUrl(name) {
         if (name === "m3MiniStats") return Qt.resolvedUrl("M3MiniStats.qml")
         if (name === "m3NotifStatus") return Qt.resolvedUrl("M3NotifStatus.qml")
+        // The clock used to be a hardcoded fixture of the resting pill,
+        // unreachable through restingLayout like every other widget here -
+        // exposing it as a normal loadable widget is what lets it sit next to
+        // other widgets (on either side) instead of always alone, or be left
+        // out of restingLayout entirely.
+        if (name === "m3Clock") return Qt.resolvedUrl("M3ClockCenter.qml")
         return BarLayoutUtils.getWidgetUrl(name)
     }
 
@@ -263,6 +269,7 @@ Item {
             item.isMaterial = true
     }
 
+    readonly property var restingLayout: Config.options.m3Island?.layouts?.restingLayout ?? ["m3Clock"]
     readonly property var hoverLayout: Config.options.m3Island?.layouts?.hoverLayout ?? ["media", "systemIcons"]
     readonly property var expandedLayout: Config.options.m3Island?.layouts?.expandedLayout ?? ["resources", "batteryIndicator"]
     readonly property var filteredExpandedLayout: expandedLayout.filter(n => n !== "systemIcons" && n !== "utilButtons")
@@ -401,17 +408,35 @@ Item {
         // outside the animated background.
         clip: root.isLauncher || root.isHoverPeek || root.isExpanded
 
-        // Idle - clock always centered (morphs out when launcher/notification)
-        M3ClockCenter {
-            id: clockCenter
+        // Idle - restingLayout, customizable (used to be a hardcoded, always-
+        // alone clock with no way to add widgets beside it or remove it -
+        // "m3Clock" is just this list's default entry now, like any other
+        // widget id, so it can share the row with others on either side).
+        RowLayout {
+            id: restingRow
             anchors.centerIn: parent
+            spacing: root.islandSpacing
             visible: !root.isLauncher && !root.isNotification && !root.isHoverPeek && !root.isExpanded
             opacity: visible ? 1 : 0
             scale: visible ? 1 : 0.88
             Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedAccel } }
             Behavior on scale { NumberAnimation { duration: 280; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
-            clockStyle: Config.options.m3Island.clockStyle
-            showDate: Config.options.m3Island.clockShowDate
+
+            Repeater {
+                model: root.restingLayout
+                delegate: Loader {
+                    required property var modelData
+                    source: root.getWidgetUrl(modelData)
+                    onLoaded: {
+                        if (modelData === "m3Clock") {
+                            item.clockStyle = Config.options.m3Island.clockStyle
+                            item.showDate = Config.options.m3Island.clockShowDate
+                        } else {
+                            root.configureM3Widget(item)
+                        }
+                    }
+                }
+            }
         }
 
         // Hover peek - let the surface widen first, then reveal its contents

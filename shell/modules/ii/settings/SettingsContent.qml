@@ -16,6 +16,76 @@ Item {
     property real contentPadding: 8
     property int currentPage: 0
     property bool showingProfile: false
+    property bool showingSearch: false
+    // Flat {pageName, pageIcon, sectionTitle, haystack} list, one entry per
+    // ContentSection/ContentSubsection across every settings page - built
+    // once (all pages are already eagerly loaded shortly after Settings
+    // opens, see Component.onCompleted below) rather than re-walking every
+    // page's whole item tree on each keystroke. SettingsSearch.qml matches
+    // against `haystack` (the section's own title plus every descendant
+    // ConfigRow/ConfigSwitch/etc. `text` under it) so a hit on any
+    // individual setting's label still surfaces its containing section -
+    // navigation always lands on a real section title, which is exactly
+    // what every page's own goTo(term) already knows how to scroll to.
+    property var searchIndex: []
+
+    // Rebuilt (not cached-once) every time search opens rather than gated
+    // behind a one-shot "already built" flag: pages load asynchronously
+    // (see pageLoader.asynchronous below), so a search opened in the brief
+    // window before a heavier page like HyprlandConfig.qml finishes loading
+    // would otherwise permanently miss everything in it for the rest of the
+    // session. Opening search isn't a hot path, so re-walking on every open
+    // (never on keystrokes - SettingsSearch.qml only re-filters the cached
+    // list it's handed) is the safe trade to make here.
+    function buildSearchIndex() {
+        const index = []
+        function collectHaystack(sectionItem) {
+            let parts = [sectionItem.title ?? ""]
+            function walk(it) {
+                if (!it || !it.children) return
+                for (let i = 0; i < it.children.length; i++) {
+                    const child = it.children[i]
+                    if (child !== sectionItem) {
+                        if (typeof child.text === "string" && child.text.length > 0) parts.push(child.text)
+                        if (typeof child.title === "string" && child.title.length > 0) parts.push(child.title)
+                    }
+                    walk(child)
+                }
+            }
+            walk(sectionItem)
+            return parts.join(" • ")
+        }
+        function walkForSections(item, pageName, pageIcon) {
+            if (!item || !item.children) return
+            for (let i = 0; i < item.children.length; i++) {
+                const child = item.children[i]
+                if (typeof child.title === "string" && child.title.length > 0) {
+                    index.push({
+                        pageName: pageName,
+                        pageIcon: pageIcon,
+                        sectionTitle: child.title,
+                        haystack: collectHaystack(child)
+                    })
+                }
+                walkForSections(child, pageName, pageIcon)
+            }
+        }
+        for (let i = 0; i < root.pages.length; i++) {
+            const loader = pagesRepeater.itemAt(i)
+            if (loader && loader.item) walkForSections(loader.item, root.pages[i].name, root.pages[i].icon)
+        }
+        root.searchIndex = index
+        root.searchIndexBuilt = true
+    }
+
+    function navigateToSearchResult(entry) {
+        root.showingSearch = false
+        GlobalStates.settingsPage = entry.pageName + ":" + entry.sectionTitle
+    }
+
+    onShowingSearchChanged: {
+        if (showingSearch) Qt.callLater(root.buildSearchIndex)
+    }
     property bool isMinimal: Config.options.settings.style === "minimal"
     // Remembers the active page by name so that if the pages list itself
     // changes shape while it's open (e.g. a conditionally-shown tab
@@ -272,6 +342,19 @@ Item {
                         }
                     }
 
+                    FloatingActionButton {
+                        id: searchFab
+                        visible: !isMinimal
+                        Layout.bottomMargin: -15
+                        iconText: "search"
+                        buttonText: Translation.tr("Search settings")
+                        expanded: navRail.expanded
+                        downAction: () => { root.showingSearch = !root.showingSearch }
+                        StyledToolTip {
+                            text: Translation.tr("Search every setting (title, description, regex supported)")
+                        }
+                    }
+
                     NavigationRailTabArray {
                         currentIndex: root.currentPage
                         expanded: navRail.expanded
@@ -281,10 +364,11 @@ Item {
                             NavigationRailButton {
                                 required property var index
                                 required property var modelData
-                                toggled: root.currentPage === index && !root.showingProfile
+                                toggled: root.currentPage === index && !root.showingProfile && !root.showingSearch
                                 onPressed: {
                                     root.currentPage = index
                                     root.showingProfile = false
+                                    root.showingSearch = false
                                 }
                                 expanded: navRail.expanded
                                 buttonIcon: modelData.icon
@@ -327,7 +411,7 @@ Item {
 
                             anchors.fill: parent
 
-                            property bool isActive: root.currentPage === index && !root.showingProfile
+                            property bool isActive: root.currentPage === index && !root.showingProfile && !root.showingSearch
                             opacity: isActive ? 1 : 0
                             enabled: isActive
                             visible: isActive
@@ -363,7 +447,7 @@ Item {
                         source: Qt.resolvedUrl("pages/Profile.qml")
                         asynchronous: true
 
-                        property bool isActive: root.showingProfile
+                        property bool isActive: root.showingProfile && !root.showingSearch
                         opacity: isActive ? 1 : 0
                         enabled: isActive
                         visible: isActive
@@ -375,6 +459,37 @@ Item {
                             } else if (!isActive && GlobalStates.currentPageInstance === item) {
                                 GlobalStates.currentPageInstance = null;
                             }
+                        }
+
+                        Behavior on opacity {
+                            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                        }
+                        Behavior on anchors.topMargin {
+                            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                        }
+                    }
+
+                    Loader {
+                        id: searchLoader
+                        active: root.showingSearch
+                        anchors.fill: parent
+                        source: Qt.resolvedUrl("pages/SettingsSearch.qml")
+                        asynchronous: true
+
+                        property bool isActive: root.showingSearch
+                        opacity: isActive ? 1 : 0
+                        enabled: isActive
+                        visible: isActive
+                        anchors.topMargin: isActive ? 0 : 12
+
+                        onLoaded: {
+                            if (item) {
+                                item.settingsContent = root
+                                if (isActive) item.forceFocus()
+                            }
+                        }
+                        onIsActiveChanged: {
+                            if (isActive && item) item.forceFocus()
                         }
 
                         Behavior on opacity {

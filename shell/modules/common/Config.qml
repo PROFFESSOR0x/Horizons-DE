@@ -1174,8 +1174,14 @@ Singleton {
                 // Extra quick-toggle icon row shown only while expanded.
                 property bool showExpandedQuickToggles: false
                 property list<string> expandedQuickToggles: ["idleInhibitor", "privacyIndicator"]
-                // Layouts per state - reuse widget ids from bar
+                // Layouts per state - reuse widget ids from bar. restingLayout
+                // is the idle pill (neither hovered nor expanded) - it used to
+                // be hardcoded to just the clock with no way to add anything
+                // beside it or remove it; "m3Clock" is a normal widget id here
+                // like any other, so it can sit next to other widgets on
+                // either side, or be left out entirely.
                 property JsonObject layouts: JsonObject {
+                    property list<string> restingLayout: ["m3Clock"]
                     property list<string> hoverLayout: ["media", "systemIcons"]
                     property list<string> expandedLayout: ["resources", "batteryIndicator"]
                 }
@@ -1329,10 +1335,26 @@ Singleton {
                 }
                 property JsonObject layout: JsonObject {
                     property string passwordPlacement: "bottom" // bottom | center | left | right
-                    property int offsetX: 0
-                    property int offsetY: 0
                     property int bottomMargin: 20
-                    property real scale: 1.0
+                    // Independent offset/scale per element (previously one
+                    // shared offsetX/offsetY/scale moved the password box and
+                    // both toolbars together) - lets each be positioned on
+                    // its own instead of only all-together.
+                    property JsonObject password: JsonObject {
+                        property int offsetX: 0
+                        property int offsetY: 0
+                        property real scale: 1.0
+                    }
+                    property JsonObject leftToolbar: JsonObject {
+                        property int offsetX: 0
+                        property int offsetY: 0
+                        property real scale: 1.0
+                    }
+                    property JsonObject rightToolbar: JsonObject {
+                        property int offsetX: 0
+                        property int offsetY: 0
+                        property real scale: 1.0
+                    }
                 }
                 property bool materialShapeChars: true
             }

@@ -108,14 +108,24 @@ MouseArea {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 cache: true
-                visible: false
+                visible: !Config.options.lock.blur.enable
                 sourceSize.width: parent.width
                 sourceSize.height: parent.height
             }
-            FastBlur {
+            // Was a hardcoded, always-on `radius: 0` (a no-op blur that still
+            // paid for a shader pass every frame) instead of ever reading
+            // Config.options.lock.blur - the lock-screen blur setting simply
+            // never did anything on niri. Loader-gated so disabling it
+            // (default is enabled) skips the shader entirely rather than
+            // just zeroing its radius.
+            Loader {
                 anchors.fill: parent
-                source: lockBgSource
-                radius: 0 // fixme
+                active: Config.options.lock.blur.enable
+                sourceComponent: FastBlur {
+                    anchors.fill: parent
+                    source: lockBgSource
+                    radius: Config.options.lock.blur.radius
+                }
             }
         }
     }
@@ -133,12 +143,12 @@ MouseArea {
             rightMargin: root.passwordPlacement === "right" ? 28 : 0
             bottomMargin: root.passwordPlacement !== "center" ? Config.options.lock.layout.bottomMargin : 0
         }
-        transform: Translate { x: Config.options.lock.layout.offsetX; y: Config.options.lock.layout.offsetY }
+        transform: Translate { x: Config.options.lock.layout.password.offsetX; y: Config.options.lock.layout.password.offsetY }
         Behavior on anchors.bottomMargin {
             animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
         }
 
-        scale: root.toolbarScale * Config.options.lock.layout.scale
+        scale: root.toolbarScale * Config.options.lock.layout.password.scale
         opacity: root.toolbarOpacity
 
         // Fingerprint sensor; it remains a button so a user can deliberately
@@ -318,10 +328,10 @@ MouseArea {
         Behavior on anchors.bottomMargin {
             animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
         }
-        // Move and scale together with the main island so offsetX/offsetY/scale
-        // settings never pull the toolbars apart or make them overlap.
-        transform: Translate { x: Config.options.lock.layout.offsetX; y: Config.options.lock.layout.offsetY }
-        scale: root.toolbarScale * Config.options.lock.layout.scale
+        // Own independent offset/scale (Settings > Interface > Lock screen) -
+        // no longer tied to the password box or the right toolbar's.
+        transform: Translate { x: Config.options.lock.layout.leftToolbar.offsetX; y: Config.options.lock.layout.leftToolbar.offsetY }
+        scale: root.toolbarScale * Config.options.lock.layout.leftToolbar.scale
         opacity: root.toolbarOpacity
 
         // Username
@@ -519,8 +529,9 @@ MouseArea {
         Behavior on anchors.bottomMargin {
             animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
         }
-        transform: Translate { x: Config.options.lock.layout.offsetX; y: Config.options.lock.layout.offsetY }
-        scale: root.toolbarScale * Config.options.lock.layout.scale
+        // Own independent offset/scale, same as the left toolbar above.
+        transform: Translate { x: Config.options.lock.layout.rightToolbar.offsetX; y: Config.options.lock.layout.rightToolbar.offsetY }
+        scale: root.toolbarScale * Config.options.lock.layout.rightToolbar.scale
         opacity: root.toolbarOpacity
 
         IconAndTextPair {
