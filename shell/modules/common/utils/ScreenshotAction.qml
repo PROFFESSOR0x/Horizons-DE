@@ -26,12 +26,40 @@ Singleton {
     property string imageSearchEngineBaseUrl: Config.options.search.imageSearch.imageSearchEngineBaseUrl
     property string fileUploadApiEndpoint: "https://uguu.se/upload"
 
+    // wl-copy is Wayland-only; xclip/xsel keep every command below working on
+    // the i3/X11 target too — same fallback chain (and same reasoning: avoid
+    // unparenthesized `&&`/`||` precedence pitfalls) as
+    // shell/modules/ii/capture/EditorCanvas.qml's clipboardCommand().
+    // `source` is a shell snippet either producing bytes on stdout (piped in)
+    // or empty when copying an existing file via `fromFile`.
+    function clipboardFromStdin(mimeType) {
+        const typeArg = mimeType ? ` --type ${mimeType}` : ""
+        const xArg = mimeType ? ` -t ${mimeType}` : ""
+        return `if command -v wl-copy >/dev/null 2>&1; then wl-copy${typeArg}; `
+            + `elif command -v xclip >/dev/null 2>&1; then xclip -selection clipboard${xArg}; `
+            + `elif command -v xsel >/dev/null 2>&1; then xsel --clipboard --input; `
+            + `else cat >/dev/null; false; fi`
+    }
+    function clipboardFromFile(filePath, mimeType) {
+        const file = `'${StringUtils.shellSingleQuoteEscape(filePath)}'`
+        const xArg = mimeType ? ` -t ${mimeType}` : ""
+        return `if command -v wl-copy >/dev/null 2>&1; then wl-copy${mimeType ? ` --type ${mimeType}` : ""} < ${file}; `
+            + `elif command -v xclip >/dev/null 2>&1; then xclip -selection clipboard${xArg} -i ${file}; `
+            + `elif command -v xsel >/dev/null 2>&1; then xsel --clipboard --input < ${file}; `
+            + `else false; fi`
+    }
+    // grim captures the Wayland output to stdout; the X11 fallback captures
+    // the whole (single, shared-across-monitors) root window the same way.
+    function fullScreenCapture() {
+        return `if command -v grim >/dev/null 2>&1; then grim -; else import -window root png:-; fi`
+    }
+
     function fullScreenCommand() {
         const format = Config.options.screenSnip.format === "jpg" ? "jpg" : "png"
         const scale = Math.max(25, Math.min(200, Config.options.screenSnip.scalePercent ?? 100))
         const quality = Math.max(1, Math.min(100, Config.options.screenSnip.jpegQuality ?? 92))
         const convert = `magick png:- -resize ${scale}% ${format === "jpg" ? `-quality ${quality} jpg:-` : "png:-"}`
-        return ["bash", "-c", `grim - | ${convert} | wl-copy`]
+        return ["bash", "-c", `${root.fullScreenCapture()} | ${convert} | ${root.clipboardFromStdin("image/png")}`]
     }
 
     function getCommand(x, y, width, height, screenshotPath, action, saveDir = "", shellPath = "") {
@@ -63,13 +91,13 @@ Singleton {
                     if (autoOpenImage) {
                         return ["bash", "-c",
                             `${cropCmd} && ` +
-                            `wl-copy < '${croppedTemp}' && ` +
+                            `${root.clipboardFromFile(croppedTemp, "image/png")} && ` +
                             `${qsCmd} ipc call captureEditor openImage '${croppedTemp}'`
                         ]
                     } else {
                         return ["bash", "-c",
                             `${cropCmd} && ` +
-                            `wl-copy < '${croppedTemp}'`
+                            `${root.clipboardFromFile(croppedTemp, "image/png")}`
                         ]
                     }
                 }
@@ -80,7 +108,7 @@ Singleton {
                         `savePath="${saveDir}/$saveFileName" && ` +
                         `${cropCmd} && ` +
                         `cp '${croppedTemp}' "$savePath" && ` +
-                        `wl-copy < '${croppedTemp}' && ` +
+                        `${root.clipboardFromFile(croppedTemp, "image/png")} && ` +
                         `${qsCmd} ipc call captureEditor openImage "$savePath"`
                     ]
                 } else {
@@ -90,7 +118,7 @@ Singleton {
                         `savePath="${saveDir}/$saveFileName" && ` +
                         `${cropCmd} && ` +
                         `cp '${croppedTemp}' "$savePath" && ` +
-                        `wl-copy < '${croppedTemp}'`
+                        `${root.clipboardFromFile(croppedTemp, "image/png")}`
                     ]
                 }
 
@@ -109,7 +137,7 @@ Singleton {
             case ScreenshotAction.Action.CharRecognition:
                 return ["bash", "-c",
                     `${cropCmd} && ` +
-                    `tesseract '${croppedTemp}' stdout | wl-copy`
+                    `tesseract '${croppedTemp}' stdout | ${root.clipboardFromStdin("")}`
                 ]
 
             case ScreenshotAction.Action.Record:

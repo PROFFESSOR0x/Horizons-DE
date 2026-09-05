@@ -76,6 +76,78 @@ getactivemonitor() {
     fi
 }
 
+# ── X11/i3 recording: wf-recorder is Wayland-only (wlr-screencopy), so the
+# i3/X11 target needs a completely different capture path. This mirrors the
+# Wayland flow above feature-for-feature (fullscreen vs region, the same
+# audio-source detection/AUDIO_MODE handling, the same "both mode falls back
+# to just the output source" simplification wf-recorder's own comment already
+# documents) rather than introducing new capabilities the Wayland path
+# doesn't have.
+is_wayland() { [[ -n "${WAYLAND_DISPLAY:-}" ]]; }
+
+# ffmpeg's own -crf flag, not wf-recorder's "-p crf=N" extra-parameter syntax.
+FFMPEG_CRF="${CODEC_PARAM#crf=}"
+
+x11_video_codec_args() {
+    local args=(-c:v "$CODEC" -pix_fmt yuv420p -crf "$FFMPEG_CRF")
+    # VP9 constant-quality mode requires an explicit zero bitrate or ffmpeg
+    # falls back to a default bitrate target and ignores -crf.
+    [[ "$CODEC" == "libvpx-vp9" ]] && args+=(-b:v 0)
+    printf '%s\n' "${args[@]}"
+}
+
+x11_audio_input_args() {
+    [[ $SOUND_FLAG -eq 1 && "$AUDIO_MODE" != "none" ]] || return 0
+    local out_src mic_src
+    out_src="${OUTPUT_SOURCE_OVERRIDE:-$(getaudiooutput | head -n 1)}"
+    mic_src="${MIC_SOURCE_OVERRIDE:-$(getmicrophone)}"
+    case "$AUDIO_MODE" in
+        output|both) [[ -n "$out_src" ]] && printf '%s\n' -f pulse -i "$out_src" -c:a aac -b:a 192k ;;
+        microphone)  [[ -n "$mic_src" ]] && printf '%s\n' -f pulse -i "$mic_src" -c:a aac -b:a 192k ;;
+    esac
+}
+
+# X11 has one shared root window across every monitor (no per-output capture
+# surface like Wayland's wlr-screencopy) — "fullscreen" here means the whole
+# X display, not one specific monitor, same simplification already used for
+# the screenshot path (see TempScreenshotProcess.qml).
+x11_start_fullscreen() {
+    local target="$1"
+    mapfile -t vcodec < <(x11_video_codec_args)
+    mapfile -t audio < <(x11_audio_input_args)
+    # Deliberately foreground (no trailing &), matching wf-recorder's own
+    # invocation below: this call blocks until ffmpeg exits, and the *next*
+    # keypress's script invocation is what stops it (x11_stop's SIGINT via
+    # pkill -f), exactly mirroring the wf-recorder toggle-by-rerunning idiom.
+    ffmpeg -y -f x11grab -framerate "$FRAME_RATE" -i "$DISPLAY" \
+        "${audio[@]}" "${vcodec[@]}" "$target"
+}
+
+# `region` is "X,Y WxH" — the same format slurp already produces and
+# wf-recorder's --geometry already expects, kept as the one shared format
+# both backends deal in (slop's -f lets it emit the identical layout) so the
+# --region/manual-region/cancellation handling above stays backend-agnostic.
+x11_start_region() {
+    local target="$1" region="$2"
+    if [[ ! "$region" =~ ^([0-9]+),([0-9]+)\ ([0-9]+)x([0-9]+)$ ]]; then
+        notify-send "Recording cancelled" "Could not parse selected region" -a 'Recorder' & disown
+        return 1
+    fi
+    local rx="${BASH_REMATCH[1]}" ry="${BASH_REMATCH[2]}" rw="${BASH_REMATCH[3]}" rh="${BASH_REMATCH[4]}"
+    mapfile -t vcodec < <(x11_video_codec_args)
+    mapfile -t audio < <(x11_audio_input_args)
+    # Foreground, same reasoning as x11_start_fullscreen above.
+    ffmpeg -y -f x11grab -framerate "$FRAME_RATE" -video_size "${rw}x${rh}" -i "${DISPLAY}+${rx},${ry}" \
+        "${audio[@]}" "${vcodec[@]}" "$target"
+}
+
+# SIGINT (not the default SIGTERM from a plain `pkill`) is required for
+# ffmpeg to write its trailer and produce a valid, playable file instead of a
+# truncated/corrupt one — this is the one detail that's easy to get subtly
+# wrong when scripting ffmpeg as a toggleable background recorder.
+x11_stop() { pkill -INT -f 'ffmpeg .*-f x11grab'; }
+x11_is_recording() { pgrep -f 'ffmpeg .*-f x11grab' >/dev/null; }
+
 mkdir -p "$RECORDING_DIR"
 cd "$RECORDING_DIR" || exit
 
@@ -119,8 +191,8 @@ fi
 REC_TRACK_FILE="/tmp/quickshell/media/active_recording.txt"
 mkdir -p "/tmp/quickshell/media"
 
-if pgrep wf-recorder > /dev/null; then
-    pkill wf-recorder &
+if { is_wayland && pgrep wf-recorder > /dev/null; } || { ! is_wayland && x11_is_recording; }; then
+    if is_wayland; then pkill wf-recorder & else x11_stop & fi
     set_recording_state false
     LAST_REC=""
     if [[ -f "$REC_TRACK_FILE" ]]; then
@@ -158,12 +230,27 @@ else
     if [[ $FULLSCREEN_FLAG -eq 1 ]]; then
         notify-send "Starting recording" "$REC_FILENAME" -a 'Recorder' & disown
         set_recording_state true
-        wf-recorder "${RECORDER_ARGS[@]}" -o "$(getactivemonitor)" -f "$TARGET_PATH" -t "${AUDIO_ARGS[@]}"
+        if is_wayland; then
+            wf-recorder "${RECORDER_ARGS[@]}" -o "$(getactivemonitor)" -f "$TARGET_PATH" -t "${AUDIO_ARGS[@]}"
+        else
+            x11_start_fullscreen "$TARGET_PATH"
+        fi
     else
         if [[ -n "$MANUAL_REGION" ]]; then
             region="$MANUAL_REGION"
         else
-            if ! region="$(slurp 2>&1)"; then
+            # slop is slurp's X11 equivalent; -f made to emit the identical
+            # "X,Y WxH" layout slurp already produces so region/MANUAL_REGION
+            # handling above needs no per-backend branching at all. Neither
+            # tool sets a non-zero exit code on cancel (slop reports it via
+            # a %c format token instead) — checking for empty output, not
+            # just a failing exit code, is what actually catches a cancel.
+            if is_wayland; then
+                region="$(slurp 2>&1)"; select_rc=$?
+            else
+                region="$(slop -f '%x,%y %wx%h' 2>&1)"; select_rc=$?
+            fi
+            if (( select_rc != 0 )) || [[ -z "$region" ]]; then
                 notify-send "Recording cancelled" "Selection was cancelled" -a 'Recorder' & disown
                 rm -f "$REC_TRACK_FILE"
                 exit 1
@@ -171,7 +258,11 @@ else
         fi
         notify-send "Starting recording" "$REC_FILENAME" -a 'Recorder' & disown
         set_recording_state true
-        wf-recorder "${RECORDER_ARGS[@]}" -f "$TARGET_PATH" -t --geometry "$region" "${AUDIO_ARGS[@]}"
+        if is_wayland; then
+            wf-recorder "${RECORDER_ARGS[@]}" -f "$TARGET_PATH" -t --geometry "$region" "${AUDIO_ARGS[@]}"
+        else
+            x11_start_region "$TARGET_PATH" "$region"
+        fi
     fi
     set_recording_state false
 
