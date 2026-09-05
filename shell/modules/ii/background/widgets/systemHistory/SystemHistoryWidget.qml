@@ -15,6 +15,8 @@ AbstractBackgroundWidget {
     property bool showCpu: root.configEntry.showCpu ?? true
     property bool showMemory: root.configEntry.showMemory ?? true
     property bool showSwap: root.configEntry.showSwap ?? false
+    property bool showDisk: root.configEntry.showDisk ?? false
+    property bool showGpu: root.configEntry.showGpu ?? false
 
     implicitWidth: 420
     implicitHeight: col.implicitHeight + 24
@@ -121,6 +123,55 @@ AbstractBackgroundWidget {
             }
         }
 
+        // Disk graph
+        ColumnLayout {
+            visible: root.showDisk
+            Layout.fillWidth: true
+            spacing: 4
+            RowLayout {
+                Layout.fillWidth: true
+                MaterialSymbol { text: "hard_drive"; iconSize: 14; color: Appearance.colors.colPrimary }
+                StyledText { text: "Disk " + Math.round(ResourceUsage.diskUsedPercentage*100) + "%"; font.pixelSize: Appearance.font.pixelSize.small; color: Appearance.colors.colOnLayer1 }
+                Item { Layout.fillWidth: true }
+                StyledText { text: ResourceUsage.maxAvailableDiskString; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext }
+            }
+            Rectangle {
+                Layout.fillWidth: true; Layout.preferredHeight: 40; radius: Appearance.rounding.small; color: Appearance.colors.colLayer2; clip: true
+                Graph {
+                    anchors.fill: parent; anchors.margins: 6
+                    values: ResourceUsage.diskUsageHistory
+                    color: Appearance.colors.colPrimary
+                    fillOpacity: 0.35
+                }
+            }
+        }
+
+        // GPU graph - the toggle itself only shows when a reading is
+        // actually available (ResourceUsage.gpuAvailable), same reasoning
+        // as the Resources overlay's GPU tab: no point offering a switch
+        // for a graph that can only ever show a flat, meaningless line.
+        ColumnLayout {
+            visible: root.showGpu && ResourceUsage.gpuAvailable
+            Layout.fillWidth: true
+            spacing: 4
+            RowLayout {
+                Layout.fillWidth: true
+                MaterialSymbol { text: "developer_board"; iconSize: 14; color: Appearance.colors.colSecondary }
+                StyledText { text: "GPU " + Math.round(ResourceUsage.gpuUsage*100) + "%"; font.pixelSize: Appearance.font.pixelSize.small; color: Appearance.colors.colOnLayer1 }
+                StyledText { visible: ResourceUsage.gpuTemp>0; text: "· " + ResourceUsage.gpuTemp.toFixed(0) + "°C"; font.pixelSize: Appearance.font.pixelSize.small; color: Appearance.colors.colSubtext }
+                Item { Layout.fillWidth: true }
+            }
+            Rectangle {
+                Layout.fillWidth: true; Layout.preferredHeight: 56; radius: Appearance.rounding.small; color: Appearance.colors.colLayer2; clip: true
+                Graph {
+                    anchors.fill: parent; anchors.margins: 6
+                    values: ResourceUsage.gpuUsageHistory
+                    color: Appearance.colors.colSecondary
+                    fillOpacity: 0.35
+                }
+            }
+        }
+
         // Toggles
         RowLayout {
             Layout.fillWidth: true
@@ -142,6 +193,19 @@ AbstractBackgroundWidget {
                 mainText: "Swap"
                 onClicked: { root.showSwap = !root.showSwap; root.configEntry.showSwap = root.showSwap }
                 colBackground: root.showSwap ? Appearance.colors.colTertiaryContainer : Appearance.colors.colLayer2
+            }
+            RippleButtonWithIcon {
+                materialIcon: root.showDisk ? "check" : "close"
+                mainText: "Disk"
+                onClicked: { root.showDisk = !root.showDisk; root.configEntry.showDisk = root.showDisk }
+                colBackground: root.showDisk ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer2
+            }
+            RippleButtonWithIcon {
+                visible: ResourceUsage.gpuAvailable
+                materialIcon: root.showGpu ? "check" : "close"
+                mainText: "GPU"
+                onClicked: { root.showGpu = !root.showGpu; root.configEntry.showGpu = root.showGpu }
+                colBackground: root.showGpu ? Appearance.colors.colSecondaryContainer : Appearance.colors.colLayer2
             }
             Item { Layout.fillWidth: true }
             StyledText {

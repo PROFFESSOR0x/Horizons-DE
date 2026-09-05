@@ -33,6 +33,17 @@ Singleton {
 
     property real cpuTemp: 0
 
+    // GPU usage/temp: NVIDIA via nvidia-smi where present, else the sysfs
+    // path amdgpu/i915 both expose (gpu_busy_percent + hwmon temp1_input,
+    // millidegrees). gpuAvailable stays false (rather than showing a fake
+    // 0%) when neither source produced a real reading, so widgets can hide
+    // themselves cleanly instead of displaying a misleading "0% / 0°C" on
+    // hardware/drivers that don't expose this at all.
+    property bool gpuAvailable: false
+    property real gpuUsage: 0
+    property real gpuTemp: 0
+    property list<real> gpuUsageHistory: []
+
     property real diskTotal: 1
     property real diskUsed: 0
     property real diskFree: 0
@@ -65,6 +76,35 @@ Singleton {
         }
     }
 
+    Process {
+        id: gpuProc
+        command: ["bash", "-c",
+            "if command -v nvidia-smi >/dev/null 2>&1; then" +
+            "   nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -1;" +
+            "else" +
+            "   busy=$(cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | head -1);" +
+            "   traw=$(cat /sys/class/drm/card*/device/hwmon/hwmon*/temp1_input 2>/dev/null | head -1);" +
+            "   [ -n \"$busy\" ] && echo \"$busy, $(( ${traw:-0} / 1000 ))\";" +
+            "fi"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const parts = text.trim().split(",").map(s => parseFloat(s.trim()))
+                if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                    root.gpuAvailable = true
+                    root.gpuUsage = Math.max(0, Math.min(1, parts[0] / 100))
+                    root.gpuTemp = parts[1]
+                } else {
+                    root.gpuAvailable = false
+                }
+                // Recorded here rather than right after restarting the
+                // process below: gpuProc is async, so the fresh reading
+                // only actually exists once this handler runs, not at the
+                // point .running was flipped back on.
+                if (root.gpuAvailable) root.updateGpuUsageHistory()
+            }
+        }
+    }
+
     Timer {
         interval: Config?.options.resources.updateInterval ?? 3000
         running: true
@@ -74,6 +114,8 @@ Singleton {
             tempProc.running = true
             diskProc.running = false
             diskProc.running = true
+            gpuProc.running = false
+            gpuProc.running = true
         }
     }
 
@@ -96,6 +138,10 @@ Singleton {
     function updateDiskUsageHistory() {
         diskUsageHistory = [...diskUsageHistory, diskUsedPercentage]
         if (diskUsageHistory.length > historyLength) diskUsageHistory.shift()
+    }
+    function updateGpuUsageHistory() {
+        gpuUsageHistory = [...gpuUsageHistory, gpuUsage]
+        if (gpuUsageHistory.length > historyLength) gpuUsageHistory.shift()
     }
     function updateHistories() {
         updateMemoryUsageHistory()

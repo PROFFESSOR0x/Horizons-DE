@@ -800,6 +800,8 @@ Singleton {
                         property bool showCpu: true
                         property bool showMemory: true
                         property bool showSwap: false
+                        property bool showDisk: false
+                        property bool showGpu: false
                     }
 
                     property JsonObject timers: JsonObject {
