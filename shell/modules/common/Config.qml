@@ -4,11 +4,15 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.modules.common.functions
+import "PerformanceProfiles.js" as PerformanceProfiles
 
 Singleton {
     id: root
     property string filePath: Directories.shellConfigPath
     property alias options: configOptionsJsonAdapter
+    // Re-exported so UI (QuickConfig.qml's profile picker) can read
+    // id/displayName/icon/description without its own relative .js import.
+    readonly property var performanceProfiles: PerformanceProfiles.profiles
     property bool ready: false
     property int readWriteDelay: 50 // milliseconds
     property bool blockWrites: false
@@ -130,6 +134,26 @@ Singleton {
         opts.appearance.glass.enable = effect === "glass";
     }
 
+    // Applies one of PerformanceProfiles.js's 5 tiers: writes every plain
+    // Config.options.* field the profile lists (background widgets, motion
+    // scale, resource-poll interval, lock blur...) plus the shared blur/
+    // transparency/glass exclusivity choice. Does NOT touch the compositor —
+    // callers (QuickConfig.qml) follow this with HyprlandConfig.setMany(...)
+    // + setAnimPreset(...) for that profile's literal Hyprland keys, mirroring
+    // how applyVisualEffectExclusivity()'s callers already work. Kept as a
+    // pure Config.options mutation (no Quickshell.Hyprland import here) so
+    // Config.qml never needs to depend on HyprlandConfig.qml.
+    function applyPerformanceProfile(profileId) {
+        const entry = PerformanceProfiles.profiles.find(p => p.id === profileId);
+        if (!entry) return null;
+        root.options.appearance.performanceProfile = profileId;
+        root.applyVisualEffectExclusivity(entry.visualEffect);
+        for (const key in entry.configOverrides) {
+            root.setNestedValue(key, entry.configOverrides[key]);
+        }
+        return entry;
+    }
+
     Timer {
         id: fileReloadTimer
         interval: root.readWriteDelay
@@ -208,6 +232,14 @@ Singleton {
                 // (possibly simultaneously-enabled) blur/transparency/glass flags into a
                 // single visualEffect choice, so later user edits are never overwritten.
                 property bool visualEffectMigrated: false
+                // Last performance/experience profile applied from Settings > Quick
+                // (see PerformanceProfiles.js + Config.applyPerformanceProfile()).
+                // Purely a "what's currently highlighted" marker, not an enforced
+                // mode — applying one is a one-time bulk write, so hand-tuning any
+                // individual setting afterwards sticks until another profile button
+                // is pressed. Never touches appearance.palette — profiles are
+                // colorless by design, only performance/motion/effect knobs.
+                property string performanceProfile: "balanced" // maxPerformance|performance|balanced|experience|maxExperience
                 property JsonObject fonts: JsonObject {
                     property string main: "Google Sans Flex"
                     property string numbers: "Google Sans Flex"
