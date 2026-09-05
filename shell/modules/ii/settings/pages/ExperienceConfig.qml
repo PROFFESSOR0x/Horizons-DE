@@ -52,6 +52,20 @@ ContentPage {
         HyprlandConfig.set("general:col.inactive_border", h.colInactiveBorder)
     }
 
+    function restoreConfiguredBorders() {
+        if (WM.compositor !== "hyprland") return
+        // Generated colours are written as explicit shell overrides. Removing
+        // those overrides is the only reliable way to return to the user's
+        // normal Hyprland border settings when this toggle is switched off.
+        const h = Config.options.hyprland.general
+        h.colActiveBorder = ""
+        h.colInactiveBorder = ""
+        HyprlandConfig.resetMany([
+            "general:col.active_border",
+            "general:col.inactive_border"
+        ])
+    }
+
     ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
@@ -144,6 +158,19 @@ ContentPage {
                         onCheckedChanged: Config.options.notifications.showCriticalWhenQuiet = checked
                     }
                 }
+                ConfigSwitch {
+                    buttonIcon: "screen_share"
+                    text: Translation.tr("Auto-silence popups while screen sharing")
+                    checked: Config.options.notifications.autoSilentOnScreenShare
+                    onCheckedChanged: Config.options.notifications.autoSilentOnScreenShare = checked
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("Only mutes toast popups for as long as something is actually capturing your screen - notifications still land in the list, and this never touches the quiet-mode switch itself, so it can't un-mute you the moment sharing ends if you muted it yourself. Critical alerts still break through, same as quiet mode above.")
+                }
                 ConfigSpinBox {
                     icon: "stack"
                     text: Translation.tr("Maximum visible cards")
@@ -218,6 +245,7 @@ ContentPage {
                     onCheckedChanged: {
                         Config.options.hyprland.general.autoThemeBorders = checked
                         if (checked) page.applyThemeBorders()
+                        else page.restoreConfiguredBorders()
                     }
                 }
                 ConfigRow {

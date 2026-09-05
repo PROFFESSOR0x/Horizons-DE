@@ -570,7 +570,10 @@ ContentPage {
 
                 ColumnLayout {
                     id: translationCol
-                    anchors { fill: parent; margins: 0 }
+                    // This is a row in GroupedList's ColumnLayout. Anchoring it
+                    // to the parent makes it overlap the language selector
+                    // above; let the layout position and size it instead.
+                    Layout.fillWidth: true
                     spacing: 8
 
                     ConfigTextArea {

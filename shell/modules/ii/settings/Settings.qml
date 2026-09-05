@@ -33,9 +33,16 @@ Scope {
         }
 
         exclusiveZone: 0
-        WlrLayershell.namespace: "quickshell:settings"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: GlobalStates.settingsOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+        // behind a Wayland-only Loader instead of set directly.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding { target: panelWindow.WlrLayershell; property: "namespace"; value: "quickshell:settings" }
+                Binding { target: panelWindow.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+                Binding { target: panelWindow.WlrLayershell; property: "keyboardFocus"; value: GlobalStates.settingsOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None }
+            }
+        }
         color: "transparent"
 
         anchors {
@@ -85,6 +92,13 @@ Scope {
             border.color: Appearance.getColorFromName(Config.options.settings.borderColor)
             radius: !isMinimal ? Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 5 : Appearance.rounding.screenRounding + 5
             z: 1
+            // Safety net: this window has a fixed width (settings.preferredWidth,
+            // not user-resizable) - a row with enough options to not wrap in
+            // time (or any future sizing slip) used to render straight past
+            // this Rectangle's edge onto the desktop behind it instead of
+            // just looking cramped. Popups/tooltips (QtQuick.Controls
+            // Overlay-based) aren't affected by clipping an ordinary ancestor.
+            clip: true
 
             property bool userMoved: false
             anchors.centerIn: userMoved ? undefined : parent

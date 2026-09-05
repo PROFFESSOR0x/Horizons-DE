@@ -16,7 +16,11 @@ Item {
     property bool showOverflowMenu: true
     property var activeMenu: null
     readonly property bool isOnLeft: Config.options.bar.layouts.leftLayout.includes("sysTray")
-    readonly property bool isMaterial: Config.options.bar.cornerStyle === 3
+    // Writable (not readonly) like every other bar widget's isMaterial: M3Island's
+    // configureM3Widget() assigns true directly to give a loaded widget an explicit
+    // M3 scope instead of duplicating its implementation, which throws
+    // "Cannot assign to read-only property" if this stays readonly.
+    property bool isMaterial: Config.options.bar.cornerStyle === 3
 
     visible: SystemTray.items.values.length > 0
     implicitWidth: vertical ? Appearance.sizes.verticalBarWidth : (isMaterial ? pill.implicitWidth - 4 : gridLayout.implicitWidth)

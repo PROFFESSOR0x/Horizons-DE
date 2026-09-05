@@ -41,6 +41,20 @@ Scope {
             onTriggered: panelWindow.reallyVisible = false
         }
 
+        // The right sidebar can be opened from a hot corner without a click.
+        // Let the pointer cross into the panel, then close only if it remains
+        // outside. Explicit shortcut/click opens are intentionally unaffected.
+        Timer {
+            id: hoverCloseTimer
+            interval: 260
+            repeat: false
+            onTriggered: {
+                if (GlobalStates.hoverOpenedState === "sidebarRightOpen"
+                        && !sidebarHoverHandler.hovered)
+                    GlobalStates.closeHoverState("sidebarRightOpen");
+            }
+        }
+
         function hide() {
             GlobalStates.sidebarRightOpen = false;
         }
@@ -62,8 +76,15 @@ Scope {
 
         exclusiveZone: 0
         implicitWidth: sidebarWidth
-        WlrLayershell.namespace: "quickshell:sidebarRight"
-        WlrLayershell.keyboardFocus: GlobalStates.sidebarRightOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+        // behind a Wayland-only Loader instead of set directly.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding { target: panelWindow.WlrLayershell; property: "namespace"; value: "quickshell:sidebarRight" }
+                Binding { target: panelWindow.WlrLayershell; property: "keyboardFocus"; value: GlobalStates.sidebarRightOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None }
+            }
+        }
         color: "transparent"
 
         anchors {
@@ -152,6 +173,16 @@ Scope {
                     z: -1
                 }
 
+                HoverHandler {
+                    id: sidebarHoverHandler
+                    onHoveredChanged: {
+                        if (hovered)
+                            hoverCloseTimer.stop();
+                        else if (GlobalStates.hoverOpenedState === "sidebarRightOpen")
+                            hoverCloseTimer.restart();
+                    }
+                }
+
                 Loader {
                     id: sidebarContentLoader
                     active: panelWindow.reallyVisible || Config?.options.sidebar.keepRightSidebarLoaded
@@ -172,6 +203,17 @@ Scope {
 
                     sourceComponent: SidebarRightContent {}
                 }
+            }
+        }
+
+        Connections {
+            target: GlobalStates
+            function onHoverOpenedStateChanged() {
+                if (GlobalStates.hoverOpenedState === "sidebarRightOpen"
+                        && GlobalStates.sidebarRightOpen && !sidebarHoverHandler.hovered)
+                    hoverCloseTimer.restart();
+                else if (GlobalStates.hoverOpenedState !== "sidebarRightOpen")
+                    hoverCloseTimer.stop();
             }
         }
 

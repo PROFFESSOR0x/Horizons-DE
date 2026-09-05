@@ -47,22 +47,54 @@ Scope { // Scope
             exclusiveZone: root.pinned ? implicitHeight - Appearance.sizes.hyprlandGapsOut : 0
             implicitWidth: oskBackground.width + Appearance.sizes.elevationMargin * 2
             implicitHeight: oskBackground.height + Appearance.sizes.elevationMargin * 2
-            WlrLayershell.namespace: "quickshell:osk"
-            WlrLayershell.layer: WlrLayer.Overlay
-            // Hyprland 0.49: Focus is always exclusive and setting this breaks mouse focus grab
-            // WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+            // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+            // gated behind a Wayland-only Loader instead of set directly.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: oskRoot.WlrLayershell; property: "namespace"; value: "quickshell:osk" }
+                    Binding { target: oskRoot.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+                    // Hyprland 0.49: Focus is always exclusive and setting this breaks mouse focus grab
+                    // Binding { target: oskRoot.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.Exclusive }
+                }
+            }
             color: "transparent"
 
             mask: Region {
                 item: oskBackground
             }
 
-            // Make it usable with other panels
-            Component.onCompleted: {
-                GlobalFocusGrab.addPersistent(oskRoot);
+            // Pinned: behaves like the bar - always included in the focus
+            // grab, never dismissed by an outside click (reserves screen
+            // space via exclusiveZone above). Unpinned: a normal popup that
+            // should close the moment you click elsewhere, same as a
+            // sidebar. This used to always register as persistent
+            // regardless of root.pinned, which is why toggling pin had no
+            // effect on outside-click behavior and an unpinned keyboard
+            // never closed on its own.
+            function updateFocusGrabRegistration() {
+                if (root.pinned) {
+                    GlobalFocusGrab.removeDismissable(oskRoot);
+                    GlobalFocusGrab.addPersistent(oskRoot);
+                } else {
+                    GlobalFocusGrab.removePersistent(oskRoot);
+                    GlobalFocusGrab.addDismissable(oskRoot);
+                }
             }
+            Component.onCompleted: oskRoot.updateFocusGrabRegistration()
             Component.onDestruction: {
                 GlobalFocusGrab.removePersistent(oskRoot);
+                GlobalFocusGrab.removeDismissable(oskRoot);
+            }
+            Connections {
+                target: root
+                function onPinnedChanged() { oskRoot.updateFocusGrabRegistration() }
+            }
+            Connections {
+                target: GlobalFocusGrab
+                function onDismissed() {
+                    if (!root.pinned) oskRoot.hide();
+                }
             }
 
             // Background

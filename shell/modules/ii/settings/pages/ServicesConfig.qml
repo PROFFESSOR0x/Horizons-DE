@@ -267,6 +267,29 @@ ContentPage {
             title: Translation.tr("Search")
 
             GroupedList {
+                ConfigSelectionArray {
+                    icon: "rocket_launch"
+                    text: Translation.tr("Launcher")
+                    currentValue: Config.options.apps.launcher
+                    onSelected: newValue => { Config.options.apps.launcher = newValue }
+                    options: [
+                        { displayName: Translation.tr("Quickshell (built-in)"), icon: "search", value: "quickshell" },
+                        { displayName: Translation.tr("Walker"), icon: "rocket_launch", value: "walker" },
+                        { displayName: Translation.tr("Vicinae"), icon: "auto_awesome", value: "vicinae" },
+                        { displayName: Translation.tr("Fuzzel"), icon: "list", value: "fuzzel" }
+                    ]
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("What tapping Super opens. \"Quickshell\" is this shell's own built-in search/overview and needs nothing extra. The other three are separate apps — install them (and their background service, where needed) *before* switching to one here, or Super will just do nothing:\n"
+                        + "• Walker + its \"elephant\" search backend — installer.sh --launchers walker (or answer \"yes\" when it asks). It also enables the elephant user service for you.\n"
+                        + "• Vicinae + its \"vicinae-server\" daemon — installer.sh --launchers vicinae (or answer \"yes\" when it asks). It also enables the vicinae user service for you.\n"
+                        + "• Fuzzel is already installed as a core dependency and works standalone, no extra service needed.\n"
+                        + "Re-run installer.sh any time to add Walker/Vicinae later — it never changes this setting for you, so come back here and pick one once it's installed.")
+                }
                 ConfigSwitch {
                     text: Translation.tr("Use Levenshtein distance-based algorithm instead of fuzzy")
                     checked: Config.options.search.sloppy
@@ -374,6 +397,119 @@ ContentPage {
                                 Config.options.search.prefix.keybinds = value;
                             }
                         }
+                    }
+
+                    ConfigRow {
+                        uniform: true
+                        ConfigTextArea {
+                            Layout.fillWidth: true
+                            buttonIcon: "description"
+                            fieldWidth: 100
+                            text: Translation.tr("Files")
+                            value: Config.options.search.prefix.files
+                            onValueChanged: {
+                                Config.options.search.prefix.files = value;
+                            }
+                        }
+                        ConfigTextArea {
+                            Layout.fillWidth: true
+                            buttonIcon: "dns"
+                            fieldWidth: 100
+                            text: Translation.tr("SSH hosts")
+                            value: Config.options.search.prefix.sshHosts
+                            onValueChanged: {
+                                Config.options.search.prefix.sshHosts = value;
+                            }
+                        }
+                    }
+                    ConfigRow {
+                        uniform: true
+                        ConfigTextArea {
+                            Layout.fillWidth: true
+                            buttonIcon: "settings_applications"
+                            fieldWidth: 100
+                            text: Translation.tr("System services")
+                            value: Config.options.search.prefix.systemServices
+                            onValueChanged: {
+                                Config.options.search.prefix.systemServices = value;
+                            }
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Files searches plocate's system-wide index (falls back to mlocate's locate, then a live find under $HOME if neither index exists yet — run `sudo updatedb` once after installing plocate). System services lists systemd user + system units; starting/stopping/restarting a system-wide one prompts for authentication via pkexec.")
+                    }
+                }
+            }
+            ContentSubsection {
+                title: Translation.tr("Files, SSH & services")
+                GroupedList {
+                    ConfigSwitch {
+                        buttonIcon: "folder"
+                        text: Translation.tr("Enable file search")
+                        checked: Config.options.search.extras.filesEnable
+                        onCheckedChanged: {
+                            Config.options.search.extras.filesEnable = checked;
+                        }
+                    }
+                    ConfigSpinBox {
+                        icon: "format_list_numbered"
+                        text: Translation.tr("Max file results")
+                        value: Config.options.search.extras.filesMaxResults
+                        from: 5
+                        to: 200
+                        stepSize: 5
+                        enabled: Config.options.search.extras.filesEnable
+                        onValueChanged: {
+                            Config.options.search.extras.filesMaxResults = value;
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "lan"
+                        text: Translation.tr("Enable SSH quick-connect")
+                        checked: Config.options.search.extras.sshHostsEnable
+                        onCheckedChanged: {
+                            Config.options.search.extras.sshHostsEnable = checked;
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "settings_applications"
+                        text: Translation.tr("Enable systemd service search")
+                        checked: Config.options.search.extras.systemServicesEnable
+                        onCheckedChanged: {
+                            Config.options.search.extras.systemServicesEnable = checked;
+                        }
+                    }
+                    ConfigSpinBox {
+                        icon: "format_list_numbered"
+                        text: Translation.tr("Max service results")
+                        value: Config.options.search.extras.systemServicesMaxResults
+                        from: 5
+                        to: 200
+                        stepSize: 5
+                        enabled: Config.options.search.extras.systemServicesEnable
+                        onValueChanged: {
+                            Config.options.search.extras.systemServicesMaxResults = value;
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "shield_lock"
+                        text: Translation.tr("Include system-wide services (needs pkexec to control)")
+                        checked: Config.options.search.extras.systemServicesIncludeSystemScope
+                        enabled: Config.options.search.extras.systemServicesEnable
+                        onCheckedChanged: {
+                            Config.options.search.extras.systemServicesIncludeSystemScope = checked;
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Turning off \"Include system-wide services\" keeps only your user units in the ! search — nothing that would ever prompt for a password.")
                     }
                 }
             }

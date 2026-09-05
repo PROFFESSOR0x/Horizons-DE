@@ -68,6 +68,7 @@ Singleton {
 
     Component.onCompleted: {
         keywordHarvester.startHarvesting();
+        root._refreshSystemServiceUnits();
     }
 
 
@@ -259,6 +260,127 @@ Singleton {
         }
     }
 
+    // ── Local file search (~ prefix) ─────────────────────────────────────
+    // Uses plocate's system-wide index (falls back to mlocate/locate's
+    // `locate`, then to a live `find` under $HOME if neither index exists
+    // yet — e.g. right after install, before the first updatedb run) rather
+    // than a home-only live filesystem walk, per the chosen search scope.
+    // Debounced the same way the calculator is (nonAppResultsTimer above):
+    // async Process -> property -> the `results` computed property below
+    // re-reads it reactively, so a filesystem query never blocks the UI
+    // thread the way a synchronous call would.
+    property list<string> fileResults: []
+    property bool fileSearchRunning: false
+    Timer {
+        id: fileResultsTimer
+        interval: Config.options.search.nonAppResultDelay
+        onTriggered: {
+            const term = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.files).trim();
+            filesProc.search(term);
+        }
+    }
+    Process {
+        id: filesProc
+        function search(term) {
+            filesProc.running = false;
+            if (!term) {
+                root.fileResults = [];
+                root.fileSearchRunning = false;
+                return;
+            }
+            root.fileSearchRunning = true;
+            const maxResults = Math.max(1, Config.options.search.extras.filesMaxResults ?? 40);
+            // $0 is an unused label, $1 is the actual (unescaped, safe from
+            // shell injection since it's a positional param, not interpolated
+            // into the script text) search term.
+            filesProc.command = ["bash", "-c",
+                `plocate -i -l ${maxResults} -- "$1" 2>/dev/null` +
+                ` || locate -i -l ${maxResults} -- "$1" 2>/dev/null` +
+                ` || find "$HOME" -iname "*$1*" 2>/dev/null | head -n ${maxResults}`,
+                "file-search", term];
+            filesProc.running = true;
+        }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.fileResults = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+                root.fileSearchRunning = false;
+            }
+        }
+    }
+
+    // ── SSH quick-connect (@ prefix) ──────────────────────────────────────
+    // ~/.ssh/config rarely changes, so this is loaded once (and on change)
+    // rather than re-parsed per keystroke — filtered synchronously against
+    // the already-parsed list below, same as the emoji/symbol lookups.
+    property list<string> sshHostNames: []
+    FileView {
+        id: sshConfigFile
+        path: `${Directories.home}/.ssh/config`
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: root._parseSshConfig()
+        onLoadFailed: root.sshHostNames = []
+    }
+    function _parseSshConfig() {
+        const text = sshConfigFile.text();
+        const hosts = [];
+        for (const line of text.split("\n")) {
+            const m = /^\s*Host\s+(.+)$/i.exec(line);
+            if (!m) continue;
+            for (const token of m[1].trim().split(/\s+/)) {
+                // Skip wildcard/pattern entries (Host *, Host 10.0.*, etc.) —
+                // nothing sensible to "connect to" for those.
+                if (token && !token.includes("*") && !token.includes("?") && !hosts.includes(token)) {
+                    hosts.push(token);
+                }
+            }
+        }
+        root.sshHostNames = hosts;
+    }
+
+    // ── System services (! prefix) ────────────────────────────────────────
+    // The unit *list* (name + enabled/disabled) is fetched once at startup
+    // and filtered synchronously per keystroke, same reasoning as the SSH
+    // host list above — it almost never changes at runtime. Live
+    // active/inactive status and the actual start/stop/restart actions are
+    // real systemctl calls made only when a result is actually selected, not
+    // on every keystroke. System-wide (non --user) units go through pkexec,
+    // which shows a normal polkit authentication prompt — never silently
+    // elevated.
+    property var systemServiceUnits: [] // [{name, scope: "user"|"system", enabled}]
+    function _refreshSystemServiceUnits() {
+        systemServiceUnitsProc.running = false;
+        systemServiceUnitsProc.running = true;
+    }
+    Process {
+        id: systemServiceUnitsProc
+        command: ["bash", "-c",
+            'systemctl --user list-unit-files --type=service --no-legend --no-pager 2>/dev/null | awk \'{print "user\\t"$1"\\t"$2}\';' +
+            'systemctl list-unit-files --type=service --no-legend --no-pager 2>/dev/null | awk \'{print "system\\t"$1"\\t"$2}\'']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const units = [];
+                for (const line of text.split("\n")) {
+                    const parts = line.split("\t");
+                    if (parts.length < 3) continue;
+                    units.push({ scope: parts[0], name: parts[1], enabled: parts[2].trim() });
+                }
+                root.systemServiceUnits = units;
+            }
+        }
+    }
+    Process { id: systemServiceActionProc }
+    function runSystemServiceAction(unit, action) {
+        const systemctlCmd = unit.scope === "user"
+            ? ["systemctl", "--user", action, unit.name]
+            : ["pkexec", "systemctl", action, unit.name];
+        systemServiceActionProc.command = systemctlCmd;
+        systemServiceActionProc.running = false;
+        systemServiceActionProc.running = true;
+        Quickshell.execDetached(["notify-send", Translation.tr("Service"),
+            Translation.tr("%1 %2 (%3)").arg(action).arg(unit.name).arg(unit.scope), "-a", "Shell"]);
+    }
+
     property list<var> results: {
         // Search results are handled here
         ////////////////// Skip? //////////////////
@@ -370,6 +492,107 @@ Singleton {
                     }
                 });
             }).filter(Boolean);
+        } else if (root.query.startsWith(Config.options.search.prefix.files)) {
+            if (!Config.options.search.extras.filesEnable) return [];
+            // Local files (plocate/locate/find - see filesProc above)
+            fileResultsTimer.restart();
+            const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.files).trim();
+            if (searchString.length === 0) return [];
+            return root.fileResults.map(path => {
+                const fileName = path.split("/").pop();
+                const dirPath = path.slice(0, path.length - fileName.length - 1) || "/";
+                return resultComp.createObject(null, {
+                    rawValue: path,
+                    name: fileName,
+                    comment: dirPath,
+                    iconName: "description",
+                    iconType: LauncherSearchResult.IconType.Material,
+                    verb: Translation.tr("Open"),
+                    type: Translation.tr("File"),
+                    execute: () => {
+                        Quickshell.execDetached(["xdg-open", path]);
+                    },
+                    actions: [resultComp.createObject(null, {
+                            name: Translation.tr("Open containing folder"),
+                            iconName: "folder_open",
+                            iconType: LauncherSearchResult.IconType.Material,
+                            execute: () => {
+                                Quickshell.execDetached(["xdg-open", dirPath]);
+                            }
+                        }), resultComp.createObject(null, {
+                            name: Translation.tr("Copy path"),
+                            iconName: "content_copy",
+                            iconType: LauncherSearchResult.IconType.Material,
+                            execute: () => {
+                                Quickshell.clipboardText = path;
+                            }
+                        })]
+                });
+            });
+        } else if (root.query.startsWith(Config.options.search.prefix.sshHosts)) {
+            if (!Config.options.search.extras.sshHostsEnable) return [];
+            // SSH quick-connect (~/.ssh/config Host entries - see sshConfigFile above)
+            const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.sshHosts).toLowerCase().trim();
+            return root.sshHostNames.filter(host => searchString.length === 0 || host.toLowerCase().includes(searchString)).map(host => {
+                return resultComp.createObject(null, {
+                    rawValue: host,
+                    name: host,
+                    iconName: "dns",
+                    iconType: LauncherSearchResult.IconType.Material,
+                    verb: Translation.tr("Connect"),
+                    type: Translation.tr("SSH host"),
+                    execute: () => {
+                        Quickshell.execDetached(["bash", "-c", `${Config.options.apps.terminal} -e ssh '${StringUtils.shellSingleQuoteEscape(host)}'`]);
+                    }
+                });
+            });
+        } else if (root.query.startsWith(Config.options.search.prefix.systemServices)) {
+            if (!Config.options.search.extras.systemServicesEnable) return [];
+            // systemd services (list cached once - see systemServiceUnits above;
+            // start/stop/restart run the real systemctl call on selection only)
+            const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.systemServices).toLowerCase().trim();
+            const includeSystemScope = Config.options.search.extras.systemServicesIncludeSystemScope ?? true;
+            const maxResults = Math.max(1, Config.options.search.extras.systemServicesMaxResults ?? 40);
+            return root.systemServiceUnits
+                .filter(unit => includeSystemScope || unit.scope === "user")
+                .filter(unit => searchString.length === 0 || unit.name.toLowerCase().includes(searchString))
+                .slice(0, maxResults).map(unit => {
+                return resultComp.createObject(null, {
+                    rawValue: unit.name,
+                    name: unit.name,
+                    comment: (unit.scope === "system" ? Translation.tr("System - pkexec required") : Translation.tr("User")) + " · " + unit.enabled,
+                    iconName: "settings_applications",
+                    iconType: LauncherSearchResult.IconType.Material,
+                    verb: Translation.tr("Restart"),
+                    type: Translation.tr("Service"),
+                    execute: () => {
+                        root.runSystemServiceAction(unit, "restart");
+                    },
+                    actions: [resultComp.createObject(null, {
+                            name: Translation.tr("Start"),
+                            iconName: "play_arrow",
+                            iconType: LauncherSearchResult.IconType.Material,
+                            execute: () => root.runSystemServiceAction(unit, "start")
+                        }), resultComp.createObject(null, {
+                            name: Translation.tr("Stop"),
+                            iconName: "stop",
+                            iconType: LauncherSearchResult.IconType.Material,
+                            execute: () => root.runSystemServiceAction(unit, "stop")
+                        }), resultComp.createObject(null, {
+                            name: Translation.tr("Status"),
+                            iconName: "info",
+                            iconType: LauncherSearchResult.IconType.Material,
+                            execute: () => {
+                                // unit.name came straight from `systemctl list-unit-files`,
+                                // whose first column is always a valid systemd unit name -
+                                // systemd's own naming rules disallow quotes/spaces/`;`, so
+                                // no additional shell-escaping is needed here.
+                                Quickshell.execDetached(["bash", "-c",
+                                    `${Config.options.apps.terminal} -e bash -c '${unit.scope === "user" ? "systemctl --user" : "systemctl"} status ${unit.name}; read -n1'`]);
+                            }
+                        })]
+                });
+            });
         }
 
         ////////////////// Init ///////////////////

@@ -61,10 +61,11 @@ Scope {
     PanelLoader { component: OnScreenKeyboard {} }
     PanelLoader { component: Overlay {} }
     PanelLoader { component: Overview {} }
+    PanelLoader { component: WindowSwitcher {} }
     PanelLoader { component: Polkit {} }
     PanelLoader { component: RegionSelector {} }
     PanelLoader { component: CaptureEditor {} }
-    PanelLoader { component: ScreenCorners {} }
+    PanelLoader { extraCondition: (Config.options.appearance.fakeScreenRounding !== 0 || Config.options.sidebar.cornerOpen.enable); component: ScreenCorners {} }
     PanelLoader { component: ScreenTranslator {} }
     PanelLoader { component: SessionScreen {} }
     PanelLoader { component: SidebarLeft {} }
@@ -75,6 +76,6 @@ Scope {
     PanelLoader { component: DesktopMenu {} }
     PanelLoader { component: DropShelfPanel {} }
     PanelLoader { component: NiriBackdrop {} }
-    PanelLoader { component: ScreenFrame {} }
+    PanelLoader { extraCondition: Config.options.bar.showFrame; component: ScreenFrame {} }
     PanelLoader { component: WorkspacesHoverPreview {} }
 }

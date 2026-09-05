@@ -459,11 +459,14 @@ MouseArea {
             }
         }
 
-        // Keyboard layout (Xkb)
+        // Keyboard layout (Xkb) - always visible, unlike the username above:
+        // not knowing your current layout while typing an unlock password is
+        // a real usability problem, not just visual crowding, so this one
+        // doesn't yield its slot to the media widget.
         Loader {
             Layout.rightMargin: 8
             Layout.fillHeight: true
-            visible: !Config.options.lock.showMedia || MprisController.activePlayer === null
+            visible: true
 
             sourceComponent: Row {
                 spacing: 8

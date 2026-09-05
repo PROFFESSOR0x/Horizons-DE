@@ -4,15 +4,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.modules.common.functions
-import "PerformanceProfiles.js" as PerformanceProfiles
 
 Singleton {
     id: root
     property string filePath: Directories.shellConfigPath
     property alias options: configOptionsJsonAdapter
-    // Re-exported so UI (QuickConfig.qml's profile picker) can read
-    // id/displayName/icon/description without its own relative .js import.
-    readonly property var performanceProfiles: PerformanceProfiles.profiles
     property bool ready: false
     property int readWriteDelay: 50 // milliseconds
     property bool blockWrites: false
@@ -90,6 +86,13 @@ Singleton {
             opts.m3Island.scrollActionMigrated = true;
         }
 
+        // Added after the first M3 Island release. JsonObject does not write
+        // newly declared defaults into an existing config automatically, so
+        // persist this value once or the settings switch resets on reload.
+        if (opts.m3Island.reserveScreenSpace === undefined) {
+            opts.m3Island.reserveScreenSpace = false;
+        }
+
         // Back-compat shim for the blur/transparency/glass exclusivity rule.
         // Before this, blur (hyprland.decoration.blur.enabled), transparency
         // (appearance.transparency.enable) and glass (appearance.glass.enable)
@@ -111,6 +114,18 @@ Singleton {
             opts.appearance.visualEffect = effect;
             root.applyVisualEffectExclusivity(effect);
             opts.appearance.visualEffectMigrated = true;
+        }
+
+        // One-time forced-off migration for hyprland.misc.allowSessionLockRestore
+        // (see its schema comment above and github.com/quickshell-mirror/
+        // quickshell#1054) — this is a stability/lockout-risk fix, not a
+        // preference, so unlike the migrations above it overrides an
+        // existing "true" rather than preserving it. Runs once regardless of
+        // the option's current value so a user who already flipped it back
+        // on themselves (accepting the risk) isn't fought with on reload.
+        if (!opts.hyprland.misc.sessionLockRestoreMigrated) {
+            opts.hyprland.misc.allowSessionLockRestore = false;
+            opts.hyprland.misc.sessionLockRestoreMigrated = true;
         }
     }
 
@@ -134,24 +149,31 @@ Singleton {
         opts.appearance.glass.enable = effect === "glass";
     }
 
-    // Applies one of PerformanceProfiles.js's 5 tiers: writes every plain
-    // Config.options.* field the profile lists (background widgets, motion
-    // scale, resource-poll interval, lock blur...) plus the shared blur/
-    // transparency/glass exclusivity choice. Does NOT touch the compositor —
-    // callers (QuickConfig.qml) follow this with HyprlandConfig.setMany(...)
-    // + setAnimPreset(...) for that profile's literal Hyprland keys, mirroring
-    // how applyVisualEffectExclusivity()'s callers already work. Kept as a
-    // pure Config.options mutation (no Quickshell.Hyprland import here) so
-    // Config.qml never needs to depend on HyprlandConfig.qml.
-    function applyPerformanceProfile(profileId) {
-        const entry = PerformanceProfiles.profiles.find(p => p.id === profileId);
-        if (!entry) return null;
-        root.options.appearance.performanceProfile = profileId;
-        root.applyVisualEffectExclusivity(entry.visualEffect);
-        for (const key in entry.configOverrides) {
-            root.setNestedValue(key, entry.configOverrides[key]);
+    // Applies one of the 5 Settings > Quick performance/experience profiles
+    // (see PerformanceProfiles.qml) - writes every Config.options.* value the
+    // profile specifies via the existing setNestedValue() path-setter, then
+    // re-derives the blur/transparency/glass exclusivity flags from whatever
+    // visualEffect the (already capability-resolved) profile ended up with,
+    // exactly like the Interface page's own visual-effect picker does.
+    //
+    // Only touches Config.options - like applyVisualEffectExclusivity(), it
+    // never calls into HyprlandConfig.qml (avoiding a circular import back
+    // into this foundational singleton). The caller (a settings page) must
+    // still push the returned `hypr` keys via HyprlandConfig.setMany() and
+    // `animPreset` via HyprlandConfig.setAnimPreset() for the compositor-side
+    // half of the profile to actually reach Hyprland.
+    //
+    // blurVariantSupported should come from HyprlandData.blurVariantSupported
+    // - pass false (or omit) to always get the plain-blur fallback.
+    function applyPerformanceProfile(id, blurVariantSupported) {
+        const resolved = PerformanceProfiles.resolve(id, blurVariantSupported ?? false)
+        if (!resolved) return null
+        for (const key in resolved.config) {
+            root.setNestedValue(key, resolved.config[key])
         }
-        return entry;
+        root.applyVisualEffectExclusivity(root.options.appearance.visualEffect)
+        root.options.appearance.performanceProfile = id
+        return resolved
     }
 
     Timer {
@@ -233,12 +255,10 @@ Singleton {
                 // single visualEffect choice, so later user edits are never overwritten.
                 property bool visualEffectMigrated: false
                 // Last performance/experience profile applied from Settings > Quick
-                // (see PerformanceProfiles.js + Config.applyPerformanceProfile()).
-                // Purely a "what's currently highlighted" marker, not an enforced
-                // mode — applying one is a one-time bulk write, so hand-tuning any
-                // individual setting afterwards sticks until another profile button
-                // is pressed. Never touches appearance.palette — profiles are
-                // colorless by design, only performance/motion/effect knobs.
+                // (see PerformanceProfiles.qml + Config.applyPerformanceProfile()).
+                // Purely a "which button to highlight" marker - applying a profile is
+                // a one-time bulk mutation, not an enforced mode, so hand-tuning any
+                // individual setting afterward is never reverted or fought with.
                 property string performanceProfile: "balanced" // maxPerformance|performance|balanced|experience|maxExperience
                 property JsonObject fonts: JsonObject {
                     property string main: "Google Sans Flex"
@@ -490,7 +510,21 @@ Singleton {
                     property bool keyPressEnablesDpms: true
                     property bool animateManualResizes: false
                     property bool animateMouseWindowDragging: false
-                    property bool allowSessionLockRestore: true
+                    // Off by default: quickshell has a known, currently-open
+                    // crash (github.com/quickshell-mirror/quickshell#1054)
+                    // when re-requesting a session lock the compositor
+                    // already holds from a previous instance — this option is
+                    // the precondition that makes that reachable (e.g. after
+                    // a config reload, or a previous crash, while locked),
+                    // and the crash can leave the session stuck locked with
+                    // no lock surface to authenticate against. See
+                    // migrateLegacyConfig()'s one-time forced-off migration
+                    // for existing configs. Re-enable once fixed upstream.
+                    property bool allowSessionLockRestore: false
+                    // Set once migrateLegacyConfig() has forced
+                    // allowSessionLockRestore off for a pre-existing config;
+                    // see the migration and the property comment above.
+                    property bool sessionLockRestoreMigrated: false
                     property int focusOnActivate: 0
                 }
                 property JsonObject cursor: JsonObject {
@@ -577,6 +611,15 @@ Singleton {
                 property string terminal: "kitty -1" // This is only for shell actions
                 property string update: "kitty -1 --hold=yes fish -i -c 'pkexec pacman -Syu'"
                 property string volumeMixer: `~/.config/hypr/hyprland/scripts/launch_first_available.sh "pavucontrol-qt" "pavucontrol"`
+                // What Super (tap) / Settings > Services > Search opens.
+                // "quickshell" is the shell's own built-in search/overview
+                // (modules/ii/overview/Overview.qml) - the other three are
+                // external tools the shell hands off to instead, each
+                // expected to already be installed and (for walker) running
+                // its companion "elephant" service. See Overview.qml's
+                // searchToggle/searchToggleRelease handlers for the actual
+                // launch commands.
+                property string launcher: "quickshell" // quickshell | walker | vicinae | fuzzel
             }
 
             property JsonObject settings: JsonObject {
@@ -757,6 +800,8 @@ Singleton {
                         property bool showCpu: true
                         property bool showMemory: true
                         property bool showSwap: false
+                        property bool showDisk: false
+                        property bool showGpu: false
                     }
 
                     property JsonObject timers: JsonObject {
@@ -1074,6 +1119,10 @@ Singleton {
                 property string borderless: "pills"
                 property bool showBackground: true
                 property bool verbose: true
+                // Reserve a layer-shell exclusive zone so tiled windows never
+                // occupy the island's edge. Disabled by default: the island
+                // otherwise remains a floating overlay.
+                property bool reserveScreenSpace: false
                 // Clock
                 property string clockStyle: "m3" // "m3" | "minimal" | "digital"
                 property bool clockShowDate: true
@@ -1093,6 +1142,8 @@ Singleton {
                 property bool hoverPeek: true
                 property bool clickToExpand: true
                 property bool launcherHug: true
+                // Number of launcher matches visible before its list scrolls.
+                property int launcherMaxResults: 6
                 property bool rightClickMenu: true
                 property int expandedHeight: 72
                 // A value of 0 follows the global notification timeout.
@@ -1292,6 +1343,14 @@ Singleton {
                 property int maxVisible: 4
                 property bool pauseOnHover: true
                 property bool showCriticalWhenQuiet: true
+                // Auto-DND: popups (not the persistent notification list)
+                // stay quiet for as long as Privacy.screenSharing is true -
+                // separate from the manual "silent" toggle so ending a share
+                // never silently un-mutes someone who'd muted notifications
+                // themselves, and starting one never silently overrides a
+                // critical-alert allowance. See Notifications.qml's
+                // popupInhibited/showCriticalWhenQuiet.
+                property bool autoSilentOnScreenShare: true
                 // Hovering a notification card briefly expands it, mirroring the
                 // M3 island's embedded card behavior on the main popup/history surfaces.
                 property bool expandOnHover: false
@@ -1392,10 +1451,29 @@ Singleton {
                     property string math: "="
                     property string shellCommand: "$"
                     property string webSearch: "?"
+                    property string files: "~"
+                    property string sshHosts: "@"
+                    property string systemServices: "!"
                 }
                 property JsonObject imageSearch: JsonObject {
                     property string imageSearchEngineBaseUrl: "https://lens.google.com/uploadbyurl?url="
                     property bool useCircleSelection: false
+                }
+                // Per-mode settings for the file/SSH-host/systemd-service search
+                // prefixes (LauncherSearch.qml) - separate from prefix.* (which is
+                // just the trigger character) so each mode can be tuned or turned
+                // off independently.
+                property JsonObject extras: JsonObject {
+                    property bool filesEnable: true
+                    property int filesMaxResults: 40
+                    property bool sshHostsEnable: true
+                    property bool systemServicesEnable: true
+                    property int systemServicesMaxResults: 40
+                    // System-scope units need pkexec to start/stop/restart; off by
+                    // default is *not* the choice here since it's opt-out, not
+                    // opt-in, but this lets someone who'd rather not see
+                    // privileged actions in a launcher hide them entirely.
+                    property bool systemServicesIncludeSystemScope: true
                 }
             }
 

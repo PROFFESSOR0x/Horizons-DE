@@ -1,7 +1,7 @@
 groups=(illogical-impulse)
 pkgname=illogical-impulse-basic
 pkgver=1.0
-pkgrel=3
+pkgrel=4
 pkgdesc='Illogical Impulse Basic Dependencies'
 arch=(any)
 license=(None)
@@ -18,4 +18,9 @@ depends=(
   # Used in install script
   rsync
   go-yq # https://github.com/mikefarah/yq
+  # Powers the launcher's ~ (file search) prefix - services/LauncherSearch.qml.
+  # Ships its own pacman hook + systemd timer that runs updatedb
+  # automatically; run `sudo updatedb` once yourself if search comes up
+  # empty right after install, before the first automatic run.
+  plocate
 )

@@ -33,7 +33,8 @@ ShellRoot {
                 Config.options.overview.enable = false
             }
 
-            if (Config.options.hyprland.autostartApps.enable &&
+            if (WM.compositor === "hyprland" &&
+                Config.options.hyprland.autostartApps.enable &&
                 Config.options.hyprland.autostartApps.apps.length > 0) {
                 autostartProc.running = true
             }
@@ -50,6 +51,9 @@ ShellRoot {
         Wallpapers.load()
         Updates.load()
         LyricsService.restartLyrics()
+        // This is reached only after the new QML root and its startup services
+        // exist, so it is the real hand-off point for an external reload splash.
+        ReloadController.markReady()
     }
     
     PanelFamilyLoader {

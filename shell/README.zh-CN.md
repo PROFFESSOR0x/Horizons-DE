@@ -48,8 +48,8 @@
 > 此分支会独立管理自己的配置文件夹，**不会**覆盖或修改任何现有设置。不过，它要求已安装并正在运行 [illogical-impulse](https://github.com/end-4/dots-hyprland)。
 
 ```bash
-git clone https://github.com/PROFFESSOR0x/end4-pC.git End4-PXpC
-cd End4-PXpC
+git clone https://github.com/PROFFESSOR0x/Horizons-DE.git Horizons-DE
+cd Horizons-DE
 ./installer.sh
 ```
 

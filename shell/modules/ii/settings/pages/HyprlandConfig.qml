@@ -13,6 +13,12 @@ ContentPage {
     id: page
     forceWidth: true
 
+    // decoration:blur:variant support is checked once, shared across every
+    // settings page, in services/HyprlandData.qml (see its
+    // blurVariantSupported / checkBlurVariantSupport() — same reasoning
+    // as before: PR #15661 isn't in any tagged Hyprland release yet).
+    readonly property bool blurVariantSupported: HyprlandData.blurVariantSupported
+
     function goTo(term) {
         const t = term.toLowerCase().trim()
 
@@ -207,33 +213,8 @@ ContentPage {
             "input:touchpad:tap_and_drag":              h.input.touchpad.tapAndDrag ? 1 : 0,
             "input:touchpad:drag_lock":                 h.input.touchpad.dragLock ? 1 : 0,
         })
-        blurVariantProbe.running = true
     }
 
-    // `decoration:blur:variant` (and its sibling ripple/water/acrylic/... keys)
-    // only exist on a from-source/-git Hyprland build past the variant PR
-    // landing; a tagged release silently rejects the key (hyprconfigurator.py
-    // treats it as unsupported and never writes it), so picking a style here
-    // does nothing with no visible error. Query the running compositor
-    // directly so we can warn instead of looking broken.
-    property var blurVariantSupported: null // null = unknown/checking, true/false once known
-    Process {
-        id: blurVariantProbe
-        command: ["hyprctl", "-j", "getoption", "decoration:blur:variant"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const response = JSON.parse(this.text)
-                    page.blurVariantSupported = !!(response && response.option === "decoration:blur:variant")
-                } catch (e) {
-                    page.blurVariantSupported = false
-                }
-            }
-        }
-        onExited: (exitCode) => {
-            if (exitCode !== 0) page.blurVariantSupported = null // couldn't reach Hyprland; stay unknown
-        }
-    }
     MonitorConfigOption { id: monitorConfig }
 
     ColumnLayout {
@@ -1223,6 +1204,14 @@ ContentPage {
                         HyprlandConfig.set("decoration:blur:new_optimizations", checked ? 1 : 0)
                     }
                 }
+                StyledText {
+                    visible: !HyprlandData.blurVariantSupported
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.m3colors.m3error
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("Your running Hyprland doesn't support blur styles yet (decoration:blur:variant needs hyprwm/Hyprland PR #15661, merged 2026-08-22 — not in any tagged release yet, only in a from-source/-git build past that commit). Picking one below will be silently ignored until Hyprland is updated to a build that includes it; plain blur still works normally.")
+                }
                 ConfigSelectionArray {
                     icon: "blur_on"
                     text: Translation.tr("Blur Style")
@@ -1252,31 +1241,6 @@ ContentPage {
                     color: Appearance.colors.colSubtext
                     font.pixelSize: Appearance.font.pixelSize.small
                     text: Translation.tr("Native Hyprland blur variants (decoration:blur:variant, merged upstream Aug 2026) — applies to every window Hyprland blurs, not just this shell's panels. Fancier styles cost more GPU/CPU, especially the animated ones.")
-                }
-                Rectangle {
-                    visible: page.blurVariantSupported === false && Config.options.hyprland.decoration.blur.variant !== "kawase"
-                    Layout.fillWidth: true
-                    Layout.topMargin: 4
-                    radius: Appearance.rounding.small
-                    color: Appearance.colors.colErrorContainer
-                    implicitHeight: warnRow.implicitHeight + 16
-                    RowLayout {
-                        id: warnRow
-                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
-                        spacing: 8
-                        MaterialSymbol {
-                            text: "warning"
-                            iconSize: Appearance.font.pixelSize.large
-                            color: Appearance.colors.colOnErrorContainer
-                        }
-                        StyledText {
-                            Layout.fillWidth: true
-                            wrapMode: Text.Wrap
-                            color: Appearance.colors.colOnErrorContainer
-                            font.pixelSize: Appearance.font.pixelSize.small
-                            text: Translation.tr("Your running Hyprland doesn't support this option yet — it's only available on a from-source/git build built after the blur-variant PR merged (Aug 2026). The style you picked won't actually apply until you upgrade Hyprland; the blur will just fall back to plain Kawase.")
-                        }
-                    }
                 }
                 ConfigSpinBox {
                     visible: Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"

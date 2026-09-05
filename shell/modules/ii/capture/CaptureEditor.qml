@@ -18,9 +18,16 @@ PanelWindow {
     id: root
     visible: false
     color: "transparent"
-    WlrLayershell.namespace: "quickshell:captureEditor"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+    // behind a Wayland-only Loader instead of set directly.
+    Loader {
+        active: WM.isWayland
+        sourceComponent: Item {
+            Binding { target: root.WlrLayershell; property: "namespace"; value: "quickshell:captureEditor" }
+            Binding { target: root.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+            Binding { target: root.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.Exclusive }
+        }
+    }
     exclusionMode: ExclusionMode.Ignore
     anchors {
         left: true

@@ -12,8 +12,15 @@ PanelWindow {
     id: shelfRoot
     visible: GlobalStates.dropShelfOpen
     exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "quickshell:dropshelf"
+    // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+    // behind a Wayland-only Loader instead of set directly.
+    Loader {
+        active: WM.isWayland
+        sourceComponent: Item {
+            Binding { target: shelfRoot.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+            Binding { target: shelfRoot.WlrLayershell; property: "namespace"; value: "quickshell:dropshelf" }
+        }
+    }
     color: "transparent"
 
     anchors { top: true; left: true }

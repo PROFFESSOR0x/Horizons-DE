@@ -258,7 +258,7 @@ Item {
                                     buttonIcon: "restart_alt"
                                     onClicked: {
                                         Quickshell.execDetached(["hyprctl", "reload"])
-                                        Quickshell.reload(true);
+                                        ReloadController.requestReload();
                                     }
                                     StyledToolTip {
                                         text: Translation.tr("Reload Hyprland & Quickshell")
@@ -291,8 +291,6 @@ Item {
                 Component {
                     id: normalComponent
                     SystemButtonRow {
-                        editMode: root.editMode
-                        onEditModeToggleRequested: root.editMode = !root.editMode
                     }
                 }
             }
@@ -524,7 +522,7 @@ Item {
                     } else {
                         Quickshell.execDetached(["hyprctl", "reload"]);
                     }
-                    Quickshell.reload(true);
+                    ReloadController.requestReload();
                 }
                 StyledToolTip {
                     text: WM.compositor === "niri"

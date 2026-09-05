@@ -1,10 +1,10 @@
 import qs.modules.common
 import qs.modules.common.functions
 import qs.modules.common.widgets
-import Qt5Compat.GraphicalEffects
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 
 TabButton {
     id: root
@@ -96,15 +96,11 @@ TabButton {
         radius: Appearance?.rounding.normal
         implicitHeight: 42
         color: (root.hovered ? root.colBackgroundHover : root.colBackground)
-        layer.enabled: true
-        layer.effect: OpacityMask {
-            maskSource: Rectangle {
-                width: buttonBackground.width
-                height: buttonBackground.height
-                radius: buttonBackground.radius
-            }
-        }
-        
+        // See RippleButton.qml for why this is Rectangle.clip (Qt 6.7+,
+        // clip-shape-aware) instead of an OpacityMask offscreen pass - same
+        // "keep the ripple inside my own rounded corners" job.
+        clip: true
+
         Behavior on color {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
         }

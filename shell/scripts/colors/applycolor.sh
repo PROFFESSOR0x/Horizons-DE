@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
-QUICKSHELL_CONFIG_NAME="ii"
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
-CONFIG_DIR="$XDG_CONFIG_HOME/quickshell/$QUICKSHELL_CONFIG_NAME"
+# This script lives inside the active Quickshell configuration. Deriving the
+# root from its own path avoids the old hard-coded `ii` config name and keeps
+# generated terminal colours working after a config is renamed to Horizons.
+CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CACHE_DIR="$XDG_CACHE_HOME/quickshell"
 STATE_DIR="$XDG_STATE_HOME/quickshell"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,13 +18,19 @@ if [ ! -d "$STATE_DIR"/user/generated ]; then
 fi
 cd "$CONFIG_DIR" || exit
 
+MATERIAL_COLORS_FILE="$STATE_DIR/user/generated/material_colors.scss"
+if [ ! -r "$MATERIAL_COLORS_FILE" ]; then
+  echo "Generated material colours are missing: $MATERIAL_COLORS_FILE"
+  exit 0
+fi
+
 colornames=''
 colorstrings=''
 colorlist=()
 colorvalues=()
 
-colornames=$(cat $STATE_DIR/user/generated/material_colors.scss | cut -d: -f1)
-colorstrings=$(cat $STATE_DIR/user/generated/material_colors.scss | cut -d: -f2 | cut -d ' ' -f2 | cut -d ";" -f1)
+colornames=$(cut -d: -f1 "$MATERIAL_COLORS_FILE")
+colorstrings=$(cut -d: -f2 "$MATERIAL_COLORS_FILE" | cut -d ' ' -f2 | cut -d ";" -f1)
 IFS=$'\n'
 colorlist=($colornames)     # Array of color names
 colorvalues=($colorstrings) # Array of color values
@@ -42,7 +50,9 @@ apply_kitty() {
   done
 
   # Reload
-  kill -SIGUSR1 $(pidof kitty)
+  # SIGUSR1 makes already-open Kitty windows reload their configuration. A
+  # missing Kitty process is normal during wallpaper generation.
+  pkill -USR1 -x kitty 2>/dev/null || true
 }
 
 apply_anyterm() {

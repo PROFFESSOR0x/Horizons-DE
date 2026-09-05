@@ -24,7 +24,9 @@ Scope {
         }
         LazyLoader {
             id: barLoader
-            active: GlobalStates.barOpen && !GlobalStates.screenLocked
+            // The inline launcher belongs to the island, but it must still be
+            // available when the user opens it while the bar itself is closed.
+            active: (GlobalStates.barOpen || GlobalStates.overviewOpen) && !GlobalStates.screenLocked
             required property ShellScreen modelData
             component: PanelWindow {
                 id: barRoot
@@ -49,13 +51,32 @@ Scope {
                 }
 
                 property bool superShow: false
-                // For m3Island launcher is separate overlay, but bar still respects hover/super
+                // A launcher/notification/expanded island is meaningful content,
+                // not an idle bar: it must reveal the island even while auto-hide
+                // has tucked the idle pill against the screen edge.
                 property bool mustShow: hoverRegion.containsMouse || superShow
-                // Always hug+float -> no exclusive zone push, window is transparent full-width but content is centered pill
+                    || barContent.isLauncher || barContent.isNotification || barContent.isExpanded
+                // Default remains a floating island. When requested, reserve
+                // exactly the currently visible island height so clients are
+                // pushed away from its screen edge instead of sitting beneath it.
                 exclusionMode: ExclusionMode.Ignore
-                exclusiveZone: 0
-                WlrLayershell.namespace: "quickshell:m3Island"
-                WlrLayershell.layer: WlrLayer.Top
+                readonly property bool reserveSpace: (Config.options.m3Island.reserveScreenSpace ?? false)
+                    && !(Config?.options.bar.autoHide.enable && !mustShow)
+                // Layer-shell compositors negotiate exclusive zones from the
+                // panel's edge geometry. A stable bar-height zone is reliable
+                // here; binding it to the morphing child can be ignored by
+                // Hyprland after the first surface commit.
+                exclusiveZone: reserveSpace ? Appearance.sizes.barHeight
+                    + (Config.options.m3Island.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0) : 0
+                // See Bar.qml for why this is gated behind a Wayland-only
+                // Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: barRoot.WlrLayershell; property: "namespace"; value: "quickshell:m3Island" }
+                        Binding { target: barRoot.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                    }
+                }
                 // Fixed window to avoid per-frame layer-shell resize - content morphs inside
                 implicitHeight: 520
                 color: "transparent"
@@ -70,6 +91,10 @@ Scope {
                 // The launcher can deliberately float even when the idle island hugs the edge.
                 readonly property bool isHug: Config.options.m3Island.cornerStyle === 0
                     && (!barContent.isLauncher || Config.options.m3Island.launcherHug)
+                // Keep the two inverted edge corners tight. Using the global
+                // screen radius here makes a short bottom island look overly
+                // flat because the curves extend too far to either side.
+                readonly property real hugCornerSize: Math.min(Appearance.rounding.screenRounding, 14)
                 readonly property color hugColor: Config.options.m3Island.showBackground
                     ? (barContent.isLauncher ? Appearance.colors.colBackgroundSurfaceContainer : Appearance.colors.colLayer0)
                     : "transparent"
@@ -91,7 +116,7 @@ Scope {
                     RoundCorner {
                         id: leftHugCorner
                         visible: barRoot.isHug && barContent.visible && Config.options.m3Island.showBackground
-                        implicitSize: Appearance.rounding.screenRounding
+                        implicitSize: barRoot.hugCornerSize
                         color: barRoot.hugColor
                         corner: Config.options.bar.bottom ? RoundCorner.CornerEnum.BottomRight : RoundCorner.CornerEnum.TopRight
                         x: barContent.x - implicitSize
@@ -100,7 +125,7 @@ Scope {
                     RoundCorner {
                         id: rightHugCorner
                         visible: barRoot.isHug && barContent.visible && Config.options.m3Island.showBackground
-                        implicitSize: Appearance.rounding.screenRounding
+                        implicitSize: barRoot.hugCornerSize
                         color: barRoot.hugColor
                         corner: Config.options.bar.bottom ? RoundCorner.CornerEnum.BottomLeft : RoundCorner.CornerEnum.TopLeft
                         x: barContent.x + barContent.width
@@ -115,12 +140,18 @@ Scope {
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.top: parent.top
                         anchors.bottom: undefined
-                        // autoHide slide - faster response
-                        property real hiddenOffset: -Appearance.sizes.barHeight - 12
-                        anchors.topMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? hiddenOffset : 0
+                        // Auto-hide is deliberately a full edge transition: the
+                        // island travels beyond the edge, scales slightly into
+                        // it, then returns with a clear decelerating reveal.
+                        readonly property bool autoHidden: Config?.options.bar.autoHide.enable && !mustShow
+                        property real hiddenOffset: -height - 28
+                        anchors.topMargin: autoHidden ? hiddenOffset : 0
+                        opacity: (autoHidden ? 0 : 1) * launcherEntryOpacity
+                        scale: (autoHidden ? 0.82 : 1) * launcherEntryScale
+                        transformOrigin: Config.options.bar.bottom ? Item.Bottom : Item.Top
                         Behavior on anchors.topMargin {
                             NumberAnimation {
-                                duration: mustShow ? 180 : 140
+                                duration: mustShow ? 360 : 240
                                 easing.type: Easing.BezierSpline
                                 easing.bezierCurve: mustShow ? Appearance.animationCurves.emphasizedDecel : Appearance.animationCurves.emphasizedAccel
                                 alwaysRunToEnd: true
@@ -128,8 +159,16 @@ Scope {
                         }
                         Behavior on opacity {
                             NumberAnimation {
-                                duration: mustShow ? 180 : 120
-                                easing.type: Easing.OutCubic
+                                duration: mustShow ? 280 : 180
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: mustShow ? Appearance.animationCurves.emphasizedDecel : Appearance.animationCurves.emphasizedAccel
+                            }
+                        }
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: mustShow ? 360 : 220
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: mustShow ? Appearance.animationCurves.expressiveDefaultSpatial : Appearance.animationCurves.emphasizedAccel
                             }
                         }
 
@@ -144,11 +183,10 @@ Scope {
                         }
                     }
 
-                    Item {
+                    AutoHideRevealRegion {
                         id: hoverMaskRegion
-                        anchors.fill: barContent
-                        anchors.topMargin: -Config.options.bar.autoHide.hoverRegionWidth
-                        anchors.bottomMargin: -Config.options.bar.autoHide.hoverRegionWidth
+                        barItem: barContent
+                        edgeAtEnd: Config.options.bar.bottom
                     }
                 }
             }

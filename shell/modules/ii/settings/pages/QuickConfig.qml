@@ -37,47 +37,6 @@ ContentPage {
         }
     }
 
-    // Whether the running Hyprland accepts decoration:blur:variant (only a
-    // from-source/git build past the variant PR, not any tagged release
-    // yet — see HyprlandConfig.qml's own copy of this same probe). Drives
-    // whether "Max Experience" reaches for the acrylic variant or quietly
-    // stays on plain Kawase so the button never looks like it did nothing.
-    property var blurVariantSupported: null
-    Process {
-        id: blurVariantProbe
-        command: ["hyprctl", "-j", "getoption", "decoration:blur:variant"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const response = JSON.parse(this.text)
-                    page.blurVariantSupported = !!(response && response.option === "decoration:blur:variant")
-                } catch (e) {
-                    page.blurVariantSupported = false
-                }
-            }
-        }
-        onExited: (exitCode) => {
-            if (exitCode !== 0) page.blurVariantSupported = null
-        }
-    }
-    Component.onCompleted: blurVariantProbe.running = true
-
-    // Applies a PerformanceProfiles.js tier: Config.applyPerformanceProfile()
-    // handles every plain Config.options.* field + the blur/transparency/
-    // glass exclusivity; here we additionally push that profile's literal
-    // Hyprland keys the same way InterfaceConfig.qml's visual-effect picker
-    // does (setMany + setAnimPreset).
-    function applyPerformanceProfile(profileId) {
-        const entry = Config.applyPerformanceProfile(profileId)
-        if (!entry) return
-        let keys = Object.assign({}, entry.hyprlandKeys)
-        if (entry.hyprlandKeysIfVariantSupported && page.blurVariantSupported) {
-            keys = Object.assign(keys, entry.hyprlandKeysIfVariantSupported)
-        }
-        HyprlandConfig.setMany(keys)
-        HyprlandConfig.setAnimPreset(entry.animPreset)
-    }
-
     component SmallLightDarkPreferenceButton: RippleButton {
         id: smallLightDarkPreferenceButton
         required property bool dark
@@ -116,73 +75,6 @@ ContentPage {
         Layout.fillWidth: true
         Layout.fillHeight: true
         spacing: 16
-
-        ContentSection {
-            icon: "speed"
-            title: Translation.tr("Performance / Experience")
-            shape: MaterialShape.Shape.Puffy
-            Layout.fillWidth: true
-
-            StyledText {
-                Layout.fillWidth: true
-                Layout.leftMargin: 8
-                Layout.rightMargin: 8
-                wrapMode: Text.Wrap
-                color: Appearance.colors.colSubtext
-                font.pixelSize: Appearance.font.pixelSize.smaller
-                text: Translation.tr("One click reconfigures blur, shadows, animations, parallax, background widgets and more — everything except colors, which always stay wallpaper-matched. Hand-tuning anything afterwards sticks until you pick another tier here.")
-            }
-
-            GroupedList {
-                ConfigSelectionArray {
-                    icon: "tune"
-                    text: Translation.tr("Tier")
-                    currentValue: Config.options.appearance.performanceProfile
-                    onSelected: newValue => page.applyPerformanceProfile(newValue)
-                    options: Config.performanceProfiles.map(p => ({
-                        displayName: Translation.tr(p.displayName),
-                        icon: p.icon,
-                        value: p.id
-                    }))
-                }
-                StyledText {
-                    Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                    color: Appearance.colors.colSubtext
-                    font.pixelSize: Appearance.font.pixelSize.small
-                    text: {
-                        const entry = Config.performanceProfiles.find(p => p.id === Config.options.appearance.performanceProfile)
-                        return entry ? Translation.tr(entry.description) : ""
-                    }
-                }
-            }
-
-            Rectangle {
-                visible: Config.options.appearance.performanceProfile === "maxExperience" && page.blurVariantSupported === false
-                Layout.fillWidth: true
-                Layout.topMargin: 4
-                radius: Appearance.rounding.small
-                color: Appearance.colors.colErrorContainer
-                implicitHeight: maxExpWarnRow.implicitHeight + 16
-                RowLayout {
-                    id: maxExpWarnRow
-                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
-                    spacing: 8
-                    MaterialSymbol {
-                        text: "warning"
-                        iconSize: Appearance.font.pixelSize.large
-                        color: Appearance.colors.colOnErrorContainer
-                    }
-                    StyledText {
-                        Layout.fillWidth: true
-                        wrapMode: Text.Wrap
-                        color: Appearance.colors.colOnErrorContainer
-                        font.pixelSize: Appearance.font.pixelSize.small
-                        text: Translation.tr("Everything else in this tier still applied. Your Hyprland build doesn't support the Liquid Glass blur variant yet, so it fell back to plain Kawase blur — see Settings > Hyprland > Blur Style for details.")
-                    }
-                }
-            }
-        }
 
         ContentSection {
             icon: "screenshot_monitor"
@@ -349,6 +241,61 @@ ContentPage {
                     text: Translation.tr("Automatic")
                     checked: Config.options.appearance.transparency.automatic
                     onCheckedChanged: { Config.options.appearance.transparency.automatic = checked; }
+                }
+            }
+        }
+
+        ContentSection {
+            id: performanceSection
+            icon: "speed"
+            title: Translation.tr("Performance / Experience")
+            shape: MaterialShape.Shape.SoftBurst
+
+            readonly property var currentProfile: PerformanceProfiles.byId(Config.options.appearance.performanceProfile)
+
+            function applyProfile(id) {
+                const resolved = Config.applyPerformanceProfile(id, HyprlandData.blurVariantSupported)
+                if (!resolved) return
+                if (WM.compositor === "hyprland") {
+                    HyprlandConfig.setMany(resolved.hypr)
+                    if (resolved.animPreset) HyprlandConfig.setAnimPreset(resolved.animPreset)
+                }
+            }
+
+            GroupedList {
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("One click reconfigures blur, shadows, animations, transparency and background widgets to match — everything except colors, which always keep following your wallpaper.")
+                }
+                ConfigSelectionArray {
+                    icon: "tune"
+                    text: Translation.tr("Profile")
+                    currentValue: Config.options.appearance.performanceProfile
+                    onSelected: newValue => performanceSection.applyProfile(newValue)
+                    options: PerformanceProfiles.profiles.map(p => ({
+                        displayName: Translation.tr(p.name),
+                        icon: p.icon,
+                        value: p.id
+                    }))
+                }
+                StyledText {
+                    visible: !!performanceSection.currentProfile
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: performanceSection.currentProfile ? Translation.tr(performanceSection.currentProfile.description) : ""
+                }
+                StyledText {
+                    visible: Config.options.appearance.performanceProfile === "maxExperience" && !HyprlandData.blurVariantSupported
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.m3colors.m3error
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("Your running Hyprland doesn't support blur styles yet (needs hyprwm/Hyprland PR #15661 — not in any tagged release yet), so Max Experience used a fuller plain blur instead of Liquid Glass. Settings > Hyprland > Blur Style has details.")
                 }
             }
         }

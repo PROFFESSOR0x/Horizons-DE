@@ -44,6 +44,7 @@ ContentPage {
         { id: "resources",         name: Translation.tr("Resources"),            icon: "empty_dashboard" },
         { id: "systemIcons",       name: Translation.tr("System Icons"),         icon: "info" },
         { id: "networkSpeed",      name: Translation.tr("Network Speed"),        icon: "network_check" },
+        { id: "vpnIndicator",      name: Translation.tr("VPN Indicator"),        icon: "vpn_lock" },
         { id: "clockWidget",       name: Translation.tr("Clock"),                icon: "schedule" },
         { id: "utilButtons",       name: Translation.tr("Util Buttons"),         icon: "toggle_on" },
         { id: "sysTray",           name: Translation.tr("Tray"),                 icon: "inbox" },
@@ -424,6 +425,15 @@ ContentPage {
                 ConfigRow {
                     uniform: true
                     ConfigSwitch {
+                        buttonIcon: "vertical_align_center"
+                        text: Translation.tr("Reserve screen space")
+                        checked: Config.options.m3Island.reserveScreenSpace ?? false
+                        onCheckedChanged: {
+                            if (!Config.ready || checked === (Config.options.m3Island.reserveScreenSpace ?? false)) return
+                            Config.setNestedValue("m3Island.reserveScreenSpace", checked)
+                        }
+                    }
+                    ConfigSwitch {
                         buttonIcon: "open_in_full"
                         text: Translation.tr("Click to expand")
                         checked: Config.options.m3Island.clickToExpand
@@ -441,6 +451,13 @@ ContentPage {
                         checked: Config.options.m3Island.verbose
                         onCheckedChanged: { Config.options.m3Island.verbose = checked }
                     }
+                }
+                ConfigSpinBox {
+                    icon: "format_list_numbered"
+                    text: Translation.tr("Launcher maximum visible results")
+                    value: Config.options.m3Island.launcherMaxResults
+                    from: 1; to: 10; stepSize: 1
+                    onValueChanged: { Config.options.m3Island.launcherMaxResults = value }
                 }
                 ConfigSelectionArray {
                     text: Translation.tr("Scroll over island")

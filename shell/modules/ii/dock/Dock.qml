@@ -45,7 +45,14 @@ Scope {
 
             anchors { bottom: true; left: true; right: true }
             implicitWidth: dockBackground.implicitWidth
-            WlrLayershell.namespace: "quickshell:dock"
+            // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+            // gated behind a Wayland-only Loader instead of set directly.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: dockRoot.WlrLayershell; property: "namespace"; value: "quickshell:dock" }
+                }
+            }
             color: "transparent"
 
             implicitHeight: (Config.options?.dock.height ?? 70)

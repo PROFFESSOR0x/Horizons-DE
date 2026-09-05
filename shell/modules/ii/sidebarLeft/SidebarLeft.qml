@@ -63,21 +63,35 @@ Scope { // Scope
         root.sidebarContent = contentComponent.createObject(null, {
             "scopeRoot": root,
         });
-        sidebarLoader.item.contentParent.children = [root.sidebarContent];
+        // PanelWindow may fail to instantiate on X11 (no wl_display / no layer-shell).
+        // Guard against null so the whole shell does not throw "contentParent of null".
+        if (sidebarLoader.item?.contentParent) {
+            sidebarLoader.item.contentParent.children = [root.sidebarContent];
+        } else {
+            console.warn("[SidebarLeft] PanelWindow not ready (likely X11 without layer-shell), content will attach when loader becomes ready")
+        }
+    }
+    Connections {
+        target: sidebarLoader
+        function onLoaded() {
+            if (root.sidebarContent && sidebarLoader.item?.contentParent && root.sidebarContent.parent == null) {
+                sidebarLoader.item.contentParent.children = [root.sidebarContent];
+            }
+        }
     }
 
     onDetachChanged: {
         if (root.detach) {
-            GlobalFocusGrab.removeDismissable(sidebarLoader.item) // Remove sidebar from the focus grab system
-            sidebarContent.parent = null; // Detach content from sidebar
+            if (sidebarLoader.item) GlobalFocusGrab.removeDismissable(sidebarLoader.item) // Remove sidebar from the focus grab system
+            if (sidebarContent) sidebarContent.parent = null; // Detach content from sidebar
             sidebarLoader.active = false; // Unload sidebar
             detachedSidebarLoader.active = true; // Load detached window
-            detachedSidebarLoader.item.contentParent.children = [sidebarContent];
+            if (detachedSidebarLoader.item?.contentParent) detachedSidebarLoader.item.contentParent.children = [sidebarContent];
         } else {
-            sidebarContent.parent = null; // Detach content from window
+            if (sidebarContent) sidebarContent.parent = null; // Detach content from window
             detachedSidebarLoader.active = false; // Unload detached window
             sidebarLoader.active = true; // Load sidebar
-            sidebarLoader.item.contentParent.children = [sidebarContent];
+            if (sidebarLoader.item?.contentParent) sidebarLoader.item.contentParent.children = [sidebarContent];
         }
     }
 
@@ -115,6 +129,19 @@ Scope { // Scope
                 onTriggered: panelWindow.reallyVisible = false
             }
 
+            // See SidebarRight: only hot-corner opens are transient. A short
+            // grace period lets the pointer move from the corner into the panel.
+            Timer {
+                id: hoverCloseTimer
+                interval: 260
+                repeat: false
+                onTriggered: {
+                    if (GlobalStates.hoverOpenedState === "sidebarLeftOpen"
+                            && !sidebarHoverHandler.hovered)
+                        GlobalStates.closeHoverState("sidebarLeftOpen");
+                }
+            }
+
             property bool extend: false
             property real sidebarWidth: panelWindow.extend ? Appearance.sizes.sidebarWidthExtended : Appearance.sizes.sidebarWidth
             property var contentParent: sidebarLeftBackground
@@ -126,9 +153,20 @@ Scope { // Scope
             exclusionMode: ExclusionMode.Normal
             exclusiveZone: root.pin ? sidebarWidth : 0
             implicitWidth: Appearance.sizes.sidebarWidthExtended + Appearance.sizes.elevationMargin
-            WlrLayershell.namespace: "quickshell:sidebarLeft"
-            // Hyprland 0.49: OnDemand is Exclusive, Exclusive just breaks click-outside-to-close
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+            // This is the actual fix for the "PanelWindow not ready (likely
+            // X11 without layer-shell)" case Component.onCompleted below
+            // already guards against: gate the references themselves behind
+            // a Wayland-only Loader (see Bar.qml) instead of the values, so
+            // this PanelWindow can actually construct on X11 in the first
+            // place instead of merely surviving a construction failure.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: panelWindow.WlrLayershell; property: "namespace"; value: "quickshell:sidebarLeft" }
+                    // Hyprland 0.49: OnDemand is Exclusive, Exclusive just breaks click-outside-to-close
+                    Binding { target: panelWindow.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.OnDemand }
+                }
+            }
             color: "transparent"
 
             anchors {
@@ -239,6 +277,16 @@ Scope { // Scope
                     onClicked: (mouse) => { mouse.accepted = true }
                 }
 
+                HoverHandler {
+                    id: sidebarHoverHandler
+                    onHoveredChanged: {
+                        if (hovered)
+                            hoverCloseTimer.stop();
+                        else if (GlobalStates.hoverOpenedState === "sidebarLeftOpen")
+                            hoverCloseTimer.restart();
+                    }
+                }
+
                 Keys.onPressed: (event) => {
                     if (event.key === Qt.Key_Escape) {
                         panelWindow.hide();
@@ -253,6 +301,17 @@ Scope { // Scope
                         }
                         event.accepted = true;
                     }
+                }
+            }
+
+            Connections {
+                target: GlobalStates
+                function onHoverOpenedStateChanged() {
+                    if (GlobalStates.hoverOpenedState === "sidebarLeftOpen"
+                            && GlobalStates.sidebarLeftOpen && !sidebarHoverHandler.hovered)
+                        hoverCloseTimer.restart();
+                    else if (GlobalStates.hoverOpenedState !== "sidebarLeftOpen")
+                        hoverCloseTimer.stop();
                 }
             }
         }

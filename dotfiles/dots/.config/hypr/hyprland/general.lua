@@ -284,7 +284,15 @@ hl.config({
         enable_swallow = false,
         swallow_regex = "(foot|kitty|allacritty|Alacritty)",
         on_focus_under_fullscreen = 2,
-        allow_session_lock_restore = true,
+        -- Off: quickshell has a known, currently-unfixed crash
+        -- (github.com/quickshell-mirror/quickshell#1054) when a client
+        -- re-requests a session lock the compositor already holds from a
+        -- previous instance (this option is the precondition for that
+        -- scenario to even come up, e.g. after a config reload or a crash
+        -- while locked) — the crash can leave the session stuck locked with
+        -- no lock surface to authenticate against. Re-enable once that's
+        -- fixed upstream.
+        allow_session_lock_restore = false,
         session_lock_xray = true,
         initial_workspace_tracking = false,
         focus_on_activate = true

@@ -41,15 +41,26 @@ _hz_ensure_dirs() {
 
 # ── Write state ───────────────────────────────────────────────────────────────
 # Usage: horizons_state_write [profile] [components_csv] [lang]
+# Target information is read from the installer globals so every update can
+# re-apply the exact first-install choice without prompting again.
 # e.g. horizons_state_write "full" "dots,shell" "ar"
 horizons_state_write() {
     local profile="${1:-full}"
     local components="${2:-dots,shell}"
     local lang="${3:-${HORIZONS_LANG:-en}}"
     local distro="${PKG_GROUP:-${OS_GROUP_ID:-unknown}}"
+    local protocol="${HORIZONS_PROTOCOL:-unknown}"
+    local window_manager="${HORIZONS_WINDOW_MANAGER:-unknown}"
+    local desktop_environment="${HORIZONS_DESKTOP_ENVIRONMENT:-existing}"
     local gitinfo
     gitinfo=$(_hz_git_info)
     IFS='|' read -r git_commit git_branch git_remote git_dirty <<< "$gitinfo"
+    # Absolute path to this clone, persisted so callers with no working-directory
+    # context of their own (the running shell, a systemd timer, …) can still
+    # find this repo later to check/pull/re-apply updates. Without this, only
+    # invoking the scripts directly from inside the clone would ever work.
+    local repo_root
+    repo_root=$(realpath "${REPO_ROOT:-$(pwd)}" 2>/dev/null || echo "${REPO_ROOT:-$(pwd)}")
 
     local now_iso now_human epoch
     now_iso=$(_hz_now_iso)
@@ -78,12 +89,16 @@ horizons_state_write() {
   "git_branch": "$git_branch",
   "git_remote": "$git_remote",
   "git_dirty": $git_dirty,
+  "repo_root": "$repo_root",
   "distro": "$distro",
   "arch": "$(uname -m)",
   "lang": "$lang",
   "language": "$lang",
   "profile": "$profile",
   "components": "$components",
+  "display_protocol": "$protocol",
+  "window_manager": "$window_manager",
+  "desktop_environment": "$desktop_environment",
   "kernel": "$(uname -r)",
   "user": "$(whoami)",
   "hostname": "$(hostname 2>/dev/null || echo unknown)"
@@ -105,8 +120,12 @@ epoch=$epoch
 git_commit=$git_commit
 git_branch=$git_branch
 git_remote=$git_remote
+repo_root=$repo_root
 profile=$profile
 components=$components
+display_protocol=$protocol
+window_manager=$window_manager
+desktop_environment=$desktop_environment
 lang=$lang
 language=$lang
 distro=$distro
@@ -119,7 +138,7 @@ EOF
     cp -f "$HORIZONS_META_JSON" "$HORIZONS_STATE_DIR/meta-$(date +%Y%m%d-%H%M%S).json" 2>/dev/null || true
 
     # History log
-    echo "[$now_iso] $profile [$components] commit=$git_commit distro=$distro" >> "$HORIZONS_STATE_DIR/history.log"
+    echo "[$now_iso] $profile [$components] target=$protocol/$window_manager desktop=$desktop_environment commit=$git_commit distro=$distro" >> "$HORIZONS_STATE_DIR/history.log"
 
     # XDG state install.log symlink
     if [[ -n "${LOG_FILE:-}" && -f "$LOG_FILE" ]]; then

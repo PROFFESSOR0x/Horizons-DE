@@ -16,20 +16,63 @@ Settings > Hyprland > Blur Style in the shell.
 ## Install — Horizons Installer v2.0
 
 ```bash
-git clone https://github.com/PROFFESSOR0x/end4-pC.git End4-PXpC
-cd End4-PXpC
+git clone https://github.com/PROFFESSOR0x/Horizons-DE.git Horizons-DE
+cd Horizons-DE
 ./installer.sh                          # interactive (profile: core)
 ./installer.sh --profile full --force   # full non-interactive
 ./installer.sh --dry-run --profile ultra # preview what would be done
 ```
 
-The unified installer (`installer.sh` + `install/lib/*`) does in order: pre-flight
-checks, legacy migration (`illogical-impulse`/`end4-pC` → `horizons`), optional backup,
-optional full system upgrade, the `dotfiles/setup install` base, optional quickshell
-build from source, optional bundled extras (Rubik/Gabarito/Bibata/GoogleSans), the
-`shell/` Quickshell config into
-`~/.config/quickshell/horizons`, Hyprland `qsConfig` set to `horizons`, settings keybind,
-Quickshell restart, and finally writes the identity marker.
+The unified installer (`installer.sh` + `install/lib/*`) does in order: a target-aware
+runtime bootstrap, pre-flight checks, legacy migration (`illogical-impulse`/`end4-pC` → `horizons`), optional backup,
+build from source, optional bundled extras
+(Rubik/Gabarito/Bibata/GoogleSans), the `shell/` Quickshell config into
+`~/.config/quickshell/horizons`, target-specific WM integration and keybinds,
+a matching-session Quickshell restart, and finally writes the identity marker.
+
+### i3 / X11
+
+`X11` and `Wayland` are display protocols; i3 and Hyprland are window managers,
+not desktop environments. Horizons supports only the two valid pairs below:
+
+| Target | Protocol | Installer behavior |
+|---|---|---|
+| Hyprland | Wayland | Full Horizons-managed desktop can be selected, including compatible dotfiles. |
+| i3 | X11 | Shell integration only; i3 IPC provides windows, workspaces, outputs, focus, and workspace actions. |
+
+Hyprland/X11 and i3/Wayland are rejected by the installer because those upstream
+combinations do not exist. For an i3-like Wayland compositor, Sway would need its
+own supported backend rather than pretending i3 can run on Wayland.
+
+On a new install, the installer requires a target and desktop-integration choice:
+
+```bash
+./installer.sh --wm hyprland --desktop horizons
+./installer.sh --wm i3 --desktop existing
+```
+
+The first successful installation stores the selected protocol, window manager,
+desktop mode, profile, and components in `~/.config/horizons/.horizons-meta.json`.
+Subsequent plain `./installer.sh` calls automatically enter update mode and reuse
+that stored target. Use `--fresh-install` only when you explicitly want to run a
+new installation flow. i3 integration installs `~/.config/i3/horizons.conf` and
+adds one reversible include after making a backup; it does not modify existing i3
+rules or bindings.
+
+Before modifying configuration, the installer audits the selected target and installs
+only missing runtime capabilities. It tries the distribution's normal repositories
+first, then safe alternatives (including an Arch AUR fallback where an existing
+`yay` or `paru` is available), and finally offers a QuickShell source build with its
+build dependencies when no package is available. Hyprland installs its Wayland
+runtime helpers; i3 installs i3, X.Org, and X11 clipboard support. `--skip-deps`
+is an explicit opt-out: it leaves the installer in audit-only mode and reports what
+is still missing.
+
+The installer also inventories known existing desktop configuration directories for
+Hyprland, i3, QuickShell, AGS, Waybar, Polybar, Eww, Kitty, and Fish. Interactive
+installs offer **Keep**, **Backup**, or permanently **Delete**. Deletion requires
+typing `DELETE`; non-interactive installs keep files unless `--existing-config backup`
+was supplied explicitly.
 
 ### Identity marker & update protocol
 

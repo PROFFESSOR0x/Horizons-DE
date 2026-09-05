@@ -14,43 +14,26 @@ ContentPage {
     bottomContentPadding: 35
     property bool isMinimal: Config.options.settings.style === "minimal"
 
-    function runSystemUpdate() {
+    // Both buttons below run the exact same comprehensive update (system
+    // packages + the Horizons-DE repo itself, pulled and re-applied via
+    // install/horizons-update — see scripts/horizons/full_update.sh) so
+    // clicking either one always "does everything", never just half of it.
+    //
+    // This replaces the previous runUpdateDots(), which cloned a *fresh*
+    // checkout from the old, pre-rename repo URL (github.com/.../end4-pC)
+    // into a temp dir and swapped shell/ directories around on disk — no
+    // real git history, no dotfiles/install/i3 handling, and pointed at a
+    // repo name that no longer matches this project (PROFFESSOR0x/Horizons-DE).
+    function runFullUpdate() {
         Quickshell.execDetached([
             "kitty", "--hold",
             "fish", "-i", "-l", "-c",
-            "yay -Syu --combinedupgrade=false"
+            `bash '${FileUtils.trimFileProtocol(Directories.scriptPath)}/horizons/full_update.sh'`
         ])
         Qt.callLater(() => GlobalStates.settingsOpen = false)
     }
-
-    function runUpdateDots() {
-        const updateScript = `
-            set -e
-            DIR="$HOME/.config/quickshell"
-
-            # Download to temp first
-            rm -rf "$DIR/horizons-tmp"
-            git clone https://github.com/PROFFESSOR0x/end4-pC.git "$DIR/horizons-tmp"
-
-            # Apply update
-            rm -rf "$DIR/horizons-old"
-            [ -d "$DIR/horizons" ] && mv "$DIR/horizons" "$DIR/horizons-old"
-            mv "$DIR/horizons-tmp/shell" "$DIR/horizons"
-            rm -rf "$DIR/horizons-tmp"
-
-            # Reload
-            killall qs 2>/dev/null || true
-            sleep 0.5
-            setsid qs -c horizons >/tmp/qs.log 2>&1 < /dev/null &
-            disown
-
-            # Cleanup
-            rm -rf "$DIR/horizons-old"
-        `
-
-        Quickshell.execDetached(["kitty", "--hold", "bash", "-c", updateScript])
-        Qt.callLater(() => GlobalStates.settingsOpen = false)
-    }
+    function runSystemUpdate() { runFullUpdate() }
+    function runUpdateDots() { runFullUpdate() }
 
     Rectangle {
         Layout.fillWidth: true
@@ -138,7 +121,7 @@ ContentPage {
                 Layout.alignment: Qt.AlignRight | Qt.AlignBottom
                 spacing: 8
                 RippleButton {
-                    buttonText: Translation.tr("Update Dots")
+                    buttonText: Translation.tr("Update Horizons")
                     buttonRadius: Appearance.rounding.full
                     colBackground: Appearance.colors.colPrimaryContainer
                     colBackgroundHover: Appearance.colors.colPrimaryContainerHover

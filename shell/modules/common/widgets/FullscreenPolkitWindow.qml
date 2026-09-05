@@ -29,9 +29,16 @@ Scope {
                 }
 
                 color: "transparent"
-                WlrLayershell.namespace: "quickshell:polkit"
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
-                WlrLayershell.layer: WlrLayer.Overlay
+                // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+                // gated behind a Wayland-only Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: panelWindow.WlrLayershell; property: "namespace"; value: "quickshell:polkit" }
+                        Binding { target: panelWindow.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.OnDemand }
+                        Binding { target: panelWindow.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+                    }
+                }
                 exclusionMode: ExclusionMode.Ignore
 
                 Loader {

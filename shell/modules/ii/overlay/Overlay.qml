@@ -23,10 +23,17 @@ Scope {
         sourceComponent: PanelWindow {
             id: overlayWindow
             exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.namespace: "quickshell:overlay"
-            WlrLayershell.layer: WlrLayer.Overlay
-            // Use OnDemand for pinned widgets to allow focus switching with mouse clicks
-            WlrLayershell.keyboardFocus: GlobalStates.overlayOpen ? WlrKeyboardFocus.Exclusive : (OverlayContext.clickableWidgets.length > 0 ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None)
+            // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+            // gated behind a Wayland-only Loader instead of set directly.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: overlayWindow.WlrLayershell; property: "namespace"; value: "quickshell:overlay" }
+                    Binding { target: overlayWindow.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+                    // Use OnDemand for pinned widgets to allow focus switching with mouse clicks
+                    Binding { target: overlayWindow.WlrLayershell; property: "keyboardFocus"; value: GlobalStates.overlayOpen ? WlrKeyboardFocus.Exclusive : (OverlayContext.clickableWidgets.length > 0 ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None) }
+                }
+            }
             visible: true
             color: "transparent"
 

@@ -24,6 +24,26 @@ Singleton {
     property list<real> downloadHistory: []
     property list<real> uploadHistory: []
 
+    // Ref-counted: this used to poll /proc/net/dev every second unconditionally
+    // from the moment anything first touched this singleton, forever - even
+    // after that widget (NetworkSpeed in the bar, or SysmonitorBarContent)
+    // was hidden or removed. Consumers acquire()/release() around their own
+    // lifetime (Component.onCompleted/onDestruction) instead, so the poller
+    // only runs while something is actually showing network stats.
+    property int activeConsumers: 0
+    function acquire() {
+        if (root.activeConsumers === 0) {
+            // Discard any stale baseline from before the last release() - a
+            // huge elapsed-time gap would otherwise make the first sample
+            // after resuming read as an artificially near-zero rate.
+            root.previousSampleTime = 0;
+        }
+        root.activeConsumers += 1;
+    }
+    function release() {
+        root.activeConsumers = Math.max(0, root.activeConsumers - 1);
+    }
+
     function formatRate(rate, compact) {
         const units = compact
             ? ["B", "K", "M", "G"]
@@ -99,7 +119,7 @@ Singleton {
     Timer {
         interval: 1000
         repeat: true
-        running: true
+        running: root.activeConsumers > 0
         triggeredOnStart: true
         onTriggered: networkStatsFile.reload()
     }

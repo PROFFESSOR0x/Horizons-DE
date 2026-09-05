@@ -82,8 +82,15 @@ Scope {
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
             exclusiveZone: 0
-            WlrLayershell.namespace: "quickshell:desktopMenu"
-            WlrLayershell.layer: WlrLayer.Overlay
+            // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+            // gated behind a Wayland-only Loader instead of set directly.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: menuWindow.WlrLayershell; property: "namespace"; value: "quickshell:desktopMenu" }
+                    Binding { target: menuWindow.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+                }
+            }
 
             anchors {
                 top: true

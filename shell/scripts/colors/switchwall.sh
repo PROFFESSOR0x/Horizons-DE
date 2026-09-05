@@ -12,6 +12,41 @@ SHELL_CONFIG_FILE="$XDG_CONFIG_HOME/horizons/config.json"
 MATUGEN_DIR="$XDG_CONFIG_HOME/matugen"
 terminalscheme="$SCRIPT_DIR/terminal/scheme-base.json"
 
+# Monitor geometry, shaped exactly like `hyprctl monitors -j`'s own output
+# (an array of {width,height,scale,x,y,focused,name,...}) so every existing
+# `hyprctl monitors -j | jq ...` pipeline below can switch to this without
+# touching its jq expression. On i3/X11 there's no hyprctl to ask, and
+# calling it anyway doesn't just come back empty - a "couldn't connect"
+# error on stdout was breaking the jq/bc chains reading it (this is why a
+# fresh i3 install never got its first-run wallpaper set: this function is
+# called before the actual `set_wallpaper_path` write further down in
+# `switch()`, and a bad value here doesn't abort the script - no `set -e` -
+# but does still leave `scale`/`screenx`/`screeny` empty for the bc calls
+# right after it).
+hz_monitors_json() {
+    if command -v hyprctl &>/dev/null && hyprctl monitors -j &>/dev/null; then
+        hyprctl monitors -j
+        return
+    fi
+    if command -v xrandr &>/dev/null; then
+        xrandr --query 2>/dev/null | awk '
+            / connected/ {
+                focused = ($0 ~ /primary/) ? "true" : "false"
+                for (i = 1; i <= NF; i++) {
+                    if ($i ~ /^[0-9]+x[0-9]+\+[0-9]+\+[0-9]+/) {
+                        split($i, geo, /[x+]/)
+                        printf "{\"name\":\"unknown\",\"width\":%s,\"height\":%s,\"scale\":1,\"x\":%s,\"y\":%s,\"focused\":%s}\n", geo[1], geo[2], geo[3], geo[4], focused
+                    }
+                }
+            }
+        ' | jq -s '.'
+        return
+    fi
+    # Neither available - one sane single-monitor default rather than an
+    # empty array, so `select(.focused)`/`max`/`min` below still get a value.
+    echo '[{"name":"unknown","width":1920,"height":1080,"scale":1,"x":0,"y":0,"focused":true}]'
+}
+
 handle_kde_material_you_colors() {
     if [ -f "$SHELL_CONFIG_FILE" ]; then
         enable_qt_apps=$(jq -r '.appearance.wallpaperTheming.enableQtApps' "$SHELL_CONFIG_FILE")
@@ -63,8 +98,8 @@ post_process() {
 
 check_and_prompt_upscale() {
     local img="$1"
-    min_width_desired="$(hyprctl monitors -j | jq '([.[].width] | max)' | xargs)"
-    min_height_desired="$(hyprctl monitors -j | jq '([.[].height] | max)' | xargs)"
+    min_width_desired="$(hz_monitors_json | jq '([.[].width] | max)' | xargs)"
+    min_height_desired="$(hz_monitors_json | jq '([.[].height] | max)' | xargs)"
 
     if command -v identify &>/dev/null && [ -f "$img" ]; then
         local img_width img_height
@@ -176,7 +211,7 @@ switch() {
         categorize_wallpaper "$imgpath" &
     fi
 
-    read scale screenx screeny screensizey < <(hyprctl monitors -j | jq '.[] | select(.focused) | .scale, .x, .y, .height' | xargs)
+    read scale screenx screeny screensizey < <(hz_monitors_json | jq '.[] | select(.focused) | .scale, .x, .y, .height' | xargs)
     cursorposx=$(hyprctl cursorpos -j | jq '.x' 2>/dev/null) || cursorposx=960
     cursorposx=$(bc <<< "scale=0; ($cursorposx - $screenx) * $scale / 1")
     cursorposy=$(hyprctl cursorpos -j | jq '.y' 2>/dev/null) || cursorposy=540
@@ -232,7 +267,7 @@ switch() {
                 set_wallpaper_path "$imgpath"
 
                 local video_path="$imgpath"
-                monitors=$(hyprctl monitors -j | jq -r '.[] | .name')
+                monitors=$(hz_monitors_json | jq -r '.[] | .name')
                 for monitor in $monitors; do
                     mpvpaper -o "$VIDEO_OPTS" "$monitor" "$video_path" &
                     sleep 0.1
@@ -359,8 +394,8 @@ switch() {
         "$SCRIPT_DIR"/applycolor.sh
     fi
 
-    max_width_desired="$(hyprctl monitors -j | jq '([.[].width] | min)' | xargs)"
-    max_height_desired="$(hyprctl monitors -j | jq '([.[].height] | min)' | xargs)"
+    max_width_desired="$(hz_monitors_json | jq '([.[].width] | min)' | xargs)"
+    max_height_desired="$(hz_monitors_json | jq '([.[].height] | min)' | xargs)"
     post_process "$max_width_desired" "$max_height_desired" "$imgpath" "$colors_lock_flag"
 }
 

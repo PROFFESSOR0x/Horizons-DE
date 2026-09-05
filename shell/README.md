@@ -50,8 +50,8 @@ Customized and maintained by **pctrade**
 Use the single installer at the repo root — it installs the dotfiles base and this Quickshell config in one pass:
 
 ```bash
-git clone https://github.com/PROFFESSOR0x/end4-pC.git End4-PXpC
-cd End4-PXpC
+git clone https://github.com/PROFFESSOR0x/Horizons-DE.git Horizons-DE
+cd Horizons-DE
 ./installer.sh
 ```
 

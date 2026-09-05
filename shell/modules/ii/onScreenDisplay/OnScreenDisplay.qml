@@ -107,8 +107,15 @@ Scope {
                 }
             }
 
-            WlrLayershell.namespace: "quickshell:onScreenDisplay"
-            WlrLayershell.layer: WlrLayer.Overlay
+            // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+            // gated behind a Wayland-only Loader instead of set directly.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: osdRoot.WlrLayershell; property: "namespace"; value: "quickshell:onScreenDisplay" }
+                    Binding { target: osdRoot.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+                }
+            }
             anchors {
                 top: !Config.options.bar.bottom
                 bottom: Config.options.bar.bottom

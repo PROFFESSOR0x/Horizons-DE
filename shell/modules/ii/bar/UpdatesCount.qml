@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import qs.modules.common
+import qs.modules.common.functions
 import qs.modules.common.widgets
 import qs.services
 import qs
@@ -31,7 +32,7 @@ MouseArea {
             Updates.refresh()
             Quickshell.execDetached(["notify-send",
                 Translation.tr("Updates"),
-                Translation.tr("Checking for updates..."),
+                Translation.tr("Checking for system and Horizons-DE updates..."),
                 "-a", "Shell"
             ])
             mouse.accepted = false
@@ -40,10 +41,13 @@ MouseArea {
 
     Process {
         id: updateProc
+        // Runs system packages *and* the Horizons-DE repo itself (pull +
+        // re-apply) — see scripts/horizons/full_update.sh — inside a held-open
+        // terminal so the user can watch both steps and read any errors.
         command: [
             "kitty", "--hold",
             "fish", "-i", "-l", "-c",
-            "yay -Syu --combinedupgrade=false"
+            `bash '${FileUtils.trimFileProtocol(Directories.scriptPath)}/horizons/full_update.sh'`
         ]
         onExited: (exitCode, exitStatus) => {
             Updates.refresh()
@@ -59,7 +63,7 @@ MouseArea {
             if (Updates.count === 0) {
                 Quickshell.execDetached(["notify-send",
                     Translation.tr("Updates"),
-                    Translation.tr("System up to date"),
+                    Translation.tr("System and Horizons-DE up to date"),
                     "-a", "Shell"
                 ])
             } else {

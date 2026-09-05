@@ -119,15 +119,16 @@ Variants {
         property string currentShader: "pixelate"
         property string wallpaperAnimation: Config.options.background.wallpaperAnimation ?? "random"
 
-        property list<HyprlandWorkspace> workspacesForMonitor: Hyprland.workspaces.values.filter(workspace => workspace.monitor && workspace.monitor.name == monitor.name)
-        property var activeWorkspaceWithFullscreen: workspacesForMonitor.filter(workspace => ((workspace.toplevels.values.filter(window => window.wayland?.fullscreen)[0] != undefined) && workspace.active))[0]
+        // Fullscreen state comes from the active WM backend. This keeps the
+        // wallpaper policy working on i3/X11 without constructing Hyprland
+        // workspace objects there.
+        readonly property var monitor: WM.monitorFor(modelData)
+        readonly property bool activeWorkspaceWithFullscreen: WM.fullscreenOnMonitor(monitor?.name)
         visible: true
 
         readonly property bool hiddenForFullscreen: !GlobalStates.screenLocked
-            && (activeWorkspaceWithFullscreen != undefined)
+            && activeWorkspaceWithFullscreen
             && Config?.options.background.hideWhenFullscreen
-
-        property HyprlandMonitor monitor: Hyprland.monitorFor(modelData)
 
         property string effectiveWallpaperPath: {
             if (GlobalStates.screenLocked && Config.options.background.lockWall !== "")
@@ -160,11 +161,32 @@ Variants {
 
         screen: modelData
         exclusionMode: ExclusionMode.Ignore
-        WlrLayershell.layer: (GlobalStates.screenLocked && !scaleAnim.running) ? WlrLayer.Overlay : WlrLayer.Bottom
-        WlrLayershell.namespace: "quickshell:background"
-        WlrLayershell.keyboardFocus: GlobalStates.desktopWidgetKeyboardFocus
-            ? WlrKeyboardFocus.OnDemand
-            : WlrKeyboardFocus.None
+        // See Bar.qml for why this is gated behind a Wayland-only Loader
+        // instead of setting WlrLayershell.* directly: merely referencing it
+        // forces attachment creation regardless of the value, which hard-fails
+        // under i3/X11 and was taking the whole wallpaper surface down with it.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding {
+                    target: bgRoot.WlrLayershell
+                    property: "layer"
+                    value: (GlobalStates.screenLocked && !scaleAnim.running) ? WlrLayer.Overlay : WlrLayer.Bottom
+                }
+                Binding {
+                    target: bgRoot.WlrLayershell
+                    property: "namespace"
+                    value: "quickshell:background"
+                }
+                Binding {
+                    target: bgRoot.WlrLayershell
+                    property: "keyboardFocus"
+                    value: GlobalStates.desktopWidgetKeyboardFocus
+                        ? WlrKeyboardFocus.OnDemand
+                        : WlrKeyboardFocus.None
+                }
+            }
+        }
         anchors {
             top: true
             bottom: true

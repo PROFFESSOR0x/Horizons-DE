@@ -53,8 +53,15 @@ Scope {
                 property bool mustShow: hoverRegion.containsMouse || superShow
                 exclusionMode: ExclusionMode.Ignore
                 exclusiveZone: (Config?.options.bar.autoHide.enable && (!mustShow || !Config?.options.bar.autoHide.pushWindows)) ? 0 : 24 + (Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0)
-                WlrLayershell.namespace: "quickshell:infostrip"
-                WlrLayershell.layer: WlrLayer.Top
+                // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is
+                // gated behind a Wayland-only Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: barRoot.WlrLayershell; property: "namespace"; value: "quickshell:infostrip" }
+                        Binding { target: barRoot.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                    }
+                }
                 implicitHeight: 24 + Appearance.rounding.screenRounding
                 color: "transparent"
 
@@ -82,13 +89,10 @@ Scope {
                     hoverEnabled: true
                     anchors.fill: parent
 
-                    Item {
+                    AutoHideRevealRegion {
                         id: hoverMaskRegion
-                        anchors {
-                            fill: barContent
-                            topMargin: -Config.options.bar.autoHide.hoverRegionWidth
-                            bottomMargin: -Config.options.bar.autoHide.hoverRegionWidth
-                        }
+                        barItem: barContent
+                        edgeAtEnd: Config.options.bar.bottom
                     }
 
                     InfoStripContent {
@@ -100,7 +104,7 @@ Scope {
                             left: parent.left
                             top: parent.top
                             bottom: undefined
-                            topMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -24 : 0
+                            topMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -barContent.height : 0
                         }
                         Behavior on anchors.topMargin {
                             animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
@@ -122,7 +126,7 @@ Scope {
                             PropertyChanges {
                                 target: barContent
                                 anchors.topMargin: 0
-                                anchors.bottomMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -24 : 0
+                                anchors.bottomMargin: (Config?.options.bar.autoHide.enable && !mustShow) ? -barContent.height : 0
                             }
                         }
                     }

@@ -33,6 +33,25 @@ StyledOverlayWidget {
             "history": ResourceUsage.swapUsageHistory,
             "maxAvailableString": ResourceUsage.maxAvailableSwapString
         },
+        // Hidden on hardware/drivers that don't expose a GPU reading at all
+        // (ResourceUsage.gpuAvailable) rather than showing a misleading
+        // permanent "0%" tab. Reactive: this whole array re-evaluates
+        // whenever gpuAvailable flips, since it's read inside this binding.
+        ...(ResourceUsage.gpuAvailable ? [{
+            "icon": "developer_board",
+            "name": Translation.tr("GPU"),
+            "history": ResourceUsage.gpuUsageHistory,
+            "maxAvailableString": Math.round(ResourceUsage.gpuTemp) + "°C"
+        }] : []),
+        // Was already tracked by ResourceUsage (diskUsageHistory /
+        // maxAvailableDiskString) but never actually surfaced in this
+        // overlay - added alongside GPU rather than leaving that gap.
+        {
+            "icon": "hard_drive",
+            "name": Translation.tr("Disk"),
+            "history": ResourceUsage.diskUsageHistory,
+            "maxAvailableString": ResourceUsage.maxAvailableDiskString
+        },
     ]
 
     contentItem: OverlayBackground {

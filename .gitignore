@@ -5,3 +5,7 @@
 # logs
 *.log
 __pycache__/
+
+# diagnostic dumps pulled from a live machine for crash triage (D-Bus/GnuPG/
+# PipeWire sockets, Discord IPC, notification history, etc. - never commit)
+/logs/

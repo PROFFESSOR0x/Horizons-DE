@@ -50,17 +50,23 @@ RowLayout {
 
     Flow {
         id: buttonsFlow
-        // Deliberately NOT Layout.fillWidth: competing with the label's own
-        // fillWidth left the split between them up to however Qt Quick
-        // Layouts happened to resolve two fillWidth siblings that frame,
-        // which could shrink this Flow below what a single row of buttons
-        // needs even while there was still room — wrapping to an extra line
-        // (and inflating the GroupedList row's height inconsistently between
-        // otherwise-identical rows) or visually colliding with the label.
-        // Sizing to its own natural (unwrapped) width instead means it only
-        // ever wraps when the row is genuinely too narrow to fit it, and the
-        // label (which does keep fillWidth + elide) is always the side that
-        // absorbs the squeeze.
+        // Needs Layout.fillWidth (and an explicit Layout.minimumWidth low
+        // enough to actually be reached): a Flow's own `width` only gets set
+        // by the layout when it's a fillWidth item, and Flow only wraps
+        // children once its `width` is narrower than one unbroken row needs.
+        // Without fillWidth here (the previous fix for label/button overlap
+        // at squeeze widths), this Flow always reported its full unwrapped
+        // width as non-negotiable, so RowLayout could never shrink it —
+        // with enough options (the 11 blur variants, the 5 performance
+        // profiles, …) that width regularly exceeds the settings window,
+        // and the row spills out past the window edge instead of wrapping.
+        // GroupedList's own minRowHeight/extraPadFor (see GroupedList.qml)
+        // already normalizes every row's background-pill height regardless
+        // of how many lines a wrapped Flow ends up needing, so restoring
+        // fillWidth here no longer reintroduces the inconsistent-row-height
+        // symptom that motivated removing it in the first place.
+        Layout.fillWidth: true
+        Layout.minimumWidth: 0
         Layout.alignment: Qt.AlignRight
         spacing: 2
 

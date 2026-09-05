@@ -27,6 +27,10 @@
 #   -v, --verbose           Verbose output
 #       --dry-run           Show what would be done, don't execute
 #       --profile <name>    minimal | core (default) | full | ultra
+#       --wm <name>         Required on a new install: hyprland | i3
+#       --protocol <name>   Wayland | X11 (validated against --wm)
+#       --desktop <name>    Required on a new install: horizons | existing
+#       --fresh-install     Do not convert a repeated `install` invocation to update
 #       --components <csv>  Comma-separated overrides: dots,shell,bundled,build,deps,sysupdate,backup
 #                           Prefix with ^/- /no- to disable: --components no-dots,^bundled
 #       --with-deps         Install dependencies (default: via profile)
@@ -37,8 +41,13 @@
 #       --skip-build        Skip building
 #       --with-bundled      Install bundled extras (Rubik, Gabarito, Bibata, GoogleSans)
 #       --skip-bundled      Skip bundled extras
+#       --launchers <csv>   Optional launchers to install: walker,vicinae (or "none").
+#                           Omit to be asked interactively; Fuzzel + the built-in
+#                           Quickshell launcher need nothing extra either way.
+#       --skip-launchers    Don't offer/install optional launchers at all
 #       --with-backup       Backup existing configs (default)
 #       --skip-backup       Skip backup
+#       --existing-config <action>  ask | keep | backup | delete detected non-Horizons configs
 #       --with-fontset <set> Use dotfiles fontset
 #       --via-nix           Use Nix/Home-manager for deps (experimental)
 #       --build-force       Force rebuild even if binaries exist
@@ -81,6 +90,8 @@ if [[ -f "$REPO_ROOT/install/lib/state.sh" ]]; then source "$REPO_ROOT/install/l
 if [[ -f "$REPO_ROOT/install/lib/profiles.sh" ]]; then source "$REPO_ROOT/install/lib/profiles.sh"; fi
 # shellcheck source=install/lib/build.sh
 if [[ -f "$REPO_ROOT/install/lib/build.sh" ]]; then source "$REPO_ROOT/install/lib/build.sh"; fi
+# shellcheck source=install/lib/requirements.sh
+if [[ -f "$REPO_ROOT/install/lib/requirements.sh" ]]; then source "$REPO_ROOT/install/lib/requirements.sh"; fi
 # shellcheck source=install/lib/update.sh
 if [[ -f "$REPO_ROOT/install/lib/update.sh" ]]; then source "$REPO_ROOT/install/lib/update.sh"; fi
 
@@ -112,6 +123,22 @@ DO_DEPS=true
 DO_BACKUP=true
 BUILD_FORCE=false
 
+# Optional launchers (Walker, Vicinae) — see install_launchers() below.
+# Fuzzel is already a hard dependency and the built-in Quickshell launcher
+# needs no package, so this is only ever about the two external ones.
+DO_LAUNCHERS=true
+LAUNCHERS_CSV=""
+
+# Installation target. Hyprland is a Wayland compositor; i3 is an X11 window
+# manager. These are deliberately stored independently from the profile.
+HORIZONS_PROTOCOL=""
+HORIZONS_WINDOW_MANAGER=""
+HORIZONS_DESKTOP_ENVIRONMENT=""
+HORIZONS_PROTOCOL_CLI=false
+HORIZONS_WINDOW_MANAGER_CLI=false
+HORIZONS_DESKTOP_ENVIRONMENT_CLI=false
+FRESH_INSTALL=false
+
 # Legacy compat flags (mapped later)
 SKIP_DEPS=false
 SKIP_DOTS=false
@@ -128,6 +155,7 @@ SHOW_PROFILES=false
 # Language (en / ar) — chosen at start of installer
 HORIZONS_LANG="en"
 HORIZONS_LANG_CLI=""
+EXISTING_CONFIG_ACTION="ask" # ask | keep | backup | delete
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 println(){ [[ "$QUIET" == false ]] && printf "%b\n" "$*"; true; }
@@ -232,6 +260,10 @@ while [[ $# -gt 0 ]]; do
     -v|--verbose) VERBOSE=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
     --profile) HORIZONS_PROFILE="$2"; shift 2 ;;
+    --wm|--window-manager) HORIZONS_WINDOW_MANAGER="${2,,}"; HORIZONS_WINDOW_MANAGER_CLI=true; shift 2 ;;
+    --protocol|--display-protocol) HORIZONS_PROTOCOL="${2,,}"; HORIZONS_PROTOCOL_CLI=true; shift 2 ;;
+    --desktop|--desktop-environment) HORIZONS_DESKTOP_ENVIRONMENT="${2,,}"; HORIZONS_DESKTOP_ENVIRONMENT_CLI=true; shift 2 ;;
+    --fresh-install) FRESH_INSTALL=true; shift ;;
     --components) COMPONENTS_CSV="$2"; shift 2 ;;
     --with-deps) DO_DEPS=true; SKIP_DEPS=false; shift ;;
     --skip-deps) DO_DEPS=false; SKIP_DEPS=true; shift ;;
@@ -243,8 +275,11 @@ while [[ $# -gt 0 ]]; do
     --build-force) BUILD_FORCE=true; DO_BUILD=true; shift ;;
     --with-bundled|--with-extra) DO_BUNDLED=true; shift ;;
     --skip-bundled|--skip-extra) DO_BUNDLED=false; shift ;;
+    --launchers) LAUNCHERS_CSV="${2,,}"; DO_LAUNCHERS=true; shift 2 ;;
+    --skip-launchers) DO_LAUNCHERS=false; shift ;;
     --with-backup) DO_BACKUP=true; SKIP_BACKUP=false; shift ;;
     --skip-backup) DO_BACKUP=false; SKIP_BACKUP=true; shift ;;
+    --existing-config) EXISTING_CONFIG_ACTION="${2,,}"; shift 2 ;;
     --skip-dots) SKIP_DOTS=true; shift ;;
     --skip-qs|--skip-quickshell) SKIP_QS=true; shift ;;
     --with-fontset|--fontset) FONTSET_DIR_NAME="$2"; shift 2 ;;
@@ -260,10 +295,113 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+case "$EXISTING_CONFIG_ACTION" in
+  ask|keep|backup|delete) ;;
+  *) echo -e "${R}Invalid --existing-config value: $EXISTING_CONFIG_ACTION (use ask, keep, backup, delete)${RST}"; exit 1 ;;
+esac
+
 if [[ "$SHOW_PROFILES" == true ]]; then
     if declare -f horizons_profile_list &>/dev/null; then horizons_profile_list; else echo "minimal core full ultra"; fi
     exit 0
 fi
+
+# ── Installation target / session selection ──────────────────────────────────
+# i3 and Hyprland are window managers, not desktop environments. `desktop`
+# describes whether Horizons manages the surrounding dotfiles or is installed
+# as a shell on top of an existing desktop setup.
+horizons_target_for_wm(){
+  case "$HORIZONS_WINDOW_MANAGER" in
+    hyprland) HORIZONS_PROTOCOL="wayland" ;;
+    i3)       HORIZONS_PROTOCOL="x11" ;;
+    *) return 1 ;;
+  esac
+}
+
+horizons_validate_target(){
+  case "$HORIZONS_WINDOW_MANAGER:$HORIZONS_PROTOCOL" in
+    hyprland:wayland|i3:x11) ;;
+    hyprland:x11)
+      die "Hyprland is Wayland-only; Hyprland/X11 is not a valid target." ;;
+    i3:wayland)
+      die "i3 is X11-only; use Sway for an i3-like Wayland session (not supported by this installer yet)." ;;
+    *) die "Unsupported installation target: protocol='$HORIZONS_PROTOCOL', wm='$HORIZONS_WINDOW_MANAGER'." ;;
+  esac
+  case "$HORIZONS_DESKTOP_ENVIRONMENT" in
+    horizons|existing) ;;
+    *) die "Unsupported desktop mode '$HORIZONS_DESKTOP_ENVIRONMENT' (use horizons or existing)." ;;
+  esac
+}
+
+horizons_load_saved_target(){
+  declare -f horizons_state_is_installed &>/dev/null || return 1
+  horizons_state_is_installed || return 1
+  local saved_protocol saved_wm saved_desktop
+  saved_protocol=$(horizons_state_get display_protocol 2>/dev/null || true)
+  saved_wm=$(horizons_state_get window_manager 2>/dev/null || true)
+  saved_desktop=$(horizons_state_get desktop_environment 2>/dev/null || true)
+  [[ -n "$saved_protocol" && -n "$saved_wm" && -n "$saved_desktop" ]] || return 1
+  [[ "$HORIZONS_PROTOCOL_CLI" == true ]] || HORIZONS_PROTOCOL="$saved_protocol"
+  [[ "$HORIZONS_WINDOW_MANAGER_CLI" == true ]] || HORIZONS_WINDOW_MANAGER="$saved_wm"
+  [[ "$HORIZONS_DESKTOP_ENVIRONMENT_CLI" == true ]] || HORIZONS_DESKTOP_ENVIRONMENT="$saved_desktop"
+  return 0
+}
+
+horizons_infer_legacy_target(){
+  if [[ -f "$XDG_CONFIG_HOME/hypr/hyprland/variables.lua" ]] || command -v hyprctl &>/dev/null; then
+    HORIZONS_WINDOW_MANAGER="hyprland"
+    HORIZONS_PROTOCOL="wayland"
+    HORIZONS_DESKTOP_ENVIRONMENT="horizons"
+    return 0
+  fi
+  if [[ -f "$XDG_CONFIG_HOME/i3/config" ]] || command -v i3-msg &>/dev/null; then
+    HORIZONS_WINDOW_MANAGER="i3"
+    HORIZONS_PROTOCOL="x11"
+    HORIZONS_DESKTOP_ENVIRONMENT="existing"
+    return 0
+  fi
+  return 1
+}
+
+horizons_choose_target(){
+  if horizons_load_saved_target; then
+    info "$(L "Using the saved installation target" "استخدام هدف التثبيت المحفوظ"): $HORIZONS_PROTOCOL / $HORIZONS_WINDOW_MANAGER / $HORIZONS_DESKTOP_ENVIRONMENT"
+  elif [[ "$HORIZONS_WINDOW_MANAGER_CLI" == true || "$HORIZONS_PROTOCOL_CLI" == true || "$HORIZONS_DESKTOP_ENVIRONMENT_CLI" == true ]]; then
+    [[ -n "$HORIZONS_WINDOW_MANAGER" ]] || die "--protocol requires --wm on a new install."
+    [[ -n "$HORIZONS_DESKTOP_ENVIRONMENT" ]] || die "--desktop is required on a new install."
+    if [[ "$HORIZONS_PROTOCOL_CLI" == false ]]; then horizons_target_for_wm || die "Unknown window manager '$HORIZONS_WINDOW_MANAGER'."; fi
+  elif [[ "$ASK" == false ]]; then
+    horizons_infer_legacy_target || die "A new non-interactive install requires --wm and --desktop."
+    warn "Inferred legacy target: $HORIZONS_PROTOCOL / $HORIZONS_WINDOW_MANAGER / $HORIZONS_DESKTOP_ENVIRONMENT"
+  else
+    printf "\n  ${B}${BD}$(L "Choose the window-manager target" "اختر هدف مدير النوافذ"):${RST}\n"
+    printf "    ${G}1)${RST} Hyprland  $(L "(Wayland)" "(Wayland)")\n"
+    printf "    ${G}2)${RST} i3        $(L "(X11)" "(X11)")\n"
+    printf "  ${B}> ${RST}"; read -r target_choice || target_choice=""
+    case "$target_choice" in
+      1|hyprland|Hyprland) HORIZONS_WINDOW_MANAGER="hyprland" ;;
+      2|i3|I3) HORIZONS_WINDOW_MANAGER="i3" ;;
+      *) die "A window-manager target is required." ;;
+    esac
+    horizons_target_for_wm
+    printf "\n  ${B}${BD}$(L "Choose the desktop integration mode" "اختر نمط تكامل سطح المكتب"):${RST}\n"
+    printf "    ${G}1)${RST} $(L "Horizons-managed desktop (includes compatible dotfiles)" "سطح مكتب Horizons المُدار (يشمل ملفات الإعداد المتوافقة)")\n"
+    printf "    ${G}2)${RST} $(L "Existing desktop (shell integration only)" "سطح مكتب قائم (تكامل الواجهة فقط)")\n"
+    printf "  ${B}> ${RST}"; read -r desktop_choice || desktop_choice=""
+    case "$desktop_choice" in
+      1|horizons) HORIZONS_DESKTOP_ENVIRONMENT="horizons" ;;
+      2|existing) HORIZONS_DESKTOP_ENVIRONMENT="existing" ;;
+      *) die "A desktop integration mode is required." ;;
+    esac
+  fi
+
+  horizons_validate_target
+  # The bundled dots are Hyprland-only. An i3 or existing-DE install never
+  # receives them, even if a broad profile was selected.
+  if [[ "$HORIZONS_WINDOW_MANAGER" == "i3" || "$HORIZONS_DESKTOP_ENVIRONMENT" == "existing" ]]; then
+    DO_DOTS=false
+  fi
+  export HORIZONS_PROTOCOL HORIZONS_WINDOW_MANAGER HORIZONS_DESKTOP_ENVIRONMENT
+}
 
 # ── Resolve profile → flags, then apply granular overrides ───────────────────
 if declare -f horizons_profile_resolve &>/dev/null; then
@@ -292,6 +430,19 @@ if declare -f horizons_profile_resolve &>/dev/null; then
     # Instead, respect that --with-build/--with-bundled mean true regardless of profile, if they were on CLI.
     # We do this by checking if original invokation contained those strings via $*? Not reliable. So we just keep profile + components.
     # For now, allow manual override via env: if user wants full control, use --components.
+fi
+
+if [[ "$COMMAND" == "install" || "$COMMAND" == "update" || "$COMMAND" == "build" ]]; then
+    horizons_choose_target
+fi
+
+# A repeated plain `./installer.sh` is an update, not a second install. The
+# saved target is loaded above and update_apply sets HORIZONS_REAPPLY=1 to
+# enter the pipeline exactly once after pulling.
+if [[ "$COMMAND" == "install" && "$FRESH_INSTALL" == false && "${HORIZONS_REAPPLY:-0}" != "1" ]] \
+    && declare -f horizons_state_is_installed &>/dev/null && horizons_state_is_installed; then
+    COMMAND="update"
+    info "$(L "Existing Horizons installation detected; switching to update mode." "تم العثور على تثبيت Horizons قائم؛ التحويل إلى وضع التحديث.")"
 fi
 
 # Legacy mapping for dotfiles/setup compatibility
@@ -418,6 +569,12 @@ is_pkg_installed(){
 
 # Are all horizons meta deps already installed? (arch only — other distros fallback to binary check)
 are_horizons_deps_installed(){
+  # The i3/existing-desktop targets do not use the Hyprland meta packages.
+  # Their complete requirement set is the lightweight target-aware bootstrap.
+  if [[ "${HORIZONS_WINDOW_MANAGER:-hyprland}" != "hyprland" || "${DO_DOTS:-true}" != true ]]; then
+    declare -f horizons_target_requirements_installed >/dev/null 2>&1 && horizons_target_requirements_installed
+    return $?
+  fi
   if [[ "${PKG_GROUP:-unknown}" != "arch" ]]; then
     # Fallback: check core binaries exist
     command -v quickshell &>/dev/null || command -v qs &>/dev/null || return 1
@@ -525,6 +682,105 @@ is_horizons_shell(){
   return 1
 }
 
+# ── Existing desktop configuration inventory ─────────────────────────────────
+# Only known, explicit paths are ever offered here. This deliberately does not
+# scan arbitrary dotfiles or remove a parent directory such as ~/.config.
+detect_existing_desktop_configs(){
+  EXISTING_CONFIG_LABELS=()
+  EXISTING_CONFIG_PATHS=()
+  local label path
+  local -a candidates=(
+    "Hyprland:$XDG_CONFIG_HOME/hypr"
+    "legacy Hyprland:$XDG_CONFIG_HOME/hyprland"
+    "i3:$XDG_CONFIG_HOME/i3"
+    "i3status:$XDG_CONFIG_HOME/i3status"
+    "Quickshell:$XDG_CONFIG_HOME/quickshell"
+    "AGS:$XDG_CONFIG_HOME/ags"
+    "Waybar:$XDG_CONFIG_HOME/waybar"
+    "Polybar:$XDG_CONFIG_HOME/polybar"
+    "Eww:$XDG_CONFIG_HOME/eww"
+    "Kitty:$XDG_CONFIG_HOME/kitty"
+    "Fish:$XDG_CONFIG_HOME/fish"
+  )
+  for item in "${candidates[@]}"; do
+    label="${item%%:*}"; path="${item#*:}"
+    [[ -e "$path" ]] || continue
+    # Horizons' own separate shell directory is not an external config.
+    [[ "$path" == "$QS_CONFIG_DIR" ]] && continue
+    # Do not offer the parent QuickShell directory when it contains only the
+    # Horizons profile we are installing/updating.
+    if [[ "$path" == "$XDG_CONFIG_HOME/quickshell" && -d "$QS_CONFIG_DIR" ]]; then
+      local child_count
+      child_count=$(find "$path" -mindepth 1 -maxdepth 1 -printf '.' 2>/dev/null | wc -c)
+      [[ "$child_count" -le 1 ]] && continue
+    fi
+    EXISTING_CONFIG_LABELS+=("$label")
+    EXISTING_CONFIG_PATHS+=("$path")
+  done
+}
+
+handle_existing_desktop_configs(){
+  detect_existing_desktop_configs
+  (( ${#EXISTING_CONFIG_PATHS[@]} > 0 )) || { info "No existing Hyprland/i3 shell or dotfile configs detected."; return 0; }
+
+  step "Detected existing shells and dotfiles"
+  local i
+  for i in "${!EXISTING_CONFIG_PATHS[@]}"; do
+    printf "  ${Y}•${RST} %-18s %s\n" "${EXISTING_CONFIG_LABELS[$i]}" "${EXISTING_CONFIG_PATHS[$i]}"
+  done
+
+  local action="$EXISTING_CONFIG_ACTION"
+  if [[ "$action" == ask ]]; then
+    if [[ "$ASK" == false ]]; then
+      action=keep
+      info "Non-interactive mode keeps detected configs by default. Use --existing-config backup or delete to choose explicitly."
+    else
+      printf "\n  ${B}Choose how to handle the detected configurations:${RST}\n"
+      printf "    ${G}1)${RST} Keep them unchanged (default)\n"
+      printf "    ${G}2)${RST} Create a backup copy\n"
+      printf "    ${G}3)${RST} Delete them permanently\n"
+      printf "  ${B}> ${RST}"; read -r config_choice || config_choice="1"
+      case "$config_choice" in
+        2|backup) action=backup ;;
+        3|delete) action=delete ;;
+        *) action=keep ;;
+      esac
+    fi
+  fi
+
+  case "$action" in
+    keep)
+      info "Keeping all detected configurations unchanged."
+      return 0 ;;
+    backup)
+      local inventory_backup="$XDG_STATE_HOME/horizons/existing-config-backups/$(date +%Y%m%d-%H%M%S)"
+      if [[ "$DRY_RUN" == true ]]; then
+        info "[dry-run] would back up detected configs to $inventory_backup"
+        return 0
+      fi
+      run mkdir -p "$inventory_backup"
+      for i in "${!EXISTING_CONFIG_PATHS[@]}"; do
+        run cp -a "${EXISTING_CONFIG_PATHS[$i]}" "$inventory_backup/${EXISTING_CONFIG_LABELS[$i]// /_}"
+      done
+      ok "Existing configuration backup saved to: $inventory_backup"
+      return 0 ;;
+    delete)
+      warn "This permanently deletes only the listed configuration paths. It never deletes ~/.config itself."
+      if [[ "$ASK" == false ]]; then
+        die "Refusing non-interactive deletion. Re-run interactively and confirm the exact deletion."
+      fi
+      printf "  Type DELETE to remove all %d detected paths: " "${#EXISTING_CONFIG_PATHS[@]}"
+      local confirmation=""; read -r confirmation || true
+      [[ "$confirmation" == DELETE ]] || { info "Deletion cancelled; all configurations were kept."; return 0; }
+      [[ "$DRY_RUN" == true ]] && { info "[dry-run] would delete only the listed paths."; return 0; }
+      for i in "${!EXISTING_CONFIG_PATHS[@]}"; do
+        run rm -rf -- "${EXISTING_CONFIG_PATHS[$i]}"
+      done
+      ok "Detected configurations deleted."
+      return 0 ;;
+  esac
+}
+
 # ── Requirement checks ────────────────────────────────────────────────────────
 check_requirements(){
   step "Pre-flight checks (ذكي — يتفادى المثبت بالفعل)"
@@ -548,8 +804,10 @@ check_requirements(){
   _chk "curl"              "command -v curl"
   _chk "sudo"              "command -v sudo"
   _chk "quickshell (qs)"  "command -v qs || command -v quickshell"
-  _chk "hyprctl"          "command -v hyprctl"
-  _chk "Hyprland running" "hyprctl version"
+  case "$HORIZONS_WINDOW_MANAGER" in
+    hyprland) _chk "hyprctl" "command -v hyprctl" ;;
+    i3)       _chk "i3-msg" "command -v i3-msg" ;;
+  esac
   _chk "dotfiles/ present" "[[ -d '$DOTS_REPO' ]]"
   if [[ "$DO_BUILD" == true ]]; then
       _chk "make"           "command -v make"
@@ -576,8 +834,8 @@ check_requirements(){
     fi
   fi
 
-  # ── Dotfiles/hypr detection ───────────────────────────────────────────────
-  if [[ -d "$XDG_CONFIG_HOME/hypr" ]]; then
+  # ── Dotfiles/Hyprland detection (only meaningful for the Hyprland target) ─
+  if [[ "$HORIZONS_WINDOW_MANAGER" == "hyprland" && -d "$XDG_CONFIG_HOME/hypr" ]]; then
     if is_horizons_hypr; then
       printf "  ${G}✔ hypr config is already Horizons${RST}\n"
       if ! dotfiles_need_update; then
@@ -589,7 +847,7 @@ check_requirements(){
       printf "  ${Y}${BD}⚠ hypr config found BUT NOT from Horizons (qsConfig ≠ horizons)${RST}\n"
       printf "  ${Y}  → Will be REPLACED (backed up to $BACKUP_DIR)${RST}\n"
     fi
-  else
+  elif [[ "$HORIZONS_WINDOW_MANAGER" == "hyprland" ]]; then
     printf "  ${DM}○ No hypr config yet — fresh install${RST}\n"
   fi
 
@@ -657,6 +915,213 @@ migrate_legacy_configs(){
   fi
   [[ "$did_anything" == false ]] && info "No legacy config found (or already migrated)." || true
   return 0
+}
+
+# ── Remove a previously-installed hyprglass ──────────────────────────────────
+# hyprglass (the vendored shell/plugins/hyprglass Hyprland plugin) was removed
+# from this repo in favor of Hyprland's own native decoration:blur:variant.
+# A plain re-sync of shell/ (install_qs's rsync --delete) already removes the
+# deployed plugin .so from $QS_CONFIG_DIR, but that step can be skipped on an
+# "already up to date" update, and several other hyprglass traces live
+# outside anything install_qs touches at all: a plugin actually loaded into a
+# *running* Hyprland, one added via `hyprpm`, and the generated
+# shellOverrides/hyprglass.lua. Runs unconditionally and idempotently (a
+# clean install just no-ops silently) so it always fires on install *and*
+# update, not just for users who remember to ask for it.
+cleanup_hyprglass(){
+  step "$(L "Remove any previously-installed hyprglass" "إزالة أي نسخة مثبتة مسبقاً من hyprglass")"
+  local found=false
+
+  # Unload from a *running* Hyprland first — files can be deleted safely
+  # regardless, but the compositor keeps a crashy plugin mapped into its own
+  # process until it's told to unload (or Hyprland itself restarts).
+  if command -v hyprctl &>/dev/null && hyprctl -j plugin list &>/dev/null; then
+    local loaded_paths
+    loaded_paths=$(hyprctl -j plugin list 2>/dev/null | grep -oP '"path"\s*:\s*"\K[^"]*hyprglass[^"]*' || true)
+    if [[ -n "$loaded_paths" ]]; then
+      while IFS= read -r p; do
+        [[ -n "$p" ]] || continue
+        warn "Unloading hyprglass from the running Hyprland: $p"
+        run hyprctl plugin unload "$p"
+        found=true
+      done <<< "$loaded_paths"
+    fi
+  fi
+
+  # hyprpm-managed install (the old README suggested `hyprpm add .../hyprglass`
+  # as an alternative to the bundled build — not something install_qs touches).
+  if command -v hyprpm &>/dev/null && hyprpm list 2>/dev/null | grep -qi hyprglass; then
+    warn "Found hyprglass installed via hyprpm — removing."
+    run hyprpm remove hyprglass
+    found=true
+  fi
+
+  # Deployed files nothing else would clean up on a skipped/partial sync.
+  local stale_paths=(
+    "$QS_CONFIG_DIR/plugins/hyprglass"
+    "$XDG_CONFIG_HOME/hypr/hyprland/shellOverrides/hyprglass.lua"
+  )
+  local p
+  for p in "${stale_paths[@]}"; do
+    if [[ -e "$p" ]]; then
+      warn "Removing stale hyprglass file: $p"
+      run rm -rf "$p"
+      found=true
+    fi
+  done
+
+  # A stray classic-syntax hyprland.conf whose only job was loading the
+  # plugin (`plugin = /path/to/hyprglass.so`) — harmless to Hyprland's own
+  # config resolution either way, but pure clutter now, and worth clearing
+  # out rather than leaving a dead reference to a file we just deleted.
+  local legacy_conf="$XDG_CONFIG_HOME/hypr/hyprland.conf"
+  if [[ -f "$legacy_conf" ]] && grep -qi hyprglass "$legacy_conf" 2>/dev/null; then
+    warn "Found a legacy hyprland.conf referencing hyprglass: $legacy_conf"
+    if [[ "$DRY_RUN" == true ]]; then
+      info "[dry-run] would strip hyprglass line(s) from $legacy_conf (removing the file entirely if that's all it contained)"
+    else
+      sed -i '/hyprglass/Id' "$legacy_conf" 2>/dev/null || true
+      if [[ ! -s "$legacy_conf" ]]; then
+        rm -f "$legacy_conf"
+        ok "Removed now-empty legacy $legacy_conf"
+      else
+        ok "Stripped hyprglass reference(s) from $legacy_conf"
+      fi
+    fi
+    found=true
+  fi
+
+  if [[ "$found" == true ]]; then
+    if command -v hyprctl &>/dev/null && hyprctl version &>/dev/null 2>&1; then
+      run hyprctl reload
+    fi
+    ok "hyprglass cleaned up."
+  else
+    info "No installed hyprglass found — nothing to remove."
+  fi
+  return 0
+}
+
+# ── Optional launchers (Walker, Vicinae) ──────────────────────────────────────
+# Settings > Services > Search > Launcher (ServicesConfig.qml) lets the user
+# pick among the built-in Quickshell launcher, Walker, Vicinae, and Fuzzel —
+# but only Fuzzel ships as a hard dependency (illogical-impulse-widgets) and
+# the built-in one needs nothing extra. This step installs whichever of the
+# two *external* launchers the user actually wants, so picking them in
+# Settings isn't a dead end. Never edits config.json itself (a running
+# Quickshell owns that file); it just makes the binaries available and tells
+# the user to flip the Settings switch afterward.
+install_launchers(){
+  step "$(L "Optional launchers (Walker / Vicinae)" "أدوات تشغيل اختيارية (Walker / Vicinae)")"
+  info "$(L "Fuzzel is already installed as a core dependency, and the built-in Quickshell launcher needs nothing extra — this only installs the two external options." "Fuzzel مثبت مسبقاً كاعتماد أساسي، ومشغّل Quickshell المدمج لا يحتاج شيئاً إضافياً — هذه الخطوة تثبّت فقط الخيارين الخارجيين.")"
+
+  local selection="$LAUNCHERS_CSV"
+  if [[ -z "$selection" ]]; then
+    if [[ "$ASK" == false ]]; then
+      info "$(L "No --launchers selection in non-interactive mode; skipping (use --launchers walker,vicinae or --launchers none)." "لا يوجد اختيار --launchers في الوضع غير التفاعلي؛ سيتم التخطي (استخدم --launchers walker,vicinae أو --launchers none).")"
+      return 0
+    fi
+    local picks=()
+    confirm "$(L "Install Walker (+ its Elephant search backend)?" "تثبيت Walker (+ محرك البحث Elephant الخاص به)؟")" "n" && picks+=("walker")
+    confirm "$(L "Install Vicinae?" "تثبيت Vicinae؟")" "n" && picks+=("vicinae")
+    if [[ ${#picks[@]} -eq 0 ]]; then
+      info "$(L "No external launcher selected — keeping the built-in Quickshell launcher / Fuzzel." "لم يتم اختيار أداة تشغيل خارجية — سيتم الإبقاء على مشغّل Quickshell المدمج / Fuzzel.")"
+      return 0
+    fi
+    selection=$(IFS=,; echo "${picks[*]}")
+  fi
+
+  if [[ "$selection" == "none" ]]; then
+    info "$(L "Skipping external launchers (--launchers none)." "تخطي أدوات التشغيل الخارجية (--launchers none).")"
+    return 0
+  fi
+
+  local installed_any=false item
+  local old_ifs="$IFS"; IFS=','
+  for item in $selection; do
+    IFS="$old_ifs"
+    item="${item//[[:space:]]/}"
+    case "$item" in
+      walker)  install_launcher_walker  && installed_any=true ;;
+      vicinae) install_launcher_vicinae && installed_any=true ;;
+      fuzzel|quickshell|"") : ;; # already available, nothing to do
+      *) warn "$(L "Unknown launcher '$item' (expected: walker, vicinae, none)" "أداة تشغيل غير معروفة '$item' (المتوقع: walker أو vicinae أو none)")" ;;
+    esac
+    IFS=','
+  done
+  IFS="$old_ifs"
+
+  if [[ "$installed_any" == true ]]; then
+    ok "$(L "Launcher(s) installed. Pick one in Settings > Services > Search > Launcher to switch to it." "تم التثبيت. اختر أداة التشغيل من الإعدادات > الخدمات > البحث > أداة التشغيل لتفعيلها.")"
+  fi
+  return 0
+}
+
+# Walker (github.com/abenz1267/walker) needs its companion Elephant backend
+# daemon (github.com/abenz1267/elephant) running for search results.
+install_launcher_walker(){
+  step "$(L "Installing Walker" "تثبيت Walker")"
+  if [[ "${PKG_GROUP:-unknown}" != arch ]]; then
+    warn "$(L "Walker is only packaged for Arch/AUR right now — install it manually: https://github.com/abenz1267/walker" "Walker متوفر حالياً فقط عبر AUR على Arch — ثبّته يدوياً: https://github.com/abenz1267/walker")"
+    return 1
+  fi
+  if ! command -v yay &>/dev/null && ! command -v paru &>/dev/null; then
+    warn "$(L "No AUR helper (yay/paru) found — install one, then re-run with --launchers walker." "لم يتم العثور على أداة AUR (yay/paru) — ثبّت واحدة ثم أعد التشغيل مع --launchers walker.")"
+    return 1
+  fi
+
+  local all_ok=true
+  if ! command -v walker &>/dev/null; then
+    hz_install_aur_package Walker walker-bin || hz_install_aur_package Walker walker \
+      || { warn "$(L "Could not install Walker from the AUR." "تعذر تثبيت Walker من AUR.")"; all_ok=false; }
+  else
+    info "$(L "Walker is already installed." "Walker مثبت بالفعل.")"
+  fi
+
+  if ! command -v elephant &>/dev/null; then
+    hz_install_aur_package Elephant elephant-bin || hz_install_aur_package Elephant elephant \
+      || { warn "$(L "Could not install Elephant (Walker's search backend) from the AUR." "تعذر تثبيت Elephant (محرك بحث Walker) من AUR.")"; all_ok=false; }
+  else
+    info "$(L "Elephant is already installed." "Elephant مثبت بالفعل.")"
+  fi
+
+  # Elephant's own README explicitly warns against a system-level systemd
+  # service (it loses the user's session environment) — its CLI manages the
+  # correct user-scope unit (~/.config/systemd/user/elephant.service) for us.
+  if command -v elephant &>/dev/null; then
+    run elephant service enable
+  fi
+
+  [[ "$all_ok" == true ]] && command -v walker &>/dev/null
+}
+
+# Vicinae (github.com/vicinaehq/vicinae) ships its own systemd --user unit
+# (vicinae.service) inside the package itself — enabling it is all that's
+# needed to start vicinae-server in the background.
+install_launcher_vicinae(){
+  step "$(L "Installing Vicinae" "تثبيت Vicinae")"
+  if [[ "${PKG_GROUP:-unknown}" != arch ]]; then
+    warn "$(L "Vicinae isn't packaged for this distro yet — install it manually: https://docs.vicinae.com" "Vicinae غير متوفر كحزمة لهذا التوزيع بعد — ثبّته يدوياً: https://docs.vicinae.com")"
+    return 1
+  fi
+  if ! command -v yay &>/dev/null && ! command -v paru &>/dev/null; then
+    warn "$(L "No AUR helper (yay/paru) found — install one, then re-run with --launchers vicinae." "لم يتم العثور على أداة AUR (yay/paru) — ثبّت واحدة ثم أعد التشغيل مع --launchers vicinae.")"
+    return 1
+  fi
+
+  if ! command -v vicinae &>/dev/null; then
+    hz_install_aur_package Vicinae vicinae-bin || hz_install_aur_package Vicinae vicinae \
+      || { warn "$(L "Could not install Vicinae from the AUR." "تعذر تثبيت Vicinae من AUR.")"; return 1; }
+  else
+    info "$(L "Vicinae is already installed." "Vicinae مثبت بالفعل.")"
+  fi
+
+  if command -v systemctl &>/dev/null; then
+    run systemctl --user daemon-reload
+    run systemctl --user enable --now vicinae.service
+  fi
+
+  command -v vicinae &>/dev/null
 }
 
 # ── Backup ────────────────────────────────────────────────────────────────────
@@ -886,6 +1351,7 @@ install_qs(){
 
 # ── Configure Hyprland ────────────────────────────────────────────────────────
 configure_hyprland(){
+  [[ "$HORIZONS_WINDOW_MANAGER" == "hyprland" ]] || return 0
   step "$(L "Configure Hyprland shell" "إعداد واجهة Hyprland")"
   local vars_file="$XDG_CONFIG_HOME/hypr/hyprland/variables.lua"
   local current_qs="(not detected)"
@@ -921,8 +1387,76 @@ configure_hyprland(){
   fi
 }
 
+# ── Configure i3/X11 integration ────────────────────────────────────────────
+configure_i3(){
+  [[ "$HORIZONS_WINDOW_MANAGER" == "i3" ]] || return 0
+  local i3_config="$XDG_CONFIG_HOME/i3/config"
+  local horizons_i3="$XDG_CONFIG_HOME/i3/horizons.conf"
+  local source_i3="$REPO_ROOT/i3/horizons.conf"
+  # A brand-new i3 install has no config yet until i3-config-wizard runs (or
+  # never gets one at all, e.g. launched non-interactively) - this used to
+  # silently skip integration entirely in that case, so Horizons never got
+  # wired up on a truly fresh i3/X11 machine. Seed one from i3's own
+  # packaged default (same template i3-config-wizard itself offers) instead
+  # of leaving it to chance.
+  if [[ ! -f "$i3_config" ]]; then
+    local i3_default_config=""
+    for candidate in /etc/i3/config /usr/share/i3/config /usr/etc/i3/config; do
+      [[ -f "$candidate" ]] && { i3_default_config="$candidate"; break; }
+    done
+    if [[ -z "$i3_default_config" ]]; then
+      warn "$(L "No i3 config found and no packaged i3 default template either — skipping i3 integration." "لا يوجد ملف إعداد i3 ولا قالب i3 الافتراضي المرفق — تخطي تكامل i3.")"
+      return 0
+    fi
+    info "$(L "No i3 config yet — seeding one from" "لا يوجد إعداد i3 بعد — سيتم إنشاؤه من"): $i3_default_config"
+    if [[ "$DRY_RUN" == true ]]; then
+      info "[dry-run] would create $i3_config from $i3_default_config"
+    else
+      run mkdir -p "$(dirname "$i3_config")"
+      run cp "$i3_default_config" "$i3_config"
+    fi
+  fi
+
+  step "$(L "Configure i3/X11 shell" "إعداد واجهة i3/X11")"
+  if grep -Fq 'include ~/.config/i3/horizons.conf' "$i3_config" 2>/dev/null && [[ -f "$horizons_i3" ]]; then
+    ok "Horizons i3 integration already configured — no changes needed."
+    return 0
+  fi
+
+  printf "\n"
+  printf "  ${B}Horizons detected an i3 configuration:${RST} %s\n" "$i3_config"
+  printf "  ${DM}This adds a separate, reversible include for startup and IPC keybinds.${RST}\n"
+  printf "  ${DM}Existing i3 rules and bindings are left untouched.${RST}\n\n"
+  if ! confirm "$(L "Enable Horizons integration for i3/X11?" "تفعيل تكامل Horizons مع i3/X11؟")" "y"; then
+    info "$(L "Skipping i3 integration." "تخطي تكامل i3.")"
+    return 0
+  fi
+  if [[ "$DRY_RUN" == true ]]; then
+    info "[dry-run] would install $horizons_i3 and add its include to $i3_config"
+    return 0
+  fi
+  if [[ ! -f "$source_i3" ]]; then
+    warn "Horizons i3 template is missing: $source_i3"
+    return 1
+  fi
+  run cp "$i3_config" "${i3_config}.horizons.bak"
+  if [[ -f "$horizons_i3" ]]; then
+    run cp "$horizons_i3" "${horizons_i3}.horizons.bak"
+  fi
+  run cp "$source_i3" "$horizons_i3"
+  if ! grep -Fq 'include ~/.config/i3/horizons.conf' "$i3_config"; then
+    printf "\n# Horizons i3/X11 integration\ninclude ~/.config/i3/horizons.conf\n" >> "$i3_config"
+  fi
+  ok "i3 integration enabled. Backup saved to: ${i3_config}.horizons.bak"
+}
+
 # ── Add settings keybind ──────────────────────────────────────────────────────
 configure_keybind(){
+  # i3 gets its own IPC bindings from i3/horizons.conf. Do not create a
+  # Hyprland configuration directory merely because this installer was run
+  # inside an X11 session.
+  [[ "$HORIZONS_WINDOW_MANAGER" == "hyprland" ]] || return 0
+  [[ -f "$XDG_CONFIG_HOME/hypr/hyprland/variables.lua" ]] || return 0
   step "$(L "Settings keybind" "اختصار الإعدادات")"
   local keybind_line='hl.bind("SUPER + escape", hl.dsp.global("quickshell:settingsToggle"), {description = "Toggle settings"})'
   local custom_dir="$XDG_CONFIG_HOME/hypr/custom"
@@ -949,6 +1483,11 @@ configure_keybind(){
 
 # ── Restart Quickshell ────────────────────────────────────────────────────────
 restart_qs(){
+  local current_session="${XDG_SESSION_TYPE:-}"
+  if [[ "$HORIZONS_PROTOCOL" != "$current_session" ]]; then
+    info "$(L "Not restarting the active session because it does not match the selected target." "لن يتم إعادة تشغيل الجلسة الحالية لأنها لا تطابق الهدف المختار.")"
+    return 0
+  fi
   step "$(L "Restart Quickshell" "إعادة تشغيل Quickshell")"
   if ! confirm "$(L "Restart Quickshell now to apply changes?" "إعادة تشغيل Quickshell الآن لتطبيق التغييرات؟")"; then
     info "$(L "Skipping — restart manually:" "تخطي — أعد التشغيل يدوياً:")"
@@ -966,8 +1505,11 @@ restart_qs(){
     err "quickshell binary not found. Start manually: qs -c horizons"
     return 1
   fi
-  WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}" \
-    "$QS_BIN" -c horizons >/dev/null 2>&1 &
+  if [[ "${XDG_SESSION_TYPE:-}" == "x11" ]]; then
+    DISPLAY="${DISPLAY:-:0}" "$QS_BIN" -c horizons >/dev/null 2>&1 &
+  else
+    WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}" "$QS_BIN" -c horizons >/dev/null 2>&1 &
+  fi
   sleep 2
   if pgrep -x quickshell &>/dev/null || pgrep -x qs &>/dev/null; then
     ok "Quickshell started successfully."
@@ -1093,7 +1635,7 @@ print_summary(){
   printf "  ${C}•  $(L "Run ${IV} ./installer.sh update ${RST}${C} to update" "شغّل ${IV} ./installer.sh update ${RST}${C} للتحديث")${RST}\n"
   printf "  ${C}•  $(L "Log file:" "ملف السجل:") ${UL}%s${RST}\n" "$LOG_FILE"
   printf "\n"
-  printf "  ${DM}${IT}Source: https://github.com/PROFFESSOR0x/end4-pC${RST}\n"
+  printf "  ${DM}${IT}Source: https://github.com/PROFFESSOR0x/Horizons-DE${RST}\n"
   printf "\n"
   printf "${M}$(printf '%0.s─' $(seq 1 60))${RST}\n"
   printf "\n"
@@ -1191,6 +1733,15 @@ if [[ "$ASK" == true && "$FORCE" == false ]]; then
   [[ "$DO_BUILD" == true ]]     && printf "  ${G}✔${RST} $(L "Build quickshell from source" "بناء quickshell من المصدر")\n" || printf "  ${DM}○ $(L "Skip quickshell build" "تخطي بناء quickshell")${RST}\n"
   [[ "$DO_BUNDLED" == true ]]   && printf "  ${G}✔${RST} $(L "Bundled extras (fonts/bibata)" "الإضافات المرفقة (خطوط/bibata)")\n" || printf "  ${DM}○ $(L "Skip bundled" "تخطي الإضافات")${RST}\n"
   [[ "$DO_SHELL" == true ]]     && printf "  ${G}✔${RST} $(L "Horizons Quickshell config" "إعدادات Horizons لـ Quickshell")\n" || printf "  ${DM}○ $(L "Skip shell" "تخطي الواجهة")${RST}\n"
+  if [[ "$DO_LAUNCHERS" == true ]]; then
+    if [[ -n "$LAUNCHERS_CSV" ]]; then
+      printf "  ${G}✔${RST} $(L "Optional launchers:" "أدوات تشغيل اختيارية:") $LAUNCHERS_CSV\n"
+    else
+      printf "  ${G}✔${RST} $(L "Optional launchers (Walker/Vicinae — you'll be asked which)" "أدوات تشغيل اختيارية (Walker/Vicinae — سيتم سؤالك عن أيها)")\n"
+    fi
+  else
+    printf "  ${DM}○ $(L "Skip optional launchers" "تخطي أدوات التشغيل الاختيارية")${RST}\n"
+  fi
   printf "  ${DM}•${RST}  $(L "Configure Hyprland (qsConfig)" "إعداد Hyprland (qsConfig)")\n"
   printf "  ${DM}•${RST}  $(L "Settings keybind" "اختصار الإعدادات")\n"
   printf "  ${DM}•${RST}  $(L "Restart Quickshell" "إعادة تشغيل Quickshell")\n"
@@ -1210,15 +1761,20 @@ fi
 
 # Dynamic steps total based on profile (use +=1 to avoid set -e exit on 0++)
 STEPS_TOTAL=0
+((STEPS_TOTAL+=1)) # existing config inventory
+((STEPS_TOTAL+=1)) # target requirements
 ((STEPS_TOTAL+=1)) # check
 ((STEPS_TOTAL+=1)) # migrate
+((STEPS_TOTAL+=1)) # hyprglass cleanup
 [[ "$DO_BACKUP" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_SYSUPDATE" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_DOTS" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_BUILD" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_BUNDLED" == true ]] && ((STEPS_TOTAL+=1)) || true
 [[ "$DO_SHELL" == true ]] && ((STEPS_TOTAL+=1)) || true
+[[ "$DO_LAUNCHERS" == true ]] && ((STEPS_TOTAL+=1)) || true
 ((STEPS_TOTAL+=1)) # hyprland
+((STEPS_TOTAL+=1)) # i3
 ((STEPS_TOTAL+=1)) # keybind
 ((STEPS_TOTAL+=1)) # restart
 ((STEPS_TOTAL+=1)) # state
@@ -1226,15 +1782,20 @@ STEPS_TOTAL=0
 STEPS_DONE=0
 _done(){ ((STEPS_DONE++)) || true; progress "$STEPS_DONE" "$STEPS_TOTAL" ""; printf "\n"; }
 
+handle_existing_desktop_configs; _done
+install_target_requirements; _done
 check_requirements;      _done
 migrate_legacy_configs;  _done
+cleanup_hyprglass;       _done
 if [[ "$DO_BACKUP" == true ]]; then do_backup; _done; fi
 if [[ "$DO_SYSUPDATE" == true ]]; then do_sysupdate; _done; fi
 if [[ "$DO_DOTS" == true ]]; then install_dots; _done; fi
 if [[ "$DO_BUILD" == true ]]; then build_quickshell_step; _done; fi
 if [[ "$DO_BUNDLED" == true ]]; then install_bundled; _done; fi
 if [[ "$DO_SHELL" == true ]]; then install_qs; _done; fi
+if [[ "$DO_LAUNCHERS" == true ]]; then install_launchers; _done; fi
 configure_hyprland;      _done
+configure_i3;            _done
 configure_keybind;       _done
 restart_qs;              _done
 write_horizons_state;    _done

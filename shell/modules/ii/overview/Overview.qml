@@ -15,21 +15,69 @@ Scope {
     id: overviewScope
     property bool dontAutoCancelSearch: false
     readonly property string launcherPosition: Config?.options.overview.position ?? "top"
+
+    // Settings > Services > Search picks what Super (tap) actually opens.
+    // "quickshell" (default) toggles this shell's own overview/search
+    // surface as before; anything else hands off to that external tool
+    // instead, following the exact kill-if-running/spawn convention already
+    // used by the fuzzel fallback bind in hyprland/keybinds.lua ("pkill X
+    // || X") so behavior stays consistent with the rest of this config.
+    // walker additionally needs its "elephant" companion service already
+    // running; vicinae needs its "vicinae-server" daemon already running -
+    // neither is started here, both are expected to autostart on their own.
+    function toggleSearchLauncher() {
+        const launcher = Config?.options.apps?.launcher ?? "quickshell";
+        switch (launcher) {
+        case "walker":
+            Quickshell.execDetached(["bash", "-c", "pkill -x walker || walker"]);
+            break;
+        case "vicinae":
+            Quickshell.execDetached(["bash", "-c", "vicinae"]);
+            break;
+        case "fuzzel":
+            Quickshell.execDetached(["bash", "-c", "pkill -x fuzzel || fuzzel"]);
+            break;
+        default:
+            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+        }
+    }
     readonly property bool isBottom: launcherPosition === "bottom"
         readonly property bool isCenter: launcherPosition === "center"
 
     PanelWindow {
         id: panelWindow
         property string searchingText: ""
-        readonly property HyprlandMonitor monitor: Hyprland.monitorFor(panelWindow.screen)
-        property bool monitorIsFocused: (Hyprland.focusedMonitor?.id == monitor?.id)
+        readonly property var monitor: WM.monitorFor(panelWindow.screen)
+        property bool monitorIsFocused: WM.focusedMonitor?.name === monitor?.name
         // When m3Island is active, its inline launcher replaces Overview - suppress duplicate
         readonly property bool m3IslandActive: Config.options.bar.barMode === "m3Island"
+        // Shared by the outer Loader below (a direct Column child, so its
+        // collapsed size drives columnLayout's implicitHeight and therefore
+        // the click-outside mask/HyprlandFocusGrab surface) and the actual
+        // workspaces widget's own Loader. Previously only the inner Loader
+        // checked showWorkspacesInLauncher - with that disabled, the outer
+        // Loader stayed active with a null-item Component wrapping a
+        // deactivated inner Loader, an extra layer of nesting that didn't
+        // reliably collapse to zero size the way a directly-inactive Loader
+        // does. The visible symptom: clicking in the dead space the
+        // workspaces grid used to occupy didn't dismiss the launcher,
+        // because that space was still technically part of the panel.
+        readonly property bool workspacesLauncherVisible: GlobalStates.overviewOpen
+            && (Config?.options.overview.enable ?? true)
+            && (Config?.options.overview.showWorkspacesInLauncher ?? true)
+            && panelWindow.searchingText === ""
         visible: GlobalStates.overviewOpen && !panelWindow.m3IslandActive
 
-        WlrLayershell.namespace: "quickshell:overview"
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: (GlobalStates.overviewOpen && !panelWindow.m3IslandActive) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+        // behind a Wayland-only Loader instead of set directly.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding { target: panelWindow.WlrLayershell; property: "namespace"; value: "quickshell:overview" }
+                Binding { target: panelWindow.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                Binding { target: panelWindow.WlrLayershell; property: "keyboardFocus"; value: (GlobalStates.overviewOpen && !panelWindow.m3IslandActive) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None }
+            }
+        }
         color: "transparent"
 
         mask: Region {
@@ -99,16 +147,16 @@ Scope {
                     GlobalStates.overviewOpen = false;
                 } else if (event.key === Qt.Key_Left) {
                     if (!panelWindow.searchingText)
-                        Hyprland.dispatch("workspace r-1");
+                        WM.switchWorkspaceRelative("prev");
                 } else if (event.key === Qt.Key_Right) {
                     if (!panelWindow.searchingText)
-                        Hyprland.dispatch("workspace r+1");
+                        WM.switchWorkspaceRelative("next");
                 }
             }
 
             // Top/Center: search first, bottom: overview first (so search stays at screen edge)
             Loader {
-                active: overviewScope.isBottom
+                active: overviewScope.isBottom && panelWindow.workspacesLauncherVisible
                 visible: active
                 sourceComponent: overviewScope.isBottom ? overviewLoaderComponent : null
             }
@@ -121,7 +169,7 @@ Scope {
                 }
             }
             Loader {
-                active: !overviewScope.isBottom
+                active: !overviewScope.isBottom && panelWindow.workspacesLauncherVisible
                 visible: active
                 sourceComponent: !overviewScope.isBottom ? overviewLoaderComponent : null
             }
@@ -129,7 +177,7 @@ Scope {
             Component {
                 id: overviewLoaderComponent
                 Loader {
-                    active: GlobalStates.overviewOpen && (Config?.options.overview.enable ?? true) && (Config?.options.overview.showWorkspacesInLauncher ?? true) && panelWindow.searchingText === ""
+                    active: panelWindow.workspacesLauncherVisible
                     sourceComponent: (Config?.options.overview.style ?? "default") === "niri" ? niriComponent : defaultComponent
                     Component {
                         id: defaultComponent
@@ -185,10 +233,7 @@ Scope {
         target: "search"
 
         function toggle() {
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
-        }
-        function workspacesToggle() {
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+            overviewScope.toggleSearchLauncher();
         }
         function close() {
             GlobalStates.overviewOpen = false;
@@ -209,25 +254,12 @@ Scope {
         description: "Toggles search on press"
 
         onPressed: {
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+            overviewScope.toggleSearchLauncher();
         }
     }
-    CompositorGlobalShortcut {
-        name: "overviewWorkspacesClose"
-        description: "Closes overview on press"
-
-        onPressed: {
-            GlobalStates.overviewOpen = false;
-        }
-    }
-    CompositorGlobalShortcut {
-        name: "overviewWorkspacesToggle"
-        description: "Toggles overview on press"
-
-        onPressed: {
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
-        }
-    }
+    // overviewWorkspacesToggle/overviewWorkspacesClose moved to
+    // WindowSwitcher.qml - Super+Tab now opens a standalone panel, not this
+    // search/launcher overview.
     CompositorGlobalShortcut {
         name: "searchToggleRelease"
         description: "Toggles search on release"
@@ -241,7 +273,7 @@ Scope {
                 GlobalStates.superReleaseMightTrigger = true;
                 return;
             }
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+            overviewScope.toggleSearchLauncher();
         }
     }
     CompositorGlobalShortcut {

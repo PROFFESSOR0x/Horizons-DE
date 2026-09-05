@@ -21,6 +21,21 @@ hl.bind("SUPER_L", hl.dsp.global("quickshell:workspaceNumber"),
 hl.bind("SUPER_R", hl.dsp.global("quickshell:workspaceNumber"),
     { ignore_mods = true, transparent = true, release = true })
 hl.bind("SUPER + Tab", hl.dsp.global("quickshell:overviewWorkspacesToggle"), { description = "Shell: Toggle overview" })
+-- Quick, mouse-free focus switching (no visual UI - that's Super+Tab's job
+-- above). The previous attempt here shelled out to `hyprctl dispatch
+-- cyclenext`/`bringactivetotop` (the classic hyprlang dispatcher names) and
+-- didn't work - since Hyprland 0.55, dispatchers moved into this Lua
+-- system's own typed, categorized hl.dsp.* tree (hl.dsp.window.*,
+-- hl.dsp.workspace.*, ...) and the flat classic names aren't exposed
+-- through it any more. hl.dsp.window.cycle_next() is that tree's
+-- equivalent of cyclenext. A single hl.bind() with a function (rather than
+-- a bare dispatcher call) runs both dispatches in sequence for one keypress,
+-- same as separate hl.bind() calls elsewhere in this file achieve for
+-- simpler cases.
+hl.bind("ALT + Tab", function()
+    hl.dispatch(hl.dsp.window.cycle_next())
+    hl.dispatch(hl.dsp.window.bring_to_top())
+end, { description = "Window: Cycle focus to next window" })
 hl.bind("SUPER + V", hl.dsp.global("quickshell:overviewClipboardToggle"))
 hl.bind("SUPER + Period", hl.dsp.global("quickshell:overviewEmojiToggle"))
 hl.bind("SUPER + A", hl.dsp.global("quickshell:sidebarLeftToggle"), { description = "Shell: Toggle left sidebar" })
