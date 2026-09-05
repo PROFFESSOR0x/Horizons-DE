@@ -1,7 +1,6 @@
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
-import Qt5Compat.GraphicalEffects
 import QtQuick
 import QtQuick.Controls
 
@@ -146,14 +145,14 @@ Button {
             animation: Appearance?.animation.elementMoveFast.colorAnimation.createObject(this)
         }
 
-        layer.enabled: true
-        layer.effect: OpacityMask {
-            maskSource: Rectangle {
-                width: buttonBackground.width
-                height: buttonBackground.height
-                radius: root.buttonEffectiveRadius
-            }
-        }
+        // Qt 6.7+ Rectangle.clip is clip-shape-aware (clips to the actual
+        // rounded rect, not just its bounding box) - no need for an
+        // OpacityMask offscreen render pass just to keep the ripple
+        // animation below from spilling past the button's own corners.
+        // RippleButton is used for nearly every clickable surface in the
+        // whole shell, so this alone is one of the highest-traffic
+        // conversions in the whole OpacityMask cleanup.
+        clip: true
 
         Item {
             id: ripple
