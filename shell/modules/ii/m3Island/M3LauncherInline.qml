@@ -63,6 +63,11 @@ Item {
                 Layout.fillWidth: true
                 focus: GlobalStates.overviewOpen
                 font.pixelSize: Appearance.font.pixelSize.small
+                // Keep the text optically centered in the island's compact
+                // search bar, which needs it slightly above the geometric
+                // center.
+                topPadding: 7
+                bottomPadding: 13
                 placeholderText: Translation.tr("Search, calculate or run")
                 onTextChanged: {
                     LauncherSearch.query = text
