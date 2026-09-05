@@ -643,7 +643,19 @@ Item {
         // normal popup's rich body, action buttons, and height animation.
         NotificationGroup {
             id: notifContainer
-            anchors.centerIn: parent
+            // Same reasoning as launcherInline below: root's implicitHeight
+            // is notifContainer.implicitHeight + 16 (8px at rest either
+            // side), but root's *actual* height animates toward that
+            // target (Behavior on implicitHeight above) on its own timing
+            // while notifContainer's own height changes on hover-expand at
+            // a different pace - centering read that mismatch as "the
+            // whole card needs to slide," which is the "bar's expansion
+            // doesn't match the notification's own expansion" symptom.
+            // Top-anchoring means a lagging frame only ever shows as
+            // extra/missing space below the card.
+            anchors.top: parent.top
+            anchors.topMargin: 8
+            anchors.horizontalCenter: parent.horizontalCenter
             width: root.notificationWidth
             implicitWidth: width
             visible: root.isNotification
