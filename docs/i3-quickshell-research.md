@@ -168,11 +168,22 @@ Quickshell **مش كمبوزيتور** — هو toolkit لبناء شل فوق �
 
 ## 5. الخلاصة والفجوات الحقيقية (Priority Order)
 
-1. **الأكبر أثرًا وأسهل تنفيذًا:** توسيع `i3/horizons.conf` ليغطي أكبر عدد ممكن من الـ ~100 keybind (عبر جدول القسم 4)، + إضافة `gaps`/`default_border`/`client.focused` ألوان تقابل `general.lua`، + `for_window`/`assign` تقابل أهم قواعد `rules.lua` (الأهم: نوافذ الحوار float+center، pavucontrol/nm-connection-editor float+size، PiP float+pin).
-2. **صفحة Settings > Keybinds** ([HyprlandKeybinds.qml](../shell/services/HyprlandKeybinds.qml) + `KeybindsConfig.qml`) لازم تتحول لتصميم مزدوج المصدر (Hyprland lua parser + i3 conf parser)، أو على الأقل تتخفي/تتقفل برسالة واضحة على i3 بدل ما تفضل فاضية بلا تفسير.
-3. **تجربة خفيفة:** كتابة سكربت `exec_always` بسيط لتشغيل `picom` (مع كونفيج جاهز فيه rounding/blur/shadow) كخيار في الـ installer لمستخدمي i3 اللي عايزين شكل أقرب لـ Hyprland — يتسجل كـ optional dependency واضح إنه تأثير بصري خارجي مش جزء من i3/Quickshell.
-4. **تحديث معماري (مش عاجل، ومربوط بخطر حقيقي لازم يتضبط قبل التنفيذ):** استبدال أجزاء من `I3Backend.qml` (الـ workspaces/monitors بس، مش شجرة النوافذ) باستخدام `Quickshell.I3` الرسمي بدل الـ subprocess الحالي — أداء وموثوقية أفضل (اتصال دائم بدل عمليات متكررة)، بس **لازم يتحمّل بحماية ضد فشل الاستيراد** (Loader + status check) عشان ميكسرش الجلسة على أي بناء Quickshell أقدم من نوفمبر 2024 أو معطّل فيه الـ flag يدويًا.
+1. ✅ **منفّذ (commit `d48dee6`):** توسيع `i3/horizons.conf` ليغطي كل الـ keybinds اللي ليها IPC target جاهز (جدول القسم 4 بالكامل)، + `gaps`/`default_border`/`client.focused` ألوان تقابل `general.lua`، + `for_window` تقابل أهم قواعد `rules.lua` (نوافذ الحوار، pavucontrol/nm-connection-editor، PiP، مشاركة الشاشة)، + `mode "resize"`/`mode "virtual-machine"` تقابل submap بتاع Hyprland.
+2. ✅ **منفّذ (commit `3d56f59`):** صفحة Settings > Keybinds وكشاف Super+/ بقى عندهم رسالة واضحة على i3 بدل ما يفضلوا فاضيين بلا تفسير (`WM.compositor === "hyprland"` gate)، بدل التصميم مزدوج المصدر الأكبر حجمًا.
+3. ✅ **منفّذ (commit `d48dee6`):** `i3/picom.conf` جاهز (rounding/blur/shadow قريبة من قيم `general.lua`) + `configure_i3()` بيحطه في `~/.config/picom/horizons.conf` ويشغّله فقط لو `picom` مثبت فعلاً (الـ `exec_always` بتاعه في `horizons.conf` نفسه بيتحقق بـ `command -v picom` قبل أي حاجة).
+4. **لسه مؤجّل عمدًا (خطر حقيقي محتاج ضبط قبل التنفيذ):** استبدال أجزاء من `I3Backend.qml` (الـ workspaces/monitors بس، مش شجرة النوافذ) باستخدام `Quickshell.I3` الرسمي بدل الـ subprocess الحالي — أداء وموثوقية أفضل (اتصال دائم بدل عمليات متكررة)، بس **لازم يتحمّل بحماية ضد فشل الاستيراد** (Loader + status check) عشان ميكسرش الجلسة على أي بناء Quickshell أقدم من نوفمبر 2024 أو معطّل فيه الـ flag يدويًا. لم يُنفّذ في هذه الجولة عمدًا.
 5. **فجوة بنيوية معروفة ومقبولة:** الأنيميشن (windows move/resize/open/close) والـ per-monitor HiDPI scale **مش قابلين للحل على X11/i3 بشكل صحيح أصلاً** — دي حدود X11 نفسه، مش حاجة ينفع "نصلحها" في الكود.
+
+### 5.1 أخطاء حقيقية اتكتشفت واتصلحت أثناء التنفيذ (مش كانت في الخطة الأصلية)
+
+أثناء ربط `region`/`screenshot` IPC targets في `i3/horizons.conf`، ظهر إن سلسلة الـ screenshot/OCR/record كلها في الكود كانت **Wayland-only 100%** بلا أي بديل X11 خالص — مش بس ناقصة keybind، كانت هتفشل صامتة (`command not found`) حتى لو الـ IPC اتنادى صح:
+
+- **[TempScreenshotProcess.qml](../shell/modules/common/utils/TempScreenshotProcess.qml)**: كان بينادي `grim -o <output>` من غير أي بديل. اتصلح بإضافة `import -window root -crop WxH+virtualX+virtualY` كبديل (X11 مالوش سطح capture منفصل لكل شاشة زي Wayland، فبيقص الـ root window المشترك للمساحة المطلوبة بس).
+- **[ScreenshotAction.qml](../shell/modules/common/utils/ScreenshotAction.qml)**: كل استخدام لـ `wl-copy` (نسخ للـ clipboard) اتصلح بنفس سلسلة fallback الموجودة أصلاً في `EditorCanvas.qml` (`wl-copy` → `xclip` → `xsel`).
+- **[record.sh](../shell/scripts/videos/record.sh)**: مسار تسجيل كامل بديل بـ `ffmpeg -f x11grab` + `slop` (بديل `slurp`) بنفس خصائص `wf-recorder` (codec/crf/fps/audio)، مع `pkill -INT` (مش SIGTERM عادي) عشان ffmpeg يقفل الملف صح.
+- **[Overview.qml](../shell/modules/ii/overview/Overview.qml)**: `overviewEmojiToggle`/`overviewSymbolsToggle` مكنش لهم أي IPC مكافئ خالص (بس `overviewClipboardToggle` كان عنده) — اتضافوا `emojiToggle()`/`symbolsToggle()` على نفس النمط.
+- **[KeybindsConfig.qml](../shell/modules/ii/settings/pages/KeybindsConfig.qml)**: byte فاضي حرفي (`\x00`) متضمّن في سلسلة نصية في الكود من زمان — كان بيخلي `grep`/`git diff` يعاملوا الملف كـ binary. اتصلح لمسافة عادية.
+- `shell/scripts/apps/launch_first_available.sh` (جديد): نسخة WM-agnostic من سكربت Hyprland بتاع "شغّل أول برنامج موجود" — النسخة الأصلية تحت `~/.config/hypr/...` مش بتتنصّب خالص لمستخدم i3-only (الـ installer بيتخطى كل الـ hypr dotfiles للـ target ده).
 
 ---
 
