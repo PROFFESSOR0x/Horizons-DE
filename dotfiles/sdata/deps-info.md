@@ -176,9 +176,16 @@ Tips:
 - `glib2`
   - Provides executable `gsettings`
   - Used in install script, also in matugen and quickshell config.
+- `gnome-desktop`
+  - Provides the `GnomeDesktop-4.0` GObject-Introspection typelib.
+  - Used by `shell/scripts/thumbnails/thumbgen.py` (via PyGObject) to
+    generate freedesktop-spec wallpaper thumbnails. Without it the script
+    fails to import and thumbnail generation silently falls back to the
+    slower/lower-fidelity ImageMagick path (`generate-thumbnails-magick.sh`).
 - `imagemagick`
   - Provides executable: `magick`
-  - Used in Quickshell config.
+  - Used in Quickshell config, and as the thumbnail-generation fallback
+    when `gnome-desktop`'s thumbnailer can't be used.
 - `hypridle`
   - Used for loginctl to lock session.
 - `hyprlock`

@@ -9,6 +9,12 @@ Item {
     property real smallRadius: Appearance.rounding.unsharpenmore
     property color bgcolor: Appearance.colors.colLayer1
     property real itemVerticalPadding: 24
+    // Floor so every row in a group reads as the same pill height even when
+    // one row's content (e.g. a lone toggle) is shorter than its neighbors
+    // (e.g. a dropdown or a row with description text) — rows taller than
+    // this still grow normally, this only stops short ones from looking
+    // squashed next to tall ones.
+    property real minimumItemHeight: 48
     Layout.fillWidth: true
     implicitHeight: col.implicitHeight
 
@@ -45,7 +51,7 @@ Item {
                 }
                 Layout.fillWidth: true
                 visible: itemVisible
-                implicitHeight: itemVisible ? ((root.items[index]?.implicitHeight ?? 0) + root.itemVerticalPadding) : 0
+                implicitHeight: itemVisible ? Math.max((root.items[index]?.implicitHeight ?? 0) + root.itemVerticalPadding, root.minimumItemHeight) : 0
                 color: root.bgcolor
                 topLeftRadius:     isFirst ? root.bigRadius : root.smallRadius
                 topRightRadius:    isFirst ? root.bigRadius : root.smallRadius

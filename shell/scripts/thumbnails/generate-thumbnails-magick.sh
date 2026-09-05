@@ -29,14 +29,26 @@ md5() {
 }
 
 urlencode() {
-    # Percent-encode a string for use in a URI, but do not encode slashes
+    # Percent-encode a string for use in a URI, but do not encode slashes.
+    # Must byte-for-byte match Quickshell's ThumbnailImage.qml, which hashes
+    # `file://<JS encodeURIComponent(path)>` to find the cache file this
+    # script writes. That match only holds if we iterate by BYTE, not by
+    # locale-dependent character: under a non-UTF-8 locale (e.g. plain "C",
+    # which a minimal/first-run environment may have), ${str:$i:1} splits
+    # multi-byte UTF-8 sequences apart instead of taking whole characters,
+    # corrupting the percent-encoding for any non-ASCII path (Arabic
+    # filenames, etc.) and producing a hash the shell never looks up under.
+    # Forcing LC_ALL=C here makes bash treat the string as a raw byte
+    # sequence unconditionally, so encoding is correct and stable regardless
+    # of what locale this script happens to inherit.
+    local LC_ALL=C
     local str="$1"
     local encoded=""
     local c
     for ((i=0; i<${#str}; i++)); do
         c="${str:$i:1}"
         case "$c" in
-            [a-zA-Z0-9.~_-]|/|'('|')'|'*') encoded+="$c" ;;
+            [a-zA-Z0-9.~_!\'()*-]|/) encoded+="$c" ;;
             *) printf -v hex '%%%02X' "'${c}'"; encoded+="$hex" ;;
         esac
     done
