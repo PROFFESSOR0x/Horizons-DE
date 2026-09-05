@@ -153,9 +153,20 @@ Scope { // Scope
             exclusionMode: ExclusionMode.Normal
             exclusiveZone: root.pin ? sidebarWidth : 0
             implicitWidth: Appearance.sizes.sidebarWidthExtended + Appearance.sizes.elevationMargin
-            WlrLayershell.namespace: "quickshell:sidebarLeft"
-            // Hyprland 0.49: OnDemand is Exclusive, Exclusive just breaks click-outside-to-close
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+            // This is the actual fix for the "PanelWindow not ready (likely
+            // X11 without layer-shell)" case Component.onCompleted below
+            // already guards against: gate the references themselves behind
+            // a Wayland-only Loader (see Bar.qml) instead of the values, so
+            // this PanelWindow can actually construct on X11 in the first
+            // place instead of merely surviving a construction failure.
+            Loader {
+                active: WM.isWayland
+                sourceComponent: Item {
+                    Binding { target: panelWindow.WlrLayershell; property: "namespace"; value: "quickshell:sidebarLeft" }
+                    // Hyprland 0.49: OnDemand is Exclusive, Exclusive just breaks click-outside-to-close
+                    Binding { target: panelWindow.WlrLayershell; property: "keyboardFocus"; value: WlrKeyboardFocus.OnDemand }
+                }
+            }
             color: "transparent"
 
             anchors {

@@ -46,8 +46,15 @@ Scope {
         mask: Region {
             item: sidebarCornerOpenInteractionLoader.active ? sidebarCornerOpenInteractionLoader : null
         }
-        WlrLayershell.namespace: "quickshell:screenCorners"
-        WlrLayershell.layer: WlrLayer.Overlay
+        // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+        // behind a Wayland-only Loader instead of set directly.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding { target: cornerPanelWindow.WlrLayershell; property: "namespace"; value: "quickshell:screenCorners" }
+                Binding { target: cornerPanelWindow.WlrLayershell; property: "layer"; value: WlrLayer.Overlay }
+            }
+        }
         color: "transparent"
 
         anchors {

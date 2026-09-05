@@ -76,8 +76,15 @@ Scope {
 
         exclusiveZone: 0
         implicitWidth: sidebarWidth
-        WlrLayershell.namespace: "quickshell:sidebarRight"
-        WlrLayershell.keyboardFocus: GlobalStates.sidebarRightOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
+        // behind a Wayland-only Loader instead of set directly.
+        Loader {
+            active: WM.isWayland
+            sourceComponent: Item {
+                Binding { target: panelWindow.WlrLayershell; property: "namespace"; value: "quickshell:sidebarRight" }
+                Binding { target: panelWindow.WlrLayershell; property: "keyboardFocus"; value: GlobalStates.sidebarRightOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None }
+            }
+        }
         color: "transparent"
 
         anchors {

@@ -53,7 +53,14 @@ Scope {
                 exclusiveZone: (Config?.options.bar.autoHide.enable && (!mustShow || !Config?.options.bar.autoHide.pushWindows)) ? 0 :
                     Appearance.sizes.baseVerticalBarWidth + (Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0)
                     + (Config.options.bar.cornerStyle === 3 ? (Config.options.hyprland.general.gapsOut || 5) : 0)
-                WlrLayershell.namespace: "quickshell:verticalBar"
+                // See Bar.qml for why this is gated behind a Wayland-only
+                // Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: barRoot.WlrLayershell; property: "namespace"; value: "quickshell:verticalBar" }
+                    }
+                }
                 implicitWidth: Appearance.sizes.verticalBarWidth + Appearance.rounding.screenRounding
                     + (Config.options.bar.cornerStyle === 3 ? (Config.options.hyprland.general.gapsOut || 5) : 0)
                 mask: Region { item: hoverMaskRegion }

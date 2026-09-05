@@ -68,8 +68,15 @@ Scope {
                 // Hyprland after the first surface commit.
                 exclusiveZone: reserveSpace ? Appearance.sizes.barHeight
                     + (Config.options.m3Island.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0) : 0
-                WlrLayershell.namespace: "quickshell:m3Island"
-                WlrLayershell.layer: WlrLayer.Top
+                // See Bar.qml for why this is gated behind a Wayland-only
+                // Loader instead of set directly.
+                Loader {
+                    active: WM.isWayland
+                    sourceComponent: Item {
+                        Binding { target: barRoot.WlrLayershell; property: "namespace"; value: "quickshell:m3Island" }
+                        Binding { target: barRoot.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                    }
+                }
                 // Fixed window to avoid per-frame layer-shell resize - content morphs inside
                 implicitHeight: 520
                 color: "transparent"
