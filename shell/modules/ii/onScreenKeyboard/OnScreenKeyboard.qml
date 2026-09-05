@@ -64,12 +64,37 @@ Scope { // Scope
                 item: oskBackground
             }
 
-            // Make it usable with other panels
-            Component.onCompleted: {
-                GlobalFocusGrab.addPersistent(oskRoot);
+            // Pinned: behaves like the bar - always included in the focus
+            // grab, never dismissed by an outside click (reserves screen
+            // space via exclusiveZone above). Unpinned: a normal popup that
+            // should close the moment you click elsewhere, same as a
+            // sidebar. This used to always register as persistent
+            // regardless of root.pinned, which is why toggling pin had no
+            // effect on outside-click behavior and an unpinned keyboard
+            // never closed on its own.
+            function updateFocusGrabRegistration() {
+                if (root.pinned) {
+                    GlobalFocusGrab.removeDismissable(oskRoot);
+                    GlobalFocusGrab.addPersistent(oskRoot);
+                } else {
+                    GlobalFocusGrab.removePersistent(oskRoot);
+                    GlobalFocusGrab.addDismissable(oskRoot);
+                }
             }
+            Component.onCompleted: oskRoot.updateFocusGrabRegistration()
             Component.onDestruction: {
                 GlobalFocusGrab.removePersistent(oskRoot);
+                GlobalFocusGrab.removeDismissable(oskRoot);
+            }
+            Connections {
+                target: root
+                function onPinnedChanged() { oskRoot.updateFocusGrabRegistration() }
+            }
+            Connections {
+                target: GlobalFocusGrab
+                function onDismissed() {
+                    if (!root.pinned) oskRoot.hide();
+                }
             }
 
             // Background
