@@ -1163,8 +1163,14 @@ Singleton {
                 // Extra quick-toggle icon row shown only while expanded.
                 property bool showExpandedQuickToggles: false
                 property list<string> expandedQuickToggles: ["idleInhibitor", "privacyIndicator"]
-                // Layouts per state - reuse widget ids from bar
+                // Layouts per state - reuse widget ids from bar. restingLayout
+                // is the idle pill (neither hovered nor expanded) - it used to
+                // be hardcoded to just the clock with no way to add anything
+                // beside it or remove it; "m3Clock" is a normal widget id here
+                // like any other, so it can sit next to other widgets on
+                // either side, or be left out entirely.
                 property JsonObject layouts: JsonObject {
+                    property list<string> restingLayout: ["m3Clock"]
                     property list<string> hoverLayout: ["media", "systemIcons"]
                     property list<string> expandedLayout: ["resources", "batteryIndicator"]
                 }

@@ -109,6 +109,7 @@ ContentPage {
     // not resolvable through the shared bar/ widget pool, so kept out of
     // allWidgets to avoid offering them on the classic/mesoBar pickers.
     property var m3OnlyWidgets: [
+        { id: "m3Clock",       name: Translation.tr("Clock"),                    icon: "schedule" },
         { id: "m3MiniStats",   name: Translation.tr("Mini Stats (CPU/RAM)"),    icon: "monitoring" },
         { id: "m3NotifStatus", name: Translation.tr("Notification Status"),     icon: "notifications" },
     ]
@@ -158,6 +159,7 @@ ContentPage {
 
     function availableForM3() {
         let used = [
+            ...Config.options.m3Island.layouts.restingLayout,
             ...Config.options.m3Island.layouts.hoverLayout,
             ...Config.options.m3Island.layouts.expandedLayout
         ]
@@ -356,6 +358,20 @@ ContentPage {
             title: Translation.tr("M3 Island Layout")
 
             GroupedList {
+                LayoutSection {
+                    sectionTitle: Translation.tr("Resting (idle pill)")
+                    layout: Config.options.m3Island.layouts.restingLayout
+                    availableWidgets: page.availableForM3()
+                    getWidgetName: page.getWidgetName
+                    onUpdate: list => Config.options.m3Island.layouts.restingLayout = list
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("\"Clock\" is a normal widget in this list now, not a fixture - put it anywhere, add widgets on either side of it, or remove it and use something else entirely (e.g. Workspaces) as the idle pill.")
+                }
                 LayoutSection {
                     sectionTitle: Translation.tr("Hover (peek)")
                     layout: Config.options.m3Island.layouts.hoverLayout
