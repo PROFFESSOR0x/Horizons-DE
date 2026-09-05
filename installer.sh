@@ -1418,36 +1418,84 @@ configure_i3(){
   fi
 
   step "$(L "Configure i3/X11 shell" "إعداد واجهة i3/X11")"
-  if grep -Fq 'include ~/.config/i3/horizons.conf' "$i3_config" 2>/dev/null && [[ -f "$horizons_i3" ]]; then
-    ok "Horizons i3 integration already configured — no changes needed."
-    return 0
+  local already_included=false
+  grep -Fq 'include ~/.config/i3/horizons.conf' "$i3_config" 2>/dev/null && already_included=true
+
+  if [[ "$already_included" == true ]]; then
+    # horizons.conf itself is Horizons-owned content (like the update
+    # protocol re-applies dotfiles) — it must keep being refreshed from the
+    # repo on every update, not just written once on first install, or a
+    # user who already integrated i3 back when this file only had 2
+    # keybinds would never receive any of the newer ones. Only the
+    # first-time confirm + `include` line below are one-shot.
+    if [[ ! -f "$source_i3" ]]; then
+      warn "Horizons i3 template is missing: $source_i3"
+      return 1
+    fi
+    if [[ -f "$horizons_i3" ]] && cmp -s "$source_i3" "$horizons_i3"; then
+      ok "Horizons i3 integration already up to date."
+      return 0
+    fi
+    if [[ "$DRY_RUN" == true ]]; then
+      info "[dry-run] would refresh $horizons_i3 from $source_i3"
+      return 0
+    fi
+    [[ -f "$horizons_i3" ]] && run cp "$horizons_i3" "${horizons_i3}.horizons.bak"
+    run cp "$source_i3" "$horizons_i3"
+    ok "Horizons i3 integration refreshed. Previous version backed up to: ${horizons_i3}.horizons.bak"
+  else
+    printf "\n"
+    printf "  ${B}Horizons detected an i3 configuration:${RST} %s\n" "$i3_config"
+    printf "  ${DM}This adds a separate, reversible include for startup and IPC keybinds.${RST}\n"
+    printf "  ${DM}Existing i3 rules and bindings are left untouched.${RST}\n\n"
+    if ! confirm "$(L "Enable Horizons integration for i3/X11?" "تفعيل تكامل Horizons مع i3/X11؟")" "y"; then
+      info "$(L "Skipping i3 integration." "تخطي تكامل i3.")"
+      return 0
+    fi
+    if [[ "$DRY_RUN" == true ]]; then
+      info "[dry-run] would install $horizons_i3 and add its include to $i3_config"
+      return 0
+    fi
+    if [[ ! -f "$source_i3" ]]; then
+      warn "Horizons i3 template is missing: $source_i3"
+      return 1
+    fi
+    run cp "$i3_config" "${i3_config}.horizons.bak"
+    if [[ -f "$horizons_i3" ]]; then
+      run cp "$horizons_i3" "${horizons_i3}.horizons.bak"
+    fi
+    run cp "$source_i3" "$horizons_i3"
+    printf "\n# Horizons i3/X11 integration\ninclude ~/.config/i3/horizons.conf\n" >> "$i3_config"
+    ok "i3 integration enabled. Backup saved to: ${i3_config}.horizons.bak"
   fi
 
-  printf "\n"
-  printf "  ${B}Horizons detected an i3 configuration:${RST} %s\n" "$i3_config"
-  printf "  ${DM}This adds a separate, reversible include for startup and IPC keybinds.${RST}\n"
-  printf "  ${DM}Existing i3 rules and bindings are left untouched.${RST}\n\n"
-  if ! confirm "$(L "Enable Horizons integration for i3/X11?" "تفعيل تكامل Horizons مع i3/X11؟")" "y"; then
-    info "$(L "Skipping i3 integration." "تخطي تكامل i3.")"
-    return 0
+  # i3/horizons.conf assumes Quickshell's own bar is the only bar — a
+  # leftover `bar { ... }` block from the distro-default template (or a
+  # pre-existing custom config) draws i3's native status bar on top of/
+  # underneath it. Only Horizons' own include is touched anywhere in this
+  # function, so surface this as a warning to act on manually rather than
+  # silently editing a block that might carry the user's own customization.
+  if [[ "$DRY_RUN" != true ]] && grep -Eq '^[[:space:]]*bar[[:space:]]*\{' "$i3_config" 2>/dev/null; then
+    warn "$(L "Your i3 config still has its own 'bar { ... }' block — you'll see i3's native status bar alongside Quickshell's own bar. Comment it out in $i3_config if you don't want both." "لا يزال إعداد i3 يحتوي على كتلة 'bar { ... }' الخاصة به — سترى شريط حالة i3 الأصلي بجانب شريط Quickshell. علّق عليها (اجعلها تعليقاً) في $i3_config إذا كنت لا تريد الاثنين معاً.")"
   fi
-  if [[ "$DRY_RUN" == true ]]; then
-    info "[dry-run] would install $horizons_i3 and add its include to $i3_config"
-    return 0
+
+  # picom (blur/shadow/rounded corners on regular app windows — i3 itself
+  # has no compositor, see i3/picom.conf's own header for why this can't be
+  # replicated any other way). i3/horizons.conf's exec_always already
+  # no-ops safely when picom isn't installed, so only the config file needs
+  # placing; installing the picom package itself is left to the user like
+  # every other optional i3 tool this installer doesn't manage dependencies
+  # for yet (xclip/ffmpeg/slop — see docs/i3-quickshell-research.md).
+  local picom_conf="$XDG_CONFIG_HOME/picom/horizons.conf"
+  local source_picom="$REPO_ROOT/i3/picom.conf"
+  if [[ -f "$source_picom" && "$DRY_RUN" != true ]]; then
+    if [[ ! -f "$picom_conf" ]] || cmp -s "$source_picom" "$picom_conf"; then
+      run mkdir -p "$(dirname "$picom_conf")"
+      run cp "$source_picom" "$picom_conf"
+    else
+      info "$(L "Leaving existing $picom_conf untouched (differs from the bundled default)." "الإبقاء على $picom_conf كما هو (يختلف عن الإعداد الافتراضي المرفق).")"
+    fi
   fi
-  if [[ ! -f "$source_i3" ]]; then
-    warn "Horizons i3 template is missing: $source_i3"
-    return 1
-  fi
-  run cp "$i3_config" "${i3_config}.horizons.bak"
-  if [[ -f "$horizons_i3" ]]; then
-    run cp "$horizons_i3" "${horizons_i3}.horizons.bak"
-  fi
-  run cp "$source_i3" "$horizons_i3"
-  if ! grep -Fq 'include ~/.config/i3/horizons.conf' "$i3_config"; then
-    printf "\n# Horizons i3/X11 integration\ninclude ~/.config/i3/horizons.conf\n" >> "$i3_config"
-  fi
-  ok "i3 integration enabled. Backup saved to: ${i3_config}.horizons.bak"
 }
 
 # ── Add settings keybind ──────────────────────────────────────────────────────
