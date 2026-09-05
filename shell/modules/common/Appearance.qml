@@ -411,12 +411,12 @@ Singleton {
         }
 
         property QtObject menuDecel: QtObject {
-            property int duration: 350
+            property int duration: root.motionDuration(350)
             property int type: Easing.OutExpo
         }
 
         property QtObject sidebarSlideEnter: QtObject {
-            property int duration: 300
+            property int duration: root.motionDuration(300)
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: animationCurves.standardDecel
             property int velocity: 650
@@ -431,7 +431,7 @@ Singleton {
         }
 
         property QtObject sidebarSlideExit: QtObject {
-            property int duration: 250
+            property int duration: root.motionDuration(250)
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: animationCurves.standardAccel
             property int velocity: 650
