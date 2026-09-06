@@ -58,39 +58,56 @@ Singleton {
         return "unknown";
     }
 
-    Component { id: hyprlandComp; HyprlandBackend {} }
-    Component { id: niriComp; NiriBackend {} }
-    Component { id: i3Comp; I3Backend {} }
-    Component { id: nullComp; NullBackend {} }
-    // Component { id: swayComp; SwayBackend {} }
-    // Component { id: mangoComp; MangoBackend {} }
+    // Backends are resolved by *file URL* at runtime rather than declared as
+    // inline `Component { NullBackend {} }` blocks.
+    //
+    // WM.qml is a Singleton that most other services depend on (Updates ->
+    // TrayService -> Translation -> Todo, ...), so it is one of the very first
+    // documents the engine compiles. An inline component pins its type at
+    // document-compile time against the implicit same-directory import, and
+    // that lookup has been observed to run before every sibling file has
+    // finished registering - throwing "NullBackend is not a type" and taking
+    // the entire configuration down with it (see the reload failure in
+    // ~/.local/state logs). Qt.callLater did not help, because the failing
+    // lookup happens while WM.qml itself is being compiled, long before
+    // onCompleted ever runs.
+    //
+    // Qt.createComponent() resolves the same file lazily, by path, after the
+    // engine is fully up - and reports a readable error instead of aborting
+    // the whole config if a backend file really is broken.
+    Component.onCompleted: root.createBackend()
 
-    // Deferred one tick past construction: WM.qml is a Singleton other
-    // services eagerly depend on (Updates -> TrayService -> Translation ->
-    // Todo, etc.), so it tends to be one of the very first files the QML
-    // engine resolves on a cold shell start. Calling createObject() on a
-    // same-directory Component synchronously inside Component.onCompleted
-    // has been observed to occasionally hit the directory's own type table
-    // before every sibling file (NullBackend.qml included) finishes
-    // registering, throwing "NullBackend is not a type" and cascading into
-    // every service that (transitively) imports WM - a one-shot crash on the
-    // first launch after boot that a plain restart doesn't reproduce.
-    // Qt.callLater lets that registration pass finish first.
-    Component.onCompleted: Qt.callLater(root.createBackend)
+    function _componentFor(fileName) {
+        const comp = Qt.createComponent(Qt.resolvedUrl(fileName), Component.PreferSynchronous);
+        if (comp.status === Component.Error) {
+            console.warn("[WM] Could not load backend " + fileName + ": " + comp.errorString());
+            return null;
+        }
+        return comp;
+    }
+
+    function _instantiate(fileName) {
+        const comp = root._componentFor(fileName);
+        return comp ? comp.createObject(root) : null;
+    }
 
     function createBackend() {
+        let created = null;
         switch (root.compositor) {
-        case "hyprland": backend = hyprlandComp.createObject(root); break;
-        case "niri":     backend = niriComp.createObject(root); break;
-        case "i3":       backend = i3Comp.createObject(root); break;
-        // case "sway":  backend = swayComp.createObject(root); break;
-        // case "mango": backend = mangoComp.createObject(root); break;
+        case "hyprland": created = root._instantiate("HyprlandBackend.qml"); break;
+        case "niri":     created = root._instantiate("NiriBackend.qml"); break;
+        case "i3":       created = root._instantiate("I3Backend.qml"); break;
+        // case "sway":  created = root._instantiate("SwayBackend.qml"); break;
+        // case "mango": created = root._instantiate("MangoBackend.qml"); break;
         default:
             // Never instantiate Hyprland integration outside a Hyprland
             // session: that used to make a plain X11 session fail at startup.
             console.log("[WM] Unsupported compositor: " + root.compositor + "; using the safe backend");
-            backend = nullComp.createObject(root);
         }
+        // Also covers a compositor-specific backend that failed to load: the
+        // shell stays up on the no-op backend instead of leaving every
+        // `backend?.` proxy permanently null.
+        root.backend = created ?? root._instantiate("NullBackend.qml");
     }
 
     // Proxies

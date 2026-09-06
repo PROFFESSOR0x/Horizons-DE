@@ -31,6 +31,11 @@
 #       --protocol <name>   Wayland | X11 (validated against --wm)
 #       --desktop <name>    Required on a new install: horizons | existing
 #       --fresh-install     Do not convert a repeated `install` invocation to update
+#       --reinstall-dots    Re-apply the base dotfiles (kitty/fish/fuzzel/matugen/...)
+#                           as well. They are installed once, on the first install,
+#                           and then left alone; only the Hyprland config is
+#                           refreshed on later runs. This restores them from the
+#                           repo, discarding local edits to those files.
 #       --components <csv>  Comma-separated overrides: dots,shell,bundled,build,deps,sysupdate,backup
 #                           Prefix with ^/- /no- to disable: --components no-dots,^bundled
 #       --with-deps         Install dependencies (default: via profile)
@@ -138,6 +143,10 @@ HORIZONS_PROTOCOL_CLI=false
 HORIZONS_WINDOW_MANAGER_CLI=false
 HORIZONS_DESKTOP_ENVIRONMENT_CLI=false
 FRESH_INSTALL=false
+# The base dots are laid down once and then belong to the user; only the
+# Hyprland config keeps being refreshed. This forces the base set back to the
+# repo's copy. See dots_install_scope in install_dots().
+REINSTALL_DOTS=false
 
 # Legacy compat flags (mapped later)
 SKIP_DEPS=false
@@ -219,7 +228,13 @@ horizons_choose_language(){
 }
 
 print_help(){
-    sed -n '2,55p' "$0" | sed 's/^# //'
+    # Print the whole leading comment block, stopping at the first non-comment
+    # line. The old `sed -n '2,55p'` was a hardcoded range that had already
+    # drifted - it cut the help off mid-list, hiding --show-profiles, --lang,
+    # --uninstall, --update and --check-update - and would drift again on the
+    # next header edit. Also strips a bare "#" so blank comment lines render as
+    # blank lines instead of a stray hash.
+    awk 'NR==1 {next} /^#/ {sub(/^# ?/, ""); print; next} {exit}' "$0"
     if declare -f horizons_profile_list &>/dev/null; then
         echo ""
         horizons_profile_list
@@ -264,6 +279,7 @@ while [[ $# -gt 0 ]]; do
     --protocol|--display-protocol) HORIZONS_PROTOCOL="${2,,}"; HORIZONS_PROTOCOL_CLI=true; shift 2 ;;
     --desktop|--desktop-environment) HORIZONS_DESKTOP_ENVIRONMENT="${2,,}"; HORIZONS_DESKTOP_ENVIRONMENT_CLI=true; shift 2 ;;
     --fresh-install) FRESH_INSTALL=true; shift ;;
+    --reinstall-dots) REINSTALL_DOTS=true; shift ;;
     --components) COMPONENTS_CSV="$2"; shift 2 ;;
     --with-deps) DO_DEPS=true; SKIP_DEPS=false; shift ;;
     --skip-deps) DO_DEPS=false; SKIP_DEPS=true; shift ;;
@@ -395,9 +411,23 @@ horizons_choose_target(){
   fi
 
   horizons_validate_target
-  # The bundled dots are Hyprland-only. An i3 or existing-DE install never
-  # receives them, even if a broad profile was selected.
-  if [[ "$HORIZONS_WINDOW_MANAGER" == "i3" || "$HORIZONS_DESKTOP_ENVIRONMENT" == "existing" ]]; then
+  # Only dots/.config/hypr is Hyprland-specific. The rest of the bundled dots
+  # - matugen (the wallpaper-theming engine the shell's own
+  # appearance.wallpaperTheming drives), fuzzel (which i3/horizons.conf's
+  # clipboard and emoji binds fall back to), kitty, foot, fontconfig, fish,
+  # mpv, Kvantum, wlogout, xdg-desktop-portal - are all WM-agnostic and are
+  # exactly what makes an i3 session look and behave like Horizons rather than
+  # like bare i3.
+  #
+  # This used to disable DO_DOTS wholesale for i3 on the premise that "the
+  # bundled dots are Hyprland-only", so an i3 install silently got none of it.
+  # install_dots() now passes --skip-hyprland --skip-hyprland-entry for an i3
+  # target instead, which drops precisely the Hyprland part and keeps the rest.
+  #
+  # `existing` (integrating into a running KDE/GNOME session) is a different
+  # case and still opts out: those dots include kdeglobals/dolphinrc/Kvantum,
+  # which would overwrite the desktop the user asked us to integrate *with*.
+  if [[ "$HORIZONS_DESKTOP_ENVIRONMENT" == "existing" ]]; then
     DO_DOTS=false
   fi
   export HORIZONS_PROTOCOL HORIZONS_WINDOW_MANAGER HORIZONS_DESKTOP_ENVIRONMENT
@@ -601,30 +631,70 @@ are_horizons_deps_installed(){
 }
 
 # Check if dotfiles appear already installed and identical to source (skip-friendly)
+# Compares every directory the dots actually install, not just hypr/hyprland.
+#
+# This used to look at dots/.config/hypr/hyprland alone, so an update that
+# touched kitty, fish, fuzzel, matugen, mpv, foot, Kvantum, wlogout,
+# kde-material-you-colors, xdg-desktop-portal or fontconfig - i.e. most of what
+# `dotfiles/setup install` copies - reported "already up-to-date" and the whole
+# dots step was skipped. Those changes then only ever reached a fresh install,
+# never an existing one.
+#
+# Mirrors the install rules in dotfiles/sdata/subcmd-install/3.files-legacy.sh:
+#   - hypr: only hypr/hyprland is --delete-synced there (hypr/custom is
+#     install-if-absent and user-owned, so a local edit in it is expected and
+#     must not count as drift)
+#   - fish: conf.d is excluded from the sync there, so exclude it here too
+#   - quickshell: not shipped by this fork at all (Horizons has its own shell/
+#     tree) - see the --skip-quickshell note in install_dots
+# Scope: "all" (default) walks every installed directory; "hypr" looks only at
+# the Hyprland config, which is what a re-apply is allowed to touch once the
+# base dots have been laid down (see dots_install_scope in install_dots).
+# Returns 0 if an update is needed, 1 if the installed copy already matches.
 dotfiles_need_update(){
-  # Returns 0 if update needed, 1 if already identical
-  local src="$DOTS_REPO/dots/.config/hypr/hyprland"
-  local dst="$XDG_CONFIG_HOME/hypr/hyprland"
-  if [[ ! -d "$dst" ]]; then return 0; fi
-  if [[ ! -d "$src" ]]; then return 0; fi
-  # Quick check: if horizons marker says same commit, consider identical
+  local scope="${1:-all}"
+  local dots_root="$DOTS_REPO/dots/.config"
+  [[ -d "$dots_root" ]] || return 0
+  command -v rsync &>/dev/null || return 0   # can't tell -> assume yes
+
+  # Same-commit gate first: a matching recorded commit is a cheap way to skip
+  # the checksum walk entirely on a no-op re-run.
   if [[ -f "$HORIZONS_META_JSON" ]] && declare -f horizons_state_get &>/dev/null; then
-    local recorded_commit
+    local recorded_commit current_commit
     recorded_commit=$(horizons_state_get git_commit 2>/dev/null || echo "")
-    local current_commit
     current_commit=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-    if [[ -n "$recorded_commit" && "$recorded_commit" == "$current_commit" ]]; then
-      # Also check file hash via rsync dry-run
-      if command -v rsync &>/dev/null; then
-        local diff_count
-        diff_count=$(rsync -ani --checksum --exclude='.git' "$src/" "$dst/" 2>/dev/null | grep -E "^>" | wc -l)
-        if [[ "$diff_count" -eq 0 ]]; then
-          return 1  # no diff -> no update needed
-        fi
-      fi
-    fi
+    [[ -n "$recorded_commit" && "$recorded_commit" == "$current_commit" ]] || return 0
+  else
+    return 0
   fi
-  return 0
+
+  local entry name src dst diff_count
+  local -a excludes
+  for entry in "$dots_root"/*; do
+    [[ -e "$entry" ]] || continue
+    name="$(basename "$entry")"
+    excludes=(--exclude=.git)
+    [[ "$scope" == "hypr" && "$name" != "hypr" ]] && continue
+    case "$name" in
+      quickshell) continue ;;                     # not shipped by this fork
+      hypr)
+        # i3 targets never receive the Hyprland config, so its absence is not drift.
+        [[ "$HORIZONS_WINDOW_MANAGER" == "i3" ]] && continue
+        src="$entry/hyprland"; dst="$XDG_CONFIG_HOME/hypr/hyprland" ;;
+      fish)
+        src="$entry"; dst="$XDG_CONFIG_HOME/$name"; excludes+=(--exclude=conf.d) ;;
+      *)
+        src="$entry"; dst="$XDG_CONFIG_HOME/$name" ;;
+    esac
+    [[ -d "$src" ]] || continue
+    [[ -d "$dst" ]] || return 0                   # never installed -> needs update
+    diff_count=$(rsync -ani --checksum "${excludes[@]}" "$src/" "$dst/" 2>/dev/null | grep -cE "^>" || true)
+    if [[ "${diff_count:-0}" -gt 0 ]]; then
+      verbose_log "dots drift in $name ($diff_count file(s))"
+      return 0
+    fi
+  done
+  return 1  # everything matches
 }
 
 # Is the current hypr config already from horizons? (if not -> force replace)
@@ -680,6 +750,25 @@ is_horizons_shell(){
     fi
   fi
   return 1
+}
+
+# Does the installed shell actually differ from this repo's shell/ tree?
+#
+# is_horizons_shell() answers "is what's installed *ours*", and it says yes as
+# soon as the identity marker exists - it is not, and cannot be, a freshness
+# test. install_qs() used it as one, so on any re-run where the marker was
+# present it reported "already Horizons and up-to-date" and skipped the sync,
+# defaulting the interactive prompt to "no" - the shell then never picked up
+# repo changes unless the user happened to pass --force/--build-force.
+# Returns 0 if a sync is needed.
+horizons_shell_needs_sync(){
+  [[ -d "$QS_CONFIG_DIR" ]] || return 0
+  [[ -f "$QS_CONFIG_DIR/shell.qml" ]] || return 0
+  command -v rsync &>/dev/null || return 0   # can't tell -> sync
+  local diff_count
+  local -a _ex=(--exclude=.git --exclude='*.so' --exclude='*.o' --exclude=__pycache__)
+  diff_count=$(rsync -ani --checksum --delete "${_ex[@]}" "$QS_REPO/" "$QS_CONFIG_DIR/" 2>/dev/null | grep -cE '^(>|\*deleting)' || true)
+  [[ "${diff_count:-1}" -gt 0 ]]
 }
 
 # ── Existing desktop configuration inventory ─────────────────────────────────
@@ -783,7 +872,7 @@ handle_existing_desktop_configs(){
 
 # ── Requirement checks ────────────────────────────────────────────────────────
 check_requirements(){
-  step "Pre-flight checks (ذكي — يتفادى المثبت بالفعل)"
+  step "$(L "Pre-flight checks (smart — skips what is already installed)" "الفحوصات الأولية (ذكية — تتخطى ما هو مثبت بالفعل)")"
   local ok_count=0 fail_count=0
   local skip_deps_hint=false
 
@@ -1170,9 +1259,53 @@ install_dots(){
   [[ "$DO_DOTS" == false || "$SKIP_DOTS" == true ]] && { info "$(L "Skipping dotfiles base install (profile: $HORIZONS_PROFILE)" "تخطي تثبيت ملفات النقاط (الملف: $HORIZONS_PROFILE)")"; return 0; }
   step "$(L "Install dotfiles (base — hypr/kitty/fish/etc.)" "تثبيت ملفات النقاط (الأساسية — hypr/kitty/fish/إلخ)")"
 
+  # Hyprland config is only Horizons' business when Hyprland is the target.
+  # On an i3/X11 install this block used to run anyway and "replace (with
+  # backup)" the user's completely unrelated Hyprland config - a WM this
+  # install is not even touching.
+  local targeting_hyprland=true
+  [[ "$HORIZONS_WINDOW_MANAGER" == "i3" ]] && targeting_hyprland=false
+
+  # ── What this run is allowed to write ──────────────────────────────────────
+  # The base dots (kitty, fish, fuzzel, matugen, mpv, foot, Kvantum, wlogout,
+  # fontconfig, xdg-desktop-portal, ...) are a starting point, not managed
+  # state: once they are on disk they belong to the user, and re-running the
+  # installer used to --delete-sync straight over local edits to any of them on
+  # every single update.
+  #
+  # The Hyprland config is the opposite - it is the compositor half of this
+  # shell, changes in lockstep with it (keybinds.lua drives every
+  # quickshell:... global shortcut), and has to keep being refreshed. Anything
+  # the user wants to keep there goes in hypr/custom, which the dots install
+  # with install_dir__ignore_existing and never overwrite.
+  #
+  #   full : first install (or --reinstall-dots) - every file step
+  #   hypr : later runs - only dots/.config/hypr
+  #   none : nothing left for this run to do
+  local dots_install_scope="full"
+  local dots_first_install=true
+  if declare -f horizons_state_is_installed &>/dev/null && horizons_state_is_installed; then
+    dots_first_install=false
+  fi
+  if [[ "$dots_first_install" == false && "$REINSTALL_DOTS" == false ]]; then
+    if [[ "$targeting_hyprland" == true ]]; then
+      dots_install_scope="hypr"
+    else
+      dots_install_scope="none"
+    fi
+  fi
+
+  if [[ "$dots_install_scope" == "none" ]]; then
+    info "$(L "Base dotfiles are already installed and are yours to edit — nothing to re-apply on i3 (use --reinstall-dots to restore them)." "ملفات النقاط الأساسية مثبتة بالفعل وهي ملكك للتعديل — لا شيء لإعادة تطبيقه على i3 (استخدم --reinstall-dots لاستعادتها).")"
+    return 0
+  fi
+  if [[ "$dots_install_scope" == "hypr" ]]; then
+    info "$(L "Re-applying the Hyprland config only; base dotfiles are left as you have them (--reinstall-dots to restore them)." "إعادة تطبيق إعدادات Hyprland فقط؛ ملفات النقاط الأساسية ستُترك كما هي (--reinstall-dots لاستعادتها).")"
+  fi
+
   # ── Smart: if hypr exists and NOT horizons → force replace with backup
   local force_hypr_replace=false
-  if [[ -d "$XDG_CONFIG_HOME/hypr" ]]; then
+  if [[ "$targeting_hyprland" == true && -d "$XDG_CONFIG_HOME/hypr" ]]; then
     if ! is_horizons_hypr; then
       warn "Detected non-Horizons hypr config — will be replaced (with backup)."
       force_hypr_replace=true
@@ -1193,7 +1326,7 @@ install_dots(){
       fi
     else
       # Horizons hypr already — check if need update
-      if ! dotfiles_need_update; then
+      if ! dotfiles_need_update "$dots_install_scope"; then
         ok "hypr files are already Horizons and up-to-date — skipping dotfiles copy, updating marker only."
         # Still ensure qsConfig line? But skip heavy rsync by returning early if user agrees
         if [[ "$FORCE" == false && "$ASK" == true ]]; then
@@ -1208,6 +1341,19 @@ install_dots(){
             return 0
           fi
         fi
+      fi
+    fi
+  elif [[ "$targeting_hyprland" == false ]]; then
+    # i3 target: there is no hypr config to reason about, but the rest of the
+    # dots (kitty/fish/fuzzel/matugen/...) still need the same up-to-date check
+    # so a routine update doesn't re-run the whole setup for nothing.
+    if ! dotfiles_need_update "$dots_install_scope"; then
+      ok "Dotfiles are already up to date — nothing to copy."
+      if [[ "$FORCE" == true || "$ASK" == false ]]; then
+        [[ "$BUILD_FORCE" == false ]] && { info "Skipping dotfiles (up-to-date)."; return 0; }
+      elif confirm "$(L "Skip copying dotfiles (identical)?" "تخطي نسخ ملفات النقاط (متطابقة)؟")" "y"; then
+        info "$(L "Skipped dotfiles — already current." "تم تخطي ملفات النقاط — محدثة بالفعل.")"
+        return 0
       fi
     fi
   fi
@@ -1234,10 +1380,45 @@ install_dots(){
   [[ "$FORCE" == true ]]       && setup_args+=(--force)
   [[ "$WITH_VIA_NIX" == true ]] && setup_args+=(--via-nix)
   [[ -n "$FONTSET_DIR_NAME" ]]  && setup_args+=(--fontset "$FONTSET_DIR_NAME")
-  # If we forced hypr replace, ensure setup doesn't skip hyprland
-  if [[ "$force_hypr_replace" == true ]]; then
-    info "Forcing hyprland reinstall (was non-Horizons) — overriding any --skip-hyprland."
+
+  # Always. The dots' own file step does:
+  #     install_dir__sync dots/.config/quickshell "$XDG_CONFIG_HOME"/quickshell
+  # and install_dir__sync is `rsync -a --delete SRC/ DEST/` over the *whole*
+  # ~/.config/quickshell directory (upstream widened it from .../ii on purpose,
+  # see end-4/dots-hyprland#2294). Horizons ships its own shell out of this
+  # repo's shell/ tree into ~/.config/quickshell/horizons and carries no
+  # dots/.config/quickshell at all, so leaving that step enabled means:
+  #   - every run errors out on a source directory that does not exist, and
+  #   - if dots/.config/quickshell is ever restored from upstream, the --delete
+  #     takes ~/.config/quickshell/horizons with it.
+  # install_qs() is the only thing that should ever write under
+  # ~/.config/quickshell.
+  setup_args+=(--skip-quickshell)
+
+  # Hypr-only re-apply: turn off the other three file steps in
+  # dotfiles/sdata/subcmd-install/3.files-legacy.sh (MISCCONF / FISH /
+  # FONTCONFIG), leaving the HYPRLAND step as the only one that writes.
+  if [[ "$dots_install_scope" == "hypr" ]]; then
+    setup_args+=(--skip-miscconf --skip-fish --skip-fontconfig)
   fi
+
+  # i3/X11 target: do not install the Hyprland config at all. Nothing in an i3
+  # session reads ~/.config/hypr, and writing it would clobber the Hyprland
+  # setup of a user who dual-boots between the two.
+  if [[ "$targeting_hyprland" == false ]]; then
+    info "$(L "i3/X11 target — skipping the Hyprland dotfiles." "الهدف i3/X11 — تخطي ملفات Hyprland.")"
+    setup_args+=(--skip-hyprland --skip-hyprland-entry)
+  elif [[ "$force_hypr_replace" == true ]]; then
+    # Previously this only printed a message and added nothing, so "forcing"
+    # was a no-op: a --skip-hyprland arriving from anywhere else still won.
+    info "Forcing hyprland reinstall (was non-Horizons)."
+    setup_args=("${setup_args[@]/--skip-hyprland}")
+    setup_args=("${setup_args[@]/--skip-hyprland-entry}")
+  fi
+  # Drop any empties the substitutions above may have left behind.
+  local _cleaned=(); local _a
+  for _a in "${setup_args[@]}"; do [[ -n "$_a" ]] && _cleaned+=("$_a"); done
+  setup_args=("${_cleaned[@]}")
   info "Launching: $DOTS_REPO/setup ${setup_args[*]}"
   printf "\n"
   if [[ "$DRY_RUN" == true ]]; then
@@ -1299,10 +1480,11 @@ install_bundled(){
 install_qs(){
   [[ "$DO_SHELL" == false || "$SKIP_QS" == true ]] && { info "$(L "Skipping Quickshell config (--skip-qs / profile: $HORIZONS_PROFILE)" "تخطي إعدادات Quickshell (--skip-qs / الملف: $HORIZONS_PROFILE)")"; return 0; }
   step "$(L "Install Horizons Quickshell config" "تثبيت إعدادات Horizons لـ Quickshell")"
-  # Smart: skip if already horizons and identical (avoid overwriting)
-  if [[ -d "$QS_CONFIG_DIR" ]] && is_horizons_shell; then
+  # Skip only when the installed copy is ours AND byte-identical to shell/.
+  # "Ours" alone is not enough - that is true of every previous version too.
+  if [[ -d "$QS_CONFIG_DIR" ]] && is_horizons_shell && ! horizons_shell_needs_sync; then
     if [[ "$BUILD_FORCE" == false && "$FORCE" == false ]]; then
-      ok "Quickshell config already Horizons and up-to-date — skipping sync."
+      ok "Quickshell config already Horizons and identical to shell/ — nothing to sync."
       if [[ "$ASK" == true ]]; then
         if ! confirm "$(L "Force re-sync shell anyway?" "فرض إعادة مزامنة الواجهة على أي حال؟")" "n"; then
           info "$(L "Skipping shell sync (identical)." "تخطي مزامنة الواجهة (متطابقة).")"
@@ -1313,7 +1495,7 @@ install_qs(){
         return 0
       fi
     else
-      warn "Force mode — re-syncing even though shell appears installed."
+      warn "Force mode — re-syncing even though shell is already identical."
     fi
   fi
   info "Source : $QS_REPO"
@@ -1325,8 +1507,8 @@ install_qs(){
     return 0
   fi
   if [[ "$DRY_RUN" == true ]]; then
-    if [[ -d "$QS_CONFIG_DIR" ]] && is_horizons_shell; then
-      info "[dry-run] QS already horizons — would skip unless --build-force"
+    if [[ -d "$QS_CONFIG_DIR" ]] && is_horizons_shell && ! horizons_shell_needs_sync; then
+      info "[dry-run] QS already horizons and identical — would skip unless --build-force"
     else
       info "[dry-run] would rsync $QS_REPO/ -> $QS_CONFIG_DIR/ (delete, exclude .git, *.so, *.o)"
     fi

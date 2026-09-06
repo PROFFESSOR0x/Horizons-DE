@@ -213,7 +213,9 @@ RippleButton {
                     model: root.query == root.itemName ? [] : root.urls
                     Favicon {
                         required property var modelData
-                        size: parent.height
+                        // `parent` is briefly null while the delegate is being
+                        // (re)parented into the row.
+                        size: parent?.height ?? 0
                         url: modelData
                     }
                 }

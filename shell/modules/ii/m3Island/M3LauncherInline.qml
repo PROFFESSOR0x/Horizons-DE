@@ -19,12 +19,26 @@ Item {
     // This follows the *animated* island height rather than the launcher's
     // final implicit height. Together with clipping, results are revealed only
     // as the black launcher surface has physically expanded underneath them.
-    height: parent?.height ?? 0
+    //
+    // Both margins have to come off it. The island sizes itself to
+    // `launcherInline.implicitHeight + 12` and then anchors this item 6px down
+    // from its top, so the space actually available here is the island's
+    // height minus 6 above and 6 below. Taking the island height verbatim made
+    // this item 12px taller than its slot: searchRow is a RowLayout, which
+    // defaults to Layout.fillHeight, so it absorbed the whole surplus and drew
+    // the search icon, field and close button ~6px below the island's centre
+    // with the bottom edge clipped off.
+    height: Math.max(0, (parent?.height ?? 0) - anchors.topMargin * 2)
     clip: true
     property var panelWindow
     property bool hasQuery: LauncherSearch.query !== ""
     readonly property int maximumResults: Math.max(1, Config.options.m3Island.launcherMaxResults)
-    readonly property real resultsRevealProgress: Math.max(0, Math.min(1, (height - 52) / 88))
+    // Height of the search bar alone, i.e. the launcher with no results yet.
+    // Derived rather than hardcoded so the reveal starts exactly when the
+    // surface begins growing past the bar.
+    readonly property real collapsedHeight: searchRow.implicitHeight
+        + searchRow.Layout.topMargin + searchRow.Layout.bottomMargin
+    readonly property real resultsRevealProgress: Math.max(0, Math.min(1, (height - root.collapsedHeight) / 88))
 
     Connections {
         target: GlobalStates
@@ -47,6 +61,10 @@ Item {
         RowLayout {
             id: searchRow
             Layout.fillWidth: true
+            // A nested layout defaults to Layout.fillHeight: true. This row is
+            // a fixed-height search bar - any spare height belongs to the
+            // results list below it, not here.
+            Layout.fillHeight: false
             Layout.leftMargin: 10
             Layout.rightMargin: 6
             Layout.topMargin: 6
@@ -54,6 +72,7 @@ Item {
             spacing: 8
 
             MaterialSymbol {
+                Layout.alignment: Qt.AlignVCenter
                 text: "search"
                 iconSize: Appearance.font.pixelSize.large
                 color: Appearance.colors.colOnLayer1
@@ -61,13 +80,20 @@ Item {
             ToolbarTextField {
                 id: searchInput
                 Layout.fillWidth: true
+                // ToolbarTextField hardcodes Layout.fillHeight: true, which is
+                // wrong in a fixed-height bar - it stretched the field (and its
+                // full-radius background) to whatever height the row was given.
+                Layout.fillHeight: false
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredHeight: 36
                 focus: GlobalStates.overviewOpen
                 font.pixelSize: Appearance.font.pixelSize.small
-                // Keep the text optically centered in the island's compact
-                // search bar, which needs it slightly above the geometric
-                // center.
-                topPadding: 7
-                bottomPadding: 13
+                // Symmetric now. The old 7/13 split was compensating for the
+                // row being mis-sized (see `height` above); with the row the
+                // right height, uneven padding just pushes the text off-centre
+                // the other way.
+                topPadding: 8
+                bottomPadding: 8
                 placeholderText: Translation.tr("Search, calculate or run")
                 onTextChanged: {
                     LauncherSearch.query = text
@@ -92,6 +118,7 @@ Item {
             }
 
             RippleButton {
+                Layout.alignment: Qt.AlignVCenter
                 implicitWidth: 32
                 implicitHeight: 32
                 buttonRadius: Appearance.rounding.full
@@ -151,7 +178,10 @@ Item {
                 id: updateTimer
                 interval: 60
                 onTriggered: {
-                    resultModel.values = (LauncherSearch.results ?? []).slice(0, 10)
+                    // Honour the configured cap (Settings > Bar > M3 Island >
+                    // "Launcher results"); this used to be hardcoded to 10, so
+                    // raising the setting had no effect.
+                    resultModel.values = (LauncherSearch.results ?? []).slice(0, root.maximumResults)
                     Qt.callLater(() => resultsView.selectResult(0))
                 }
             }

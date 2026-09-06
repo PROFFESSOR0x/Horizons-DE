@@ -316,6 +316,9 @@ Singleton {
     FileView {
         id: sshConfigFile
         path: `${Directories.home}/.ssh/config`
+        // Not having an ~/.ssh/config is the normal case, not a fault worth a
+        // warning on every shell start - onLoadFailed already handles it.
+        printErrors: false
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root._parseSshConfig()

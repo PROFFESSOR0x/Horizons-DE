@@ -91,10 +91,14 @@ Scope {
                 // The launcher can deliberately float even when the idle island hugs the edge.
                 readonly property bool isHug: Config.options.m3Island.cornerStyle === 0
                     && (!barContent.isLauncher || Config.options.m3Island.launcherHug)
-                // Keep the two inverted edge corners tight. Using the global
-                // screen radius here makes a short bottom island look overly
-                // flat because the curves extend too far to either side.
-                readonly property real hugCornerSize: Math.min(Appearance.rounding.screenRounding, 14)
+                // Size of the two inverted edge corners. Configurable rather
+                // than pinned to min(screenRounding, 14): that cap made the
+                // curve look cramped beside a taller island. Still clamped to
+                // half the island height so a short pill can't be swallowed by
+                // its own corners.
+                readonly property real hugCornerSize: Math.max(0, Math.min(
+                    Config.options.m3Island.hugCornerSize ?? 22,
+                    Math.max(8, barContent.height / 2)))
                 readonly property color hugColor: Config.options.m3Island.showBackground
                     ? (barContent.isLauncher ? Appearance.colors.colBackgroundSurfaceContainer : Appearance.colors.colLayer0)
                     : "transparent"

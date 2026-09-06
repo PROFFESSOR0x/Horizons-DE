@@ -75,7 +75,6 @@ Item {
             if (loader && loader.item) walkForSections(loader.item, root.pages[i].name, root.pages[i].icon)
         }
         root.searchIndex = index
-        root.searchIndexBuilt = true
     }
 
     function navigateToSearchResult(entry) {
@@ -319,7 +318,12 @@ Item {
                     FloatingActionButton {
                         id: fab
                         visible: !isMinimal
-                        Layout.bottomMargin: -25
+                        // The -25 here predates the search FAB below it, when
+                        // this was the last item before the tab rail. Left as
+                        // it was, it pulled the search FAB up into this one so
+                        // the two pills overlapped. The pull-in to the rail now
+                        // lives on the *last* FAB instead.
+                        Layout.bottomMargin: 0
                         property bool justCopied: false
                         iconText: justCopied ? "check" : "edit"
                         buttonText: justCopied ? Translation.tr("Path copied") : Translation.tr("Config file")
@@ -345,7 +349,7 @@ Item {
                     FloatingActionButton {
                         id: searchFab
                         visible: !isMinimal
-                        Layout.bottomMargin: -15
+                        Layout.bottomMargin: -25
                         iconText: "search"
                         buttonText: Translation.tr("Search settings")
                         expanded: navRail.expanded

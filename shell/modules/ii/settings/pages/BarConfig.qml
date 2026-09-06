@@ -495,6 +495,25 @@ ContentPage {
                     onValueChanged: { Config.options.m3Island.expandedHeight = value }
                 }
                 ConfigSelectionArray {
+                    text: Translation.tr("Animation speed")
+                    icon: "speed"
+                    currentValue: Config.options.m3Island.animationSpeed
+                    onSelected: newValue => { Config.options.m3Island.animationSpeed = newValue }
+                    options: [
+                        { displayName: Translation.tr("Fast"),   icon: "fast_forward", value: "fast" },
+                        { displayName: Translation.tr("Normal"), icon: "speed",        value: "normal" },
+                        { displayName: Translation.tr("Slow"),   icon: "slow_motion_video", value: "slow" },
+                    ]
+                }
+                ConfigSpinBox {
+                    icon: "line_curve"
+                    text: Translation.tr("Hug corner size")
+                    visible: Config.options.m3Island.cornerStyle === 0
+                    value: Config.options.m3Island.hugCornerSize
+                    from: 0; to: 48; stepSize: 2
+                    onValueChanged: { Config.options.m3Island.hugCornerSize = value }
+                }
+                ConfigSelectionArray {
                     text: Translation.tr("Corner style")
                     icon: "style"
                     currentValue: Config.options.m3Island.cornerStyle

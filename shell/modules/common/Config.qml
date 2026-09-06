@@ -886,7 +886,7 @@ Singleton {
                 property string groupColor: "layer1"
                 property bool floatStyleShadow: true // Show shadow behind bar when cornerStyle == 1 (Float)
                 property string borderless: "pills"
-                property string topLeftIcon: "spark" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
+                property string topLeftIcon: "spark-symbolic" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
                 property bool showBackground: true
                 property bool verbose: true
                 property bool vertical: false
@@ -1166,6 +1166,10 @@ Singleton {
                 // Animation - scales the morph/transition durations used throughout
                 // the island. Curves are untouched, only speed changes.
                 property string animationSpeed: "normal" // "slow" | "normal" | "fast"
+                // Size of the two inverted corners that blend the hugging
+                // island into the screen edge. Was hardcoded to at most 14px,
+                // which reads as too tight next to a taller island.
+                property int hugCornerSize: 22
                 // Subtle overscale/overshoot spring on notification-card arrival.
                 property bool expressiveNotifications: true
                 // Debounce before/after entering hover-peek state (ms).
@@ -1579,7 +1583,11 @@ Singleton {
             }
 
             property JsonObject custom: JsonObject {
-                property string distroIcon: "spark"
+                // Must match a real file in shell/assets/icons (CustomIcon just
+                // appends ".svg"). The asset is spark-symbolic.svg, so a bare
+                // "spark" resolved to a nonexistent path and the bar's distro
+                // button came up empty.
+                property string distroIcon: "spark-symbolic"
                 property bool colorizeIcon: true
             }
 

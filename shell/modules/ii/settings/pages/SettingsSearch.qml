@@ -54,6 +54,12 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
+            // A nested layout defaults to Layout.fillHeight: true, so this row
+            // was splitting the page's spare height with the empty-state block
+            // below. ToolbarTextField also hardcodes Layout.fillHeight, so the
+            // field grew to ~half the page and - having radius
+            // Appearance.rounding.full - painted as an enormous circle.
+            Layout.fillHeight: false
             spacing: 10
 
             MaterialSymbol {
@@ -64,6 +70,8 @@ Item {
             ToolbarTextField {
                 id: searchField
                 Layout.fillWidth: true
+                Layout.fillHeight: false
+                Layout.preferredHeight: 44
                 implicitHeight: 44
                 focus: true
                 placeholderText: Translation.tr("Search every setting… (plain text, or /regex/)")

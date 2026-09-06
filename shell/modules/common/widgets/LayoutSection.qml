@@ -202,7 +202,12 @@ ContentSubsection {
                             root.onUpdate(list)
                             const keepOpen = ["visualizer", "divisor"]
                             if (!keepOpen.includes(modelData.id)) {
-                                Qt.callLater(() => { dropdown.dropdownOpen = false })
+                                // Capture the item now: `dropdown` is a document id,
+                                // and id lookups aren't available inside a closure
+                                // that Qt.callLater invokes outside the binding
+                                // scope ("dropdown is not defined").
+                                const dd = dropdown
+                                Qt.callLater(function() { dd.dropdownOpen = false })
                             }
                         }
                     }

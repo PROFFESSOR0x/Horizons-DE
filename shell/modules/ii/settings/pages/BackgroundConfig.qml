@@ -236,6 +236,9 @@ ContentPage {
                 }
 
                 ConfigSelectionArray {
+                    // Both split options only do anything while the blur wall
+                    // is on - showing them enabled otherwise reads as broken.
+                    visible: Config.options.background.showBlur
                     text: Translation.tr("Split blur amount")
                     icon: "split_scene"
                     currentValue: Config.options.background.splitRatio
@@ -250,6 +253,7 @@ ContentPage {
                 }
 
                 ConfigSelectionArray {
+                    visible: Config.options.background.showBlur
                     text: Translation.tr("Split blur side")
                     icon: "align_horizontal_left"
                     currentValue: Config.options.background.splitSide

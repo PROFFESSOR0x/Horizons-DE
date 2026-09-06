@@ -11,7 +11,13 @@ RippleButton {
     colBackgroundHover: "transparent"
 
     Layout.fillWidth: true
-    Layout.bottomMargin: 6 //Visually it works and I don't know why this should be handled by the parent.
+    // No self-applied bottom margin. GroupedList overrides top/bottom margin
+    // on its own direct children anyway, so this only ever applied to a switch
+    // nested inside a ConfigRow - leaving 6px of dead space below it and
+    // pushing the control off the row's vertical centre, while an identical
+    // switch placed directly in the list sat centred. Rows are padded to a
+    // common height by GroupedList.minRowHeight, so dropping this does not
+    // change any row's height.
     implicitHeight: contentItem.implicitHeight + 8 
     font.pixelSize: Appearance.font.pixelSize.small
     
