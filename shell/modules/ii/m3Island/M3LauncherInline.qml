@@ -179,10 +179,11 @@ Item {
                 }
             }
 
-            // Debounce rapid typing to avoid shaking
+            // Coalesce a burst of service updates (query, calculator and file
+            // results) without adding a noticeable delay to the M3 launcher.
             Timer {
                 id: updateTimer
-                interval: 60
+                interval: 24
                 onTriggered: {
                     // Honour the configured cap (Settings > Bar > M3 Island >
                     // "Launcher results"); this used to be hardcoded to 10, so

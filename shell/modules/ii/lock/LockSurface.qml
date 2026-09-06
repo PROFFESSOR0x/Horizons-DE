@@ -18,8 +18,32 @@ MouseArea {
     required property LockContext context
     property bool active: false
     property bool showInputField: active || context.currentText.length > 0
+    property bool controlsVisible: true
+    function resolveSurfaceScreenName() {
+        const directScreen = root.QsWindow.window?.screen?.name
+        if (directScreen) return directScreen
+        let item = root
+        while (item) {
+            if (item.screen?.name) return item.screen.name
+            item = item.parent
+        }
+        return ""
+    }
+    readonly property string surfaceScreenName: resolveSurfaceScreenName()
+    readonly property bool isInteractionScreen: surfaceScreenName !== ""
+        && GlobalStates.lockInteractionScreenName === surfaceScreenName
+    // WlSessionLockSurface is created before its window/screen attachment on
+    // some compositors.  Treat that short-lived unknown state as interactive:
+    // hiding credentials there made every control disappear permanently when
+    // the binding did not get another screen-name notification.
+    readonly property bool isPrimaryControlsScreen: !Config.options.lock.unlockBoxPrimaryMonitorOnly
+        || surfaceScreenName === "" || surfaceScreenName === GlobalStates.primaryLockOutputName()
+    readonly property bool controlsShown: controlsVisible && isPrimaryControlsScreen
+        && (surfaceScreenName === "" || GlobalStates.lockInteractionScreenName === "" || isInteractionScreen)
+    property real controlsVisibility: controlsShown ? 1 : 0
     readonly property bool requirePasswordToPower: Config.options.lock.security.requirePasswordToPower
-    readonly property string passwordPlacement: Config.options.lock.layout.passwordPlacement
+    readonly property var screenLayout: GlobalStates.lockLayoutForOutput(surfaceScreenName)
+    readonly property string passwordPlacement: screenLayout.passwordPlacement
     readonly property MprisPlayer activePlayer: {
         const preferred = Config.options.bar.media.preferredPlayer.trim().toLowerCase()
         if (preferred.length === 0) return MprisController.activePlayer
@@ -38,6 +62,22 @@ MouseArea {
     function forceFieldFocus() {
         passwordBox.forceActiveFocus();
     }
+    function registerInteraction() {
+        if (root.surfaceScreenName !== "")
+            GlobalStates.lockInteractionScreenName = root.surfaceScreenName
+        root.controlsVisible = true
+        if (Config.options.lock.autoHideControls)
+            controlsIdleTimer.restart()
+    }
+    Timer {
+        id: controlsIdleTimer
+        interval: Math.max(1, Config.options.lock.controlsIdleSeconds) * 1000
+        repeat: false
+        onTriggered: {
+            if (Config.options.lock.autoHideControls)
+                root.controlsVisible = false
+        }
+    }
     Connections {
         target: context
         function onShouldReFocus() {
@@ -47,9 +87,11 @@ MouseArea {
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton
     onPressed: mouse => {
+        registerInteraction();
         forceFieldFocus();
     }
     onPositionChanged: mouse => {
+        registerInteraction();
         forceFieldFocus();
     }
 
@@ -66,10 +108,23 @@ MouseArea {
     Behavior on toolbarOpacity {
         animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
     }
+    Behavior on controlsVisibility {
+        NumberAnimation {
+            duration: 180
+            easing.type: Easing.OutCubic
+        }
+    }
 
     // Init
     Component.onCompleted: {
-        forceFieldFocus();
+        // Lock.qml chooses an initial screen. Do not let the last session-lock
+        // surface constructed win by accident; pointer movement promotes its
+        // own surface through registerInteraction().
+        if (GlobalStates.lockInteractionScreenName === ""
+            || GlobalStates.lockInteractionScreenName === root.surfaceScreenName) {
+            registerInteraction();
+            forceFieldFocus();
+        }
         toolbarScale = 1;
         toolbarOpacity = 1;
     }
@@ -77,6 +132,7 @@ MouseArea {
     // Key presses
     property bool ctrlHeld: false
     Keys.onPressed: event => {
+        registerInteraction();
         root.context.resetClearTimer();
         if (event.key === Qt.Key_Control) {
             root.ctrlHeld = true;
@@ -87,6 +143,7 @@ MouseArea {
         forceFieldFocus();
     }
     Keys.onReleased: event => {
+        registerInteraction();
         if (event.key === Qt.Key_Control) {
             root.ctrlHeld = false;
         }
@@ -133,6 +190,7 @@ MouseArea {
     // Main toolbar: password box
     Toolbar {
         id: mainIsland
+        visible: opacity > 0.01
         anchors {
             horizontalCenter: root.passwordPlacement === "bottom" || root.passwordPlacement === "center" ? parent.horizontalCenter : undefined
             verticalCenter: root.passwordPlacement === "center" ? parent.verticalCenter : undefined
@@ -141,15 +199,16 @@ MouseArea {
             bottom: root.passwordPlacement !== "center" ? parent.bottom : undefined
             leftMargin: root.passwordPlacement === "left" ? 28 : 0
             rightMargin: root.passwordPlacement === "right" ? 28 : 0
-            bottomMargin: root.passwordPlacement !== "center" ? Config.options.lock.layout.bottomMargin : 0
+            bottomMargin: root.passwordPlacement !== "center" ? root.screenLayout.bottomMargin : 0
         }
-        transform: Translate { x: Config.options.lock.layout.password.offsetX; y: Config.options.lock.layout.password.offsetY }
+        transform: Translate { x: root.screenLayout.password.offsetX; y: root.screenLayout.password.offsetY }
         Behavior on anchors.bottomMargin {
             animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
         }
 
-        scale: root.toolbarScale * Config.options.lock.layout.password.scale
-        opacity: root.toolbarOpacity
+        scale: root.toolbarScale * root.screenLayout.password.scale
+            * (0.96 + root.controlsVisibility * 0.04)
+        opacity: root.toolbarOpacity * root.controlsVisibility
 
         // Fingerprint sensor; it remains a button so a user can deliberately
         // start a scan even when automatic scanning is turned off.
@@ -316,7 +375,7 @@ MouseArea {
         // can't sensibly sit further left (it would run off-screen), so it stacks
         // above the main island on the same edge instead of flanking it.
         readonly property bool stackedAboveMain: root.passwordPlacement === "left"
-        visible: Config.options.lock.showToolbars && Config.options.lock.showLeftToolbar
+        visible: opacity > 0.01
         anchors {
             left: stackedAboveMain ? mainIsland.left : undefined
             right: stackedAboveMain ? undefined : mainIsland.left
@@ -330,9 +389,11 @@ MouseArea {
         }
         // Own independent offset/scale (Settings > Interface > Lock screen) -
         // no longer tied to the password box or the right toolbar's.
-        transform: Translate { x: Config.options.lock.layout.leftToolbar.offsetX; y: Config.options.lock.layout.leftToolbar.offsetY }
-        scale: root.toolbarScale * Config.options.lock.layout.leftToolbar.scale
-        opacity: root.toolbarOpacity
+        transform: Translate { x: root.screenLayout.leftToolbar.offsetX; y: root.screenLayout.leftToolbar.offsetY }
+        scale: root.toolbarScale * root.screenLayout.leftToolbar.scale
+            * (0.96 + root.controlsVisibility * 0.04)
+        opacity: root.toolbarOpacity * root.controlsVisibility
+            * (Config.options.lock.showToolbars && Config.options.lock.showLeftToolbar ? 1 : 0)
 
         // Username
         IconAndTextPair {
@@ -517,7 +578,7 @@ MouseArea {
         // Mirror of leftIsland's logic: when the password controls hug the right
         // edge, stack above main on that edge instead of flanking off-screen.
         readonly property bool stackedAboveMain: root.passwordPlacement === "right"
-        visible: Config.options.lock.showToolbars && Config.options.lock.showRightToolbar
+        visible: opacity > 0.01
         anchors {
             right: stackedAboveMain ? mainIsland.right : undefined
             left: stackedAboveMain ? undefined : mainIsland.right
@@ -530,9 +591,11 @@ MouseArea {
             animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
         }
         // Own independent offset/scale, same as the left toolbar above.
-        transform: Translate { x: Config.options.lock.layout.rightToolbar.offsetX; y: Config.options.lock.layout.rightToolbar.offsetY }
-        scale: root.toolbarScale * Config.options.lock.layout.rightToolbar.scale
-        opacity: root.toolbarOpacity
+        transform: Translate { x: root.screenLayout.rightToolbar.offsetX; y: root.screenLayout.rightToolbar.offsetY }
+        scale: root.toolbarScale * root.screenLayout.rightToolbar.scale
+            * (0.96 + root.controlsVisibility * 0.04)
+        opacity: root.toolbarOpacity * root.controlsVisibility
+            * (Config.options.lock.showToolbars && Config.options.lock.showRightToolbar ? 1 : 0)
 
         IconAndTextPair {
             visible: Battery.available

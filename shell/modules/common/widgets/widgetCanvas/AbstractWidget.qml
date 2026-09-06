@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import qs
 import qs.modules.common
 
 /*
@@ -15,7 +16,15 @@ MouseArea {
     readonly property bool dragging: drag.active
 
     acceptedButtons: Qt.LeftButton | Qt.RightButton
+    // A lock-screen preview is an editor, not the live widget surface.  Child
+    // controls (for example User Card's Settings/Power buttons) used to eat
+    // the press before this MouseArea could begin a drag, which opened an
+    // overlay and immediately made the editor appear to close.  During the
+    // preview the wrapper intentionally owns the input; normal desktop widget
+    // interaction remains unchanged.
     drag.target: draggable ? dragProxy : undefined
+    drag.filterChildren: GlobalStates.lockPreviewOpen
+    preventStealing: GlobalStates.lockPreviewOpen
     cursorShape: (draggable && containsPress) ? Qt.ClosedHandCursor : draggable ? Qt.OpenHandCursor : Qt.ArrowCursor
 
     onClicked: (mouse) => {
@@ -92,12 +101,17 @@ MouseArea {
 
             var widgetCenterX = root.x + root.width / 2
             var widgetCenterY = root.y + root.height / 2
-            if (Math.abs(widgetCenterX - canvas.width / 2) < root.gridSize / 2)
-                verticalLines.push(canvas.width / 2)
-            if (Math.abs(widgetCenterY - canvas.height / 2) < root.gridSize / 2)
-                horizontalLines.push(canvas.height / 2)
+            // In the lock editor the four edge guides are enough and make a
+            // clean, predictable release animation. Desktop editing retains
+            // its extra centre snap guide.
+            if (!GlobalStates.lockPreviewOpen) {
+                if (Math.abs(widgetCenterX - canvas.width / 2) < root.gridSize / 2)
+                    verticalLines.push(canvas.width / 2)
+                if (Math.abs(widgetCenterY - canvas.height / 2) < root.gridSize / 2)
+                    horizontalLines.push(canvas.height / 2)
+            }
 
-            if (Config.options.background.showSnapLines)
+            if (GlobalStates.lockPreviewOpen || Config.options.background.showSnapLines)
                 canvas.flashLines(verticalLines, horizontalLines)
         }
 

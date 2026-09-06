@@ -165,7 +165,14 @@ Item {
                 }
 
                 middleClickAction: () => { slotItem.deskEntry?.execute() }
-                altAction:         () => { TaskbarApps.togglePin(slotItem.appId) }
+                altAction: event => pinnedContextMenu.showAt(event.x, event.y)
+
+                DockAppContextMenu {
+                    id: pinnedContextMenu
+                    hostWindow: root.QsWindow.window
+                    appEntry: slotItem.appEntry
+                    desktopEntry: slotItem.deskEntry
+                }
 
                 contentItem: Item {
                     anchors.centerIn: parent

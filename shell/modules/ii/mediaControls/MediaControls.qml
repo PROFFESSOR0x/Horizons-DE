@@ -79,9 +79,10 @@ Scope {
 
     Process {
         id: cavaProc
-        // Only worth spawning cava (continuous audio capture + FFT) while a
-        // player is actually producing sound - an active-but-paused player
-        // would otherwise keep this running (and burning CPU) indefinitely.
+        // A desktop/lock visualizer is an audio meter, not merely an MPRIS
+        // player decoration: browser video, games and PipeWire clients with no
+        // MPRIS entry must still move it. The expensive capture stays off for
+        // bar/sidebar use alone until an actual player is producing sound.
         running: (GlobalStates.mediaControlsOpen ||
             GlobalStates.sidebarRightOpen ||
             Config.options.bar.layouts.leftLayout.includes("visualizer") ||
@@ -92,7 +93,8 @@ Scope {
             // output, so there is no reason to keep capturing and FFT-ing
             // audio for it. See services/DesktopVisualizer.qml.
             DesktopVisualizer.visibleAnywhere)
-            && (MprisController.activePlayer?.isPlaying ?? false)
+            && ((MprisController.activePlayer?.isPlaying ?? false)
+                || DesktopVisualizer.visibleAnywhere)
         onRunningChanged: {
             if (!cavaProc.running) {
                 GlobalStates.visualizerPoints = [];

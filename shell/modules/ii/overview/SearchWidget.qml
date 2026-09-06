@@ -38,6 +38,28 @@ Item { // Wrapper
         }
     }
 
+    function activeResultsView() {
+        return root.launcherPosition === "bottom" ? appResultsBottom : appResultsTop
+    }
+
+    function activateCurrentResult() {
+        const view = root.activeResultsView()
+        if (!view || view.count <= 0) return
+        const selectedIndex = Math.max(0, view.currentIndex)
+        const item = view.currentItem ?? view.itemAtIndex(selectedIndex)
+        if (item?.clicked) {
+            item.clicked()
+            return
+        }
+        // A delegate outside the viewport may not be instantiated yet. The
+        // underlying result is still safe to execute directly.
+        const entry = LauncherSearch.results[selectedIndex]
+        if (entry?.execute) {
+            GlobalStates.overviewOpen = false
+            entry.execute()
+        }
+    }
+
     function focusSearchInput() {
         searchBar.forceFocus();
     }
@@ -180,6 +202,8 @@ Item { // Wrapper
             }
             SearchBar {
                 id: searchBar
+                resultsView: root.launcherPosition === "bottom" ? appResultsBottom : appResultsTop
+                onActivateResult: root.activateCurrentResult()
                 property real verticalPadding: 4
                 Layout.fillWidth: true
                 Layout.leftMargin: 10

@@ -12,13 +12,18 @@ AbstractBackgroundWidget {
     id: root
 
     configEntryName: "clock"
+    // Clock is the lock screen's stable visual anchor. All other background
+    // widgets continue to obey Lock > Show Widgets and its allow-list.
+    visibleWhenLocked: true
 
     implicitHeight: contentColumn.implicitHeight
     implicitWidth: contentColumn.implicitWidth
 
-    readonly property string clockStyle: GlobalStates.screenLocked ? Config.options.background.widgets.clock.styleLocked : Config.options.background.widgets.clock.style
-    readonly property bool forceCenter: (GlobalStates.screenLocked && Config.options.lock.centerClock)
-    readonly property bool shouldShow: (!Config.options.background.widgets.clock.showOnlyWhenLocked || GlobalStates.screenLocked)
+    readonly property string clockStyle: root.lockPresentationActive ? Config.options.background.widgets.clock.styleLocked : Config.options.background.widgets.clock.style
+    // This remains a real settings choice. The live editor asks before
+    // disabling it instead of silently overriding the user's configuration.
+    readonly property bool forceCenter: root.lockPresentationActive && Config.options.lock.centerClock
+    readonly property bool shouldShow: (!Config.options.background.widgets.clock.showOnlyWhenLocked || root.lockPresentationActive)
     readonly property string customClockColorKey: Config.options.background.widgets.clock.color ?? ""
     readonly property color resolvedClockColor: {
         if (customClockColorKey === "") return root.colText;
@@ -27,6 +32,18 @@ AbstractBackgroundWidget {
     }
     property bool wallpaperSafetyTriggered: false
     needsColText: clockStyle === "digital"
+    property bool centerClockNoticeVisible: false
+    // While the lock clock is intentionally centered, a drag would be undone
+    // by its centering binding. Show the opt-in action below instead.
+    draggable: GlobalStates.lockPreviewOpen ? !forceCenter
+        : placementStrategy === "free" && !lockPresentationActive
+            && !Config.options.background.widgetsLocked
+    onPressed: mouse => {
+        if (GlobalStates.lockPreviewOpen && forceCenter) {
+            centerClockNoticeVisible = true
+            mouse.accepted = true
+        }
+    }
     x: forceCenter ? ((root.screenWidth - root.width) / 2) : targetX
     y: forceCenter ? ((root.screenHeight - root.height) / 2) : targetY
     // Respects Config.options.lock.enabledWidgets like any other background
@@ -90,6 +107,59 @@ AbstractBackgroundWidget {
 
         StatusRow {
             anchors.horizontalCenter: parent.horizontalCenter
+        }
+    }
+
+    Rectangle {
+        id: centerClockNotice
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.top
+        anchors.bottomMargin: 14
+        visible: root.centerClockNoticeVisible && GlobalStates.lockPreviewOpen && root.forceCenter
+        implicitWidth: noticeRow.implicitWidth + 24
+        implicitHeight: noticeRow.implicitHeight + 16
+        radius: Appearance.rounding.normal
+        color: Appearance.colors.colLayer0
+        border.width: 1
+        border.color: Appearance.colors.colLayer0Border
+        z: 20
+
+        Row {
+            id: noticeRow
+            anchors.centerIn: parent
+            spacing: 10
+            MaterialSymbol {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "center_focus_weak"
+                iconSize: Appearance.font.pixelSize.large
+                color: Appearance.colors.colPrimary
+            }
+            StyledText {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Translation.tr("Center clock is enabled")
+                color: Appearance.colors.colOnLayer0
+            }
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                implicitWidth: unlockCenterText.implicitWidth + 18
+                implicitHeight: 30
+                radius: Appearance.rounding.full
+                color: Appearance.colors.colPrimaryContainer
+                StyledText {
+                    id: unlockCenterText
+                    anchors.centerIn: parent
+                    text: Translation.tr("Turn it off and move")
+                    color: Appearance.colors.colOnPrimaryContainer
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        Config.options.lock.centerClock = false
+                        root.centerClockNoticeVisible = false
+                    }
+                }
+            }
         }
     }
 

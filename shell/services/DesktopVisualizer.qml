@@ -24,8 +24,9 @@ import qs.modules.common
 Singleton {
     id: root
 
-    readonly property bool enabled: Config.options.background.widgets.visualizer.enable
-    readonly property bool hideWhenObscured: Config.options.background.widgets.visualizer.hideWhenObscured ?? true
+    readonly property bool primaryEnabled: Config.options.background.widgets.visualizer.enable
+    readonly property bool mirroredEnabled: Config.options.background.widgets.visualizerMirror.enable
+    readonly property bool enabled: primaryEnabled || mirroredEnabled
     readonly property var screenList: Config.options.background.screenList ?? []
 
     // An empty screenList means "every screen", matching Background.qml.
@@ -36,9 +37,9 @@ Singleton {
     // Per-screen answer. Bindings that call this re-evaluate correctly because
     // every property it reads (including WM.obscuredMonitors) is a real
     // property read, captured by the binding that calls it.
-    function shownOnScreen(screenName) {
-        if (!root.enabled || !root.allowedOnScreen(screenName)) return false;
-        if (root.hideWhenObscured && WM.obscuredMonitors[screenName]) return false;
+    function shownOnScreen(screenName, visualizerConfig) {
+        if (!visualizerConfig?.enable || !root.allowedOnScreen(screenName)) return false;
+        if ((visualizerConfig.hideWhenObscured ?? true) && WM.obscuredMonitors[screenName]) return false;
         return true;
     }
 
@@ -49,7 +50,9 @@ Singleton {
         if (!root.enabled) return false;
         const screens = Quickshell.screens;
         for (let i = 0; i < screens.length; i++) {
-            if (root.shownOnScreen(screens[i].name)) return true;
+            const screenName = screens[i].name;
+            if (root.shownOnScreen(screenName, Config.options.background.widgets.visualizer)
+                || root.shownOnScreen(screenName, Config.options.background.widgets.visualizerMirror)) return true;
         }
         return false;
     }

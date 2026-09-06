@@ -23,6 +23,8 @@ Scope {
             title: w.title,
             appId: w.class,
             workspaceId: w.workspace?.id ?? -1,
+            monitorName: w.monitor ?? "",
+            pid: w.pid ?? 0,
             focused: w.address === HyprlandData.activeWorkspace?.lastwindow
         };
     }
@@ -33,8 +35,28 @@ Scope {
     function closeWindow(id) {
         Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${id}" })`);
     }
+    function forceCloseWindow(id, pid) {
+        const numericPid = Number(pid)
+        if (!Number.isInteger(numericPid) || numericPid < 2) {
+            root.closeWindow(id)
+            return
+        }
+        // End descendants before the app process. This is intentionally
+        // explicit rather than a compositor "close" request: it is the
+        // End task action exposed in the contextual menus.
+        Quickshell.execDetached(["bash", "-c", "killtree(){ for child in $(pgrep -P \"$1\"); do killtree \"$child\"; done; kill -KILL \"$1\" 2>/dev/null || true; }; killtree \"$1\"", "horizons-end-task", String(numericPid)])
+    }
     function switchWorkspace(id) {
         Hyprland.dispatch(`hl.dsp.focus({ workspace = ${id} })`);
+    }
+    function switchWorkspacesOnMonitors(entries, focusMonitor) {
+        for (const entry of entries) {
+            if (!entry?.monitorName) continue
+            Hyprland.dispatch(`hl.dsp.focus({ monitor = "${entry.monitorName}" })`)
+            Hyprland.dispatch(`hl.dsp.focus({ workspace = ${entry.workspaceId} })`)
+        }
+        if (focusMonitor)
+            Hyprland.dispatch(`hl.dsp.focus({ monitor = "${focusMonitor}" })`)
     }
     function moveWindowToWorkspace(id, wsId) {
         Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${wsId}, follow = false, window = "address:${id}" })`);

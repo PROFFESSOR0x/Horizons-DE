@@ -17,7 +17,8 @@ Item {
     property int currentPage: 0
     property bool showingProfile: false
     property bool showingSearch: false
-    // Flat {pageName, pageIcon, sectionTitle, haystack} list, one entry per
+    // Flat {pageName, pageIcon, sectionTitle, settingLabels, haystack} list,
+    // one entry per
     // ContentSection/ContentSubsection across every settings page - built
     // once (all pages are already eagerly loaded shortly after Settings
     // opens, see Component.onCompleted below) rather than re-walking every
@@ -39,32 +40,44 @@ Item {
     // list it's handed) is the safe trade to make here.
     function buildSearchIndex() {
         const index = []
-        function collectHaystack(sectionItem) {
+        function collectSearchData(sectionItem) {
             let parts = [sectionItem.title ?? ""]
+            let settingLabels = []
+            function append(value, includeAsSetting) {
+                if (typeof value !== "string" || value.length === 0) return
+                parts.push(value)
+                if (includeAsSetting && !settingLabels.includes(value)) settingLabels.push(value)
+            }
             function walk(it) {
                 if (!it || !it.children) return
                 for (let i = 0; i < it.children.length; i++) {
                     const child = it.children[i]
                     if (child !== sectionItem) {
-                        if (typeof child.text === "string" && child.text.length > 0) parts.push(child.text)
-                        if (typeof child.title === "string" && child.title.length > 0) parts.push(child.title)
+                        // Config controls expose their user-facing name as
+                        // `text`; nested groups use `title`. Retain both so a
+                        // result can show the exact matching option below its
+                        // parent section.
+                        append(child.text, true)
+                        append(child.title, true)
                     }
                     walk(child)
                 }
             }
             walk(sectionItem)
-            return parts.join(" • ")
+            return { haystack: parts.join(" • "), settingLabels: settingLabels }
         }
         function walkForSections(item, pageName, pageIcon) {
             if (!item || !item.children) return
             for (let i = 0; i < item.children.length; i++) {
                 const child = item.children[i]
                 if (typeof child.title === "string" && child.title.length > 0) {
+                    const searchData = collectSearchData(child)
                     index.push({
                         pageName: pageName,
                         pageIcon: pageIcon,
                         sectionTitle: child.title,
-                        haystack: collectHaystack(child)
+                        settingLabels: searchData.settingLabels,
+                        haystack: searchData.haystack
                     })
                 }
                 walkForSections(child, pageName, pageIcon)

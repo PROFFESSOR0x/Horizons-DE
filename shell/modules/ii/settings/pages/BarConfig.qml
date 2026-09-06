@@ -157,20 +157,22 @@ ContentPage {
             .map(a => ({ id: a.id, name: a.name, icon: "apps" }))
     }
 
-    function availableForM3() {
+    function availableForM3(currentLayout) {
         let used = [
             ...Config.options.m3Island.layouts.restingLayout,
             ...Config.options.m3Island.layouts.hoverLayout,
             ...Config.options.m3Island.layouts.expandedLayout
         ]
-        // m3Clock is listed even when it's already placed: the island draws a
-        // clock in the hover and expanded rows by default (M3IslandContent's
-        // hoverLayoutHasClock/expandedLayoutHasClock fallbacks), so it has to be
-        // addable to those two lists as well - otherwise the one clock you can
-        // see in the resting pill hides it from every other row's picker.
-        const multipleAllowed = ["visualizer", "divisor", "m3Clock"]
-        return [...allWidgets, ...m3OnlyWidgets].filter(w => {
+        const localLayout = currentLayout ?? []
+        // The clock must be selectable in Hover/Expanded even if it is already
+        // used by Resting. M3IslandContent replaces those rows' fallback clock
+        // when one is explicitly added. It is deliberately allowed only once
+        // *per row*, so repeated clicks cannot create two visible clocks in a
+        // single island state.
+        const multipleAllowed = ["visualizer", "divisor"]
+        return [...m3OnlyWidgets, ...allWidgets].filter(w => {
             if (w.id === "divisor" && Config.options.m3Island.borderless !== "transparent") return false
+            if (w.id === "m3Clock") return !localLayout.includes(w.id)
             return !used.includes(w.id) || multipleAllowed.includes(w.id)
         })
     }
@@ -366,7 +368,7 @@ ContentPage {
                 LayoutSection {
                     sectionTitle: Translation.tr("Resting (idle pill)")
                     layout: Config.options.m3Island.layouts.restingLayout
-                    availableWidgets: page.availableForM3()
+                    availableWidgets: page.availableForM3(Config.options.m3Island.layouts.restingLayout)
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.m3Island.layouts.restingLayout = list
                 }
@@ -380,14 +382,14 @@ ContentPage {
                 LayoutSection {
                     sectionTitle: Translation.tr("Hover (peek)")
                     layout: Config.options.m3Island.layouts.hoverLayout
-                    availableWidgets: page.availableForM3()
+                    availableWidgets: page.availableForM3(Config.options.m3Island.layouts.hoverLayout)
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.m3Island.layouts.hoverLayout = list
                 }
                 LayoutSection {
                     sectionTitle: Translation.tr("Expanded")
                     layout: Config.options.m3Island.layouts.expandedLayout
-                    availableWidgets: page.availableForM3()
+                    availableWidgets: page.availableForM3(Config.options.m3Island.layouts.expandedLayout)
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.m3Island.layouts.expandedLayout = list
                 }

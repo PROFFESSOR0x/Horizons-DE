@@ -1,0 +1,16 @@
+[32m  INFO[0m: Launching config: "/home/professorx/.config/quickshell/horizons/shell.qml"
+[32m  INFO[0m: Shell ID: "5924f357a36bc7b98e18450cab5e8b4c" Path ID "5924f357a36bc7b98e18450cab5e8b4c"
+[32m  INFO[97m quickshell.crashhandler[0m: Crash handler initialized.
+[32m  INFO[0m: Saving logs to "/run/user/1000/quickshell/by-id/3zagdhykt/log.qslog"
+[32m  INFO[97m quickshell.logging[0m: Saving detailed logs to "/run/user/1000/quickshell/by-id/3zagdhykt/log.log"
+[32m  INFO[97m quickshell.wayland.safederef[0m: Installed wl_proxy_get_listener hook.
+[32m  INFO[97m quickshell.ipc[0m: Started IPC server on path "/run/user/1000/quickshell/by-id/3zagdhykt/ipc.sock"
+[32m  INFO[97m quickshell.tooling[0m: Acquired tooling support lock
+[32m  INFO[97m quickshell.tooling[0m: Not enabling QML tooling support, qmlls.ini is missing at path "/home/professorx/.config/quickshell/horizons/.qmlls.ini"
+[32m  INFO[97m quickshell.incubator[0m: Render loop does not have animation driver, animationStopped cannot be used to trigger incubation.
+[31m ERROR[0m: Failed to load configuration
+[31m ERROR[0m:   caused by @shell.qml[61:20]: Type IllogicalImpulseFamily unavailable
+[31m ERROR[0m:   caused by @panelFamilies/IllogicalImpulseFamily.qml[56:74]: Type Dock unavailable
+[31m ERROR[0m:   caused by @modules/ii/dock/Dock.qml[160:29]: Type DragApps unavailable
+[31m ERROR[0m:   caused by @modules/common/widgets/DragApps.qml[170:17]: Type DockAppContextMenu unavailable
+[31m ERROR[0m:   caused by @modules/common/widgets/DockAppContextMenu.qml[130:9]: Cannot override FINAL property

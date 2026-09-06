@@ -40,7 +40,10 @@ RippleButton {
     property int buttonHorizontalPadding: 10
     property int buttonVerticalPadding: 6
     property bool keyboardDown: false
-    readonly property bool selected: (root.hovered || root.focus)
+    // The search field keeps keyboard focus while arrows move ListView's
+    // currentIndex, so current-item highlighting must not rely on delegate
+    // focus alone.
+    readonly property bool selected: root.hovered || root.focus || ListView.isCurrentItem
 
     implicitHeight: rowLayout.implicitHeight + root.buttonVerticalPadding * 2
     implicitWidth: rowLayout.implicitWidth + root.buttonHorizontalPadding * 2

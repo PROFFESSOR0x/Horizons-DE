@@ -16,6 +16,16 @@ LockScreen {
     property string lastProcessedLockWall: ""
     property bool lastProcessedDarkmode: Appearance.m3colors.darkmode
 
+    // A session-lock surface exists once per screen.  The old code always
+    // nominated the first enumerated screen, which is not necessarily the
+    // screen that had focus when the lock was requested.  Consequently all
+    // three input/action toolbars could be hidden from the screen in front of
+    // the user.  Start from the compositor's focused monitor and only use the
+    // first screen when the backend has not reported one yet.
+    function initialInteractionScreenName() {
+        return WM.focusedMonitor?.name ?? Quickshell.screens[0]?.name ?? ""
+    }
+
     Timer {
         id: restoreTimer
         interval: 150
@@ -58,6 +68,8 @@ LockScreen {
             var modeChanged = Appearance.m3colors.darkmode !== root.lastProcessedDarkmode
 
             if (GlobalStates.screenLocked) {
+                GlobalStates.lockPreviewOpen = false
+                GlobalStates.lockInteractionScreenName = root.initialInteractionScreenName()
                 if (Config.options.background.lockWall !== "" && (wallChanged || modeChanged)) {
                     lockThemeProc.running = true
                 } else if (Config.options.background.lockWall !== "") {
@@ -83,6 +95,7 @@ LockScreen {
                 root.savedWorkspaces = next
                 Quickshell.execDetached(["bash", "-c", batch])
             } else {
+                GlobalStates.lockInteractionScreenName = ""
                 if (Config.options.background.lockWall !== "") {
                     MaterialThemeLoader.useLiveTheme()
                 }

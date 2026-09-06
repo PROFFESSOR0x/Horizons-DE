@@ -75,8 +75,17 @@ DockButton {
         root.desktopEntry?.execute();
     }
 
-    altAction: () => {
-        TaskbarApps.togglePin(appToplevel.appId);
+    // Right click is a contextual action menu. Pinning is still available
+    // there, rather than accidentally changing state while opening a menu.
+    altAction: event => {
+        dockContextMenu.showAt(event.x, event.y);
+    }
+
+    DockAppContextMenu {
+        id: dockContextMenu
+        hostWindow: root.QsWindow.window
+        appEntry: root.appToplevel
+        desktopEntry: root.desktopEntry
     }
 
     contentItem: Loader {

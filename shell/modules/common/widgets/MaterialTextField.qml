@@ -31,6 +31,20 @@ TextField {
     }
     wrapMode: TextEdit.Wrap
 
+    // Qt's Material outline can disappear against our custom Layer colours.
+    // Draw the resting outline ourselves so settings fields always read as
+    // editable controls, not as unlabelled text on a card.
+    background: Rectangle {
+        implicitHeight: 44
+        radius: Appearance.rounding.small
+        color: root.activeFocus ? Appearance.colors.colLayer2 : Appearance.colors.colLayer1
+        border.width: root.activeFocus ? 2 : 1
+        border.color: root.activeFocus ? Appearance.colors.colPrimary : Appearance.colors.colOutlineVariant
+
+        Behavior on color { ColorAnimation { duration: Appearance.animation.elementMoveFast.duration } }
+        Behavior on border.color { ColorAnimation { duration: Appearance.animation.elementMoveFast.duration } }
+    }
+
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.NoButton

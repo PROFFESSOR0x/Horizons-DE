@@ -37,7 +37,21 @@ Item {
             const needle = q.toLowerCase()
             matcher = s => s.toLowerCase().includes(needle)
         }
-        root.results = (root.settingsContent.searchIndex ?? []).filter(entry => matcher(entry.haystack))
+        root.results = (root.settingsContent.searchIndex ?? [])
+            .filter(entry => matcher(entry.haystack))
+            .map(entry => {
+                const matchingSettings = (entry.settingLabels ?? [])
+                    .filter(label => matcher(label))
+                    .slice(0, 3)
+                return {
+                    pageName: entry.pageName,
+                    pageIcon: entry.pageIcon,
+                    sectionTitle: entry.sectionTitle,
+                    haystack: entry.haystack,
+                    settingLabels: entry.settingLabels,
+                    matchingSettings: matchingSettings,
+                }
+            })
     }
 
     onQueryChanged: debounce.restart()
@@ -115,7 +129,7 @@ Item {
                     id: resultButton
                     required property var modelData
                     width: ListView.view.width
-                    implicitHeight: 56
+                    implicitHeight: resultDetails.implicitHeight + 20
                     horizontalPadding: 12
                     onClicked: {
                         if (root.settingsContent) root.settingsContent.navigateToSearchResult(modelData)
@@ -128,6 +142,7 @@ Item {
                             color: Appearance.colors.colOnLayer1
                         }
                         ColumnLayout {
+                            id: resultDetails
                             Layout.fillWidth: true
                             spacing: 0
                             StyledText {
@@ -141,6 +156,14 @@ Item {
                                 text: resultButton.modelData.pageName
                                 font.pixelSize: Appearance.font.pixelSize.smaller
                                 color: Appearance.colors.colSubtext
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                visible: (resultButton.modelData.matchingSettings ?? []).length > 0
+                                text: (resultButton.modelData.matchingSettings ?? []).join("  •  ")
+                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                color: Appearance.colors.colPrimary
+                                elide: Text.ElideRight
                             }
                         }
                         MaterialSymbol {

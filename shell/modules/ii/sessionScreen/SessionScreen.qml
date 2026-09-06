@@ -42,8 +42,13 @@ Scope {
             id: sessionRoot
             screen: root.focusedScreen
             visible: sessionLoader.active
-            readonly property bool edgeMode: Config.options.sessionScreen.presentation === "edge"
-            readonly property bool edgeOnLeft: Config.options.sessionScreen.edge === "left"
+            // The Window Switcher opens these actions as a deliberate
+            // right-edge sheet. Other entry points still respect the user's
+            // normal Session screen presentation and chosen side.
+            readonly property bool edgeMode: GlobalStates.sessionForceRightEdge
+                || Config.options.sessionScreen.presentation === "edge"
+            readonly property bool edgeOnLeft: !GlobalStates.sessionForceRightEdge
+                && Config.options.sessionScreen.edge === "left"
             property real edgeSlideOffset: edgeMode ? (edgeOnLeft ? -48 : 48) : 0
             property string subtitle
             property string pendingDestructiveAction: ""

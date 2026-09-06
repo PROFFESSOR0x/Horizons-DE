@@ -55,8 +55,10 @@ Singleton {
     }
 
     function applyIconTheme(theme) {
-        root.currentIconTheme = theme
-        Quickshell.execDetached(["bash", `${root.scriptDir}/set-icon-theme.sh`, theme])
+        const selectedTheme = (theme ?? "").trim()
+        if (selectedTheme.length === 0) return
+        root.currentIconTheme = selectedTheme
+        Quickshell.execDetached(["bash", `${root.scriptDir}/set-icon-theme.sh`, selectedTheme])
     }
 
     function applyGtkTheme(theme) {
@@ -66,12 +68,26 @@ Singleton {
 
     // Writes every cursor sink: gsettings + ~/.icons/default + niri (qssettings/shell.kdl)
     function applyCursorTheme(theme, size) {
-        root.currentCursorTheme = theme
+        const selectedTheme = (theme ?? "").trim()
+        if (selectedTheme.length === 0) return
+        root.currentCursorTheme = selectedTheme
         root.currentCursorSize = size
-        NiriConfig.options.cursor.theme = theme
+        NiriConfig.options.cursor.theme = selectedTheme
         NiriConfig.options.cursor.size = size
-        if (theme !== "")
-            Quickshell.execDetached(["bash", `${root.scriptDir}/set-cursor-theme.sh`, theme, String(size)])
+        Quickshell.execDetached(["bash", `${root.scriptDir}/set-cursor-theme.sh`, selectedTheme, String(size)])
+    }
+
+    // Applies a desktop-entry handler to every MIME type in one logical
+    // category. xdg-mime updates the user's mimeapps.list, so file managers,
+    // browsers and launcher file results all use the same choice.
+    function applyDefaultApplication(desktopFile, mimeTypes) {
+        const handler = (desktopFile ?? "").trim()
+        // A text field emits on every key. Do not invoke xdg-mime for partial
+        // values while a desktop entry is being typed; the settings page also
+        // batches a completed edit with a short timer.
+        if (!handler.endsWith(".desktop") || !mimeTypes || mimeTypes.length === 0)
+            return
+        Quickshell.execDetached(["bash", `${root.scriptDir}/set-default-app.sh`, handler, ...mimeTypes])
     }
 
     function regenerateMatugenConfig() {

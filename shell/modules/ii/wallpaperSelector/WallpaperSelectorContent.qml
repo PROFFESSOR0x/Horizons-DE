@@ -153,6 +153,12 @@ MouseArea {
     // pill. islandLeft/islandWidth are in this item's own coordinates.
     property bool dockedToIsland: false
     property bool dockedAtBottom: false
+    // The M3 island hosts this item directly while its visual integration is
+    // enabled. In that case this background is the island surface itself,
+    // rather than a second elevated drawer that needs join fillets.
+    property bool embeddedInM3Island: false
+    property bool embeddedAtBottom: false
+    property bool embeddedHugsScreen: false
     property real islandLeft: 0
     property real islandWidth: 0
     readonly property real islandRight: islandLeft + islandWidth
@@ -163,6 +169,7 @@ MouseArea {
 
     StyledRectangularShadow {
         target: wallpaperGridBackground
+        visible: !root.embeddedInM3Island
     }
 
     // Concave fillets that carry the pill's silhouette into this surface,
@@ -175,7 +182,7 @@ MouseArea {
     // side (see wallpaperGridBackground's anchors below) - RoundCorner fills
     // the named corner of its own box, so the box has to straddle the joint.
     component JunctionFillet: RoundCorner {
-        visible: root.dockedToIsland && root.islandWidth > 0
+        visible: !root.embeddedInM3Island && root.dockedToIsland && root.islandWidth > 0
         implicitSize: root.junctionCornerSize
         color: wallpaperGridBackground.color
         z: 2
@@ -201,14 +208,14 @@ MouseArea {
         id: wallpaperGridBackground
         anchors {
             fill: parent
-            margins: Appearance.sizes.elevationMargin
+            margins: root.embeddedInM3Island ? 0 : Appearance.sizes.elevationMargin
             // Docked, leave a fillet-sized band free on the island side so the
             // JunctionFillets above have somewhere to draw. The window's own
             // offset compensates (WallpaperSelector.qml), so the surface edge
             // still lands exactly on the pill's edge.
-            topMargin: Appearance.sizes.elevationMargin
+            topMargin: (root.embeddedInM3Island ? 0 : Appearance.sizes.elevationMargin)
                 + ((root.dockedToIsland && !root.dockedAtBottom) ? root.junctionCornerSize : 0)
-            bottomMargin: Appearance.sizes.elevationMargin
+            bottomMargin: (root.embeddedInM3Island ? 0 : Appearance.sizes.elevationMargin)
                 + ((root.dockedToIsland && root.dockedAtBottom) ? root.junctionCornerSize : 0)
         }
         focus: true
@@ -220,10 +227,18 @@ MouseArea {
         // on: rounding it there would leave two opposing curves pinching
         // together where the two surfaces meet. The outer corners, far from the
         // island, keep the normal rounding.
-        topLeftRadius: (root.dockedToIsland && !root.dockedAtBottom) ? 0 : radius
-        topRightRadius: (root.dockedToIsland && !root.dockedAtBottom) ? 0 : radius
-        bottomLeftRadius: (root.dockedToIsland && root.dockedAtBottom) ? 0 : radius
-        bottomRightRadius: (root.dockedToIsland && root.dockedAtBottom) ? 0 : radius
+        topLeftRadius: root.embeddedInM3Island
+            ? (root.embeddedHugsScreen && !root.embeddedAtBottom ? 0 : radius)
+            : ((root.dockedToIsland && !root.dockedAtBottom) ? 0 : radius)
+        topRightRadius: root.embeddedInM3Island
+            ? (root.embeddedHugsScreen && !root.embeddedAtBottom ? 0 : radius)
+            : ((root.dockedToIsland && !root.dockedAtBottom) ? 0 : radius)
+        bottomLeftRadius: root.embeddedInM3Island
+            ? (root.embeddedHugsScreen && root.embeddedAtBottom ? 0 : radius)
+            : ((root.dockedToIsland && root.dockedAtBottom) ? 0 : radius)
+        bottomRightRadius: root.embeddedInM3Island
+            ? (root.embeddedHugsScreen && root.embeddedAtBottom ? 0 : radius)
+            : ((root.dockedToIsland && root.dockedAtBottom) ? 0 : radius)
 
         implicitWidth: gridColumnLayout.implicitWidth
         implicitHeight: gridColumnLayout.implicitHeight

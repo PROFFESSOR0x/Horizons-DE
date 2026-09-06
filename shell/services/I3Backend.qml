@@ -30,6 +30,8 @@ Scope {
             appId: node.app_id ?? node.window_properties?.class ?? "",
             class: node.window_properties?.class ?? node.app_id ?? "",
             workspaceId: workspace?.id ?? -1,
+            monitorName: workspace?.output ?? "",
+            pid: node.pid ?? 0,
             focused: node.focused ?? false,
             width: rect.width ?? 0,
             height: rect.height ?? 0,
@@ -54,6 +56,12 @@ Scope {
     }
     function focusWindow(id) { runI3("[con_id=" + id + "] focus") }
     function closeWindow(id) { runI3("[con_id=" + id + "] kill") }
+    function forceCloseWindow(id, pid) {
+        const numericPid = Number(pid)
+        if (Number.isInteger(numericPid) && numericPid > 1)
+            Quickshell.execDetached(["bash", "-c", "killtree(){ for child in $(pgrep -P \"$1\"); do killtree \"$child\"; done; kill -KILL \"$1\" 2>/dev/null || true; }; killtree \"$1\"", "horizons-end-task", String(numericPid)])
+        else root.closeWindow(id)
+    }
     function switchWorkspace(id) { runI3("workspace \"" + String(id).replace(/\\"/g, "\\\\\"") + "\"") }
     function moveWindowToWorkspace(id, wsId) {
         runI3("[con_id=" + id + "] move container to workspace \"" + String(wsId).replace(/\\"/g, "\\\\\"") + "\"")

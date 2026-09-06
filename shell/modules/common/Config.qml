@@ -93,6 +93,79 @@ Singleton {
             opts.m3Island.reserveScreenSpace = false;
         }
 
+        // `wallpaperBackground` was added after existing M3 Island configs had
+        // already been written. JsonObject does not materialize a newly-added
+        // nested object in those files, so the Bar settings page otherwise
+        // dereferences `undefined` on every load. Seed the complete object once
+        // and keep its defaults aligned with the schema below.
+        if (opts.m3Island.wallpaperBackground === undefined) {
+            opts.m3Island.wallpaperBackground = {
+                enable: false,
+                opacity: 0.5,
+                scrim: 0.35,
+            };
+        }
+
+        // JsonObject schemas do not populate newly-added nested defaults in
+        // existing config files. Seed these feature groups before their
+        // settings pages dereference them.
+        if (opts.apps.defaultApplications === undefined) {
+            opts.apps.defaultApplications = {
+                browser: "", folders: "", documents: "", images: "",
+                audio: "", video: "", archives: "",
+            };
+        }
+        if (opts.workspaceLinking === undefined) {
+            opts.workspaceLinking = {
+                unifiedMultiMonitor: false,
+                groups: [],
+            };
+        } else {
+            if (opts.workspaceLinking.unifiedMultiMonitor === undefined)
+                opts.workspaceLinking.unifiedMultiMonitor = false;
+            if (opts.workspaceLinking.groups === undefined)
+                opts.workspaceLinking.groups = [];
+        }
+        if (opts.lock.autoHideControls === undefined)
+            opts.lock.autoHideControls = true;
+        if (opts.lock.controlsIdleSeconds === undefined)
+            opts.lock.controlsIdleSeconds = 30;
+        if (opts.lock.perScreenLayout === undefined)
+            opts.lock.perScreenLayout = false;
+        if (opts.lock.primaryMonitor === undefined)
+            opts.lock.primaryMonitor = "";
+        if (opts.lock.unlockBoxPrimaryMonitorOnly === undefined)
+            opts.lock.unlockBoxPrimaryMonitorOnly = false;
+        if (opts.lock.layoutByScreen === undefined)
+            opts.lock.layoutByScreen = {};
+
+        // The desktop visualizers used to be a single full-width strip with
+        // no saved geometry. Preserve existing users' toggle while adding
+        // explicit, movable geometry and the new mirrored widget.
+        const widgets = opts.background?.widgets;
+        if (widgets?.visualizer !== undefined) {
+            const visualizer = widgets.visualizer;
+            if (visualizer.width === undefined) visualizer.width = 960;
+            if (visualizer.height === undefined) visualizer.height = 220;
+            if (visualizer.barCount === undefined) visualizer.barCount = 50;
+            if (visualizer.spacing === undefined) visualizer.spacing = 6;
+            if (visualizer.noiseFloor === undefined) visualizer.noiseFloor = 1.5;
+            if (visualizer.attack === undefined) visualizer.attack = 0.68;
+            if (visualizer.release === undefined) visualizer.release = 0.24;
+        }
+        if (widgets?.visualizerMirror === undefined) {
+            widgets.visualizerMirror = {
+                enable: false, placementStrategy: "free", x: 520, y: 360,
+                width: 720, height: 260, barCount: 44, spacing: 6,
+                noiseFloor: 1.5, attack: 0.68, release: 0.24,
+                hideWhenObscured: true,
+            };
+        }
+        if (widgets?.lockOnly === undefined)
+            widgets.lockOnly = [];
+        if (opts.lock.widgetPositions === undefined)
+            opts.lock.widgetPositions = {};
+
         // Back-compat shim for the blur/transparency/glass exclusivity rule.
         // Before this, blur (hyprland.decoration.blur.enabled), transparency
         // (appearance.transparency.enable) and glass (appearance.glass.enable)
@@ -643,6 +716,17 @@ Singleton {
                 // reads ~/.config/mimeapps.list). The path is appended as a
                 // quoted argument, e.g. "nautilus" or "gio open".
                 property string fileOpener: ""
+                // Desktop-entry IDs written to mimeapps.list by Settings.
+                // Empty means leave that category under the system default.
+                property JsonObject defaultApplications: JsonObject {
+                    property string browser: ""
+                    property string folders: ""
+                    property string documents: ""
+                    property string images: ""
+                    property string audio: ""
+                    property string video: ""
+                    property string archives: ""
+                }
             }
 
             property JsonObject settings: JsonObject {
@@ -675,6 +759,11 @@ Singleton {
                 property string splitSide: "left"
                 property bool showSnapLines: true
                 property JsonObject widgets: JsonObject {
+                    // Widget ids in this list are drawn on the lock screen but
+                    // hidden from the ordinary desktop. The setting is shared
+                    // by every widget card instead of duplicating a boolean in
+                    // each widget schema.
+                    property list<string> lockOnly: []
                     property JsonObject clock: JsonObject {
                         property bool enable: true
                         property bool showOnlyWhenLocked: false
@@ -778,14 +867,39 @@ Singleton {
                     property JsonObject visualizer: JsonObject {
                         property bool enable: false
                         property string placementStrategy: "free"
-                        property real x: 0
-                        property real y: 0
+                        property real x: 80
+                        property real y: 720
+                        property real width: 960
+                        property real height: 220
+                        property int barCount: 50
+                        property real spacing: 6
+                        // CAVA raw's standard ascii range is 0..1000. These
+                        // percentages only shape display response; they never
+                        // alter the source signal itself.
+                        property real noiseFloor: 1.5
+                        property real attack: 0.68
+                        property real release: 0.24
                         // Unload the widget (and stop cava with it) on any
                         // monitor whose active workspace has a non-floating or
                         // fullscreen window on it - nothing can be seen there,
                         // so nothing should be spent on it. Per-monitor: a
                         // window on one screen never stops the visualizer on
                         // another. See services/DesktopVisualizer.qml.
+                        property bool hideWhenObscured: true
+                    }
+
+                    property JsonObject visualizerMirror: JsonObject {
+                        property bool enable: false
+                        property string placementStrategy: "free"
+                        property real x: 520
+                        property real y: 360
+                        property real width: 720
+                        property real height: 260
+                        property int barCount: 44
+                        property real spacing: 6
+                        property real noiseFloor: 1.5
+                        property real attack: 0.68
+                        property real release: 0.24
                         property bool hideWhenObscured: true
                     }
 
@@ -1192,6 +1306,14 @@ Singleton {
                 property real frameThickness: 4
                 property string frameColor: "black"
                 property bool followFrameColor: false
+                // Optional desktop slice behind the island's own surface.
+                // This belongs to m3Island (not the shared bar settings), as
+                // both the M3 renderer and its settings page read it here.
+                property JsonObject wallpaperBackground: JsonObject {
+                    property bool enable: false
+                    property real opacity: 0.5
+                    property real scrim: 0.35
+                }
                 // Animation - scales the morph/transition durations used throughout
                 // the island. Curves are untouched, only speed changes.
                 property string animationSpeed: "normal" // "slow" | "normal" | "fast"
@@ -1286,6 +1408,15 @@ Singleton {
                 property list<string> ignoredAppRegexes: []
             }
 
+            // Logical workspace groups are shell-side metadata: compositors
+            // still own the real workspaces, while Horizons can make selected
+            // workspaces on multiple outputs act as one navigation set.
+            property JsonObject workspaceLinking: JsonObject {
+                property bool unifiedMultiMonitor: false
+                // Each item is an array of "monitorName::workspaceId" keys.
+                property list<var> groups: []
+            }
+
             property JsonObject interactions: JsonObject {
                 property JsonObject scrolling: JsonObject {
                     property bool fasterTouchpadScroll: false // Enable faster scrolling with touchpad
@@ -1341,6 +1472,23 @@ Singleton {
                 // master switch.
                 property bool showLeftToolbar: true
                 property bool showRightToolbar: true
+                // Keep the clock visible as a calm lock-screen anchor while
+                // hiding credentials, keyboard layout and action controls
+                // after inactivity. Moving the mouse or pressing a key reveals
+                // them again.
+                property bool autoHideControls: true
+                property int controlsIdleSeconds: 30
+                // Shared normalized layout by default; enable this to let the
+                // live editor keep a separately arranged layout per output.
+                property bool perScreenLayout: false
+                // Empty means the first connected output. A named output is a
+                // user-selected primary lock-controls monitor.
+                property string primaryMonitor: ""
+                property bool unlockBoxPrimaryMonitorOnly: false
+                // Per-widget positions used only by the lock-screen layout.
+                // Empty means inherit the desktop position for that widget.
+                property var widgetPositions: ({})
+                property var layoutByScreen: ({})
                 property JsonObject blur: JsonObject {
                     property bool enable: true
                     property real radius: 100

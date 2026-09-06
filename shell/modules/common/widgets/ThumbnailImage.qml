@@ -13,6 +13,11 @@ StyledImage {
     id: root
 
     property bool generateThumbnail: true
+    // Some callers generate thumbnails as a directory-level batch. Starting
+    // those items on a cache path that is not there yet emits one warning per
+    // image before the batch completes; decode a source-sized original in that
+    // case and let the batch fill the cache in the background.
+    property bool preferSource: !generateThumbnail
     required property string sourcePath
     property string thumbnailSizeName: Images.thumbnailSizeNameForDimensions(sourceSize.width, sourceSize.height)
     property string thumbnailPath: {
@@ -31,7 +36,7 @@ StyledImage {
     // a moment to finish (fallbackTimer), so the lightweight cached
     // thumbnail is still preferred whenever it's actually available.
     property bool useFallback: false
-    source: useFallback ? sourcePath : thumbnailPath
+    source: (useFallback || preferSource) ? sourcePath : thumbnailPath
 
     asynchronous: true
     smooth: true
@@ -43,7 +48,7 @@ StyledImage {
     }
 
     onStatusChanged: {
-        if (status === Image.Error && !useFallback) {
+        if (status === Image.Error && !useFallback && !preferSource) {
             fallbackTimer.restart();
         } else if (status === Image.Ready) {
             fallbackTimer.stop();

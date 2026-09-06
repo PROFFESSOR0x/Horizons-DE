@@ -324,7 +324,14 @@ Item {
                             entry.toplevels[next].activate()
                         }
                         middleClickAction: () => { slotItem.deskEntry?.execute() }
-                        altAction:         () => { TaskbarApps.togglePin(slotItem.appId) }
+                        altAction: event => pinnedContextMenu.showAt(event.x, event.y)
+
+                        DockAppContextMenu {
+                            id: pinnedContextMenu
+                            hostWindow: root.QsWindow.window
+                            appEntry: slotItem.appEntry
+                            desktopEntry: slotItem.deskEntry
+                        }
 
                         contentItem: Item {
                             anchors.centerIn: parent
@@ -427,8 +434,13 @@ Item {
                         middleClickAction: () => {
                             DesktopEntries.heuristicLookup(activeSlot.modelData.appId)?.execute()
                         }
-                        altAction: () => {
-                            TaskbarApps.togglePin(activeSlot.modelData.appId)
+                        altAction: event => activeContextMenu.showAt(event.x, event.y)
+
+                        DockAppContextMenu {
+                            id: activeContextMenu
+                            hostWindow: root.QsWindow.window
+                            appEntry: activeSlot.modelData
+                            desktopEntry: DesktopEntries.heuristicLookup(activeSlot.modelData.appId)
                         }
 
                         contentItem: Item {

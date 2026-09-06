@@ -55,7 +55,8 @@ Scope {
                 // not an idle bar: it must reveal the island even while auto-hide
                 // has tucked the idle pill against the screen edge.
                 property bool mustShow: hoverRegion.containsMouse || superShow
-                    || barContent.isLauncher || barContent.isNotification || barContent.isExpanded
+                    || barContent.isLauncher || barContent.isWallpaperSelector
+                    || barContent.isNotification || barContent.isExpanded
                 // Default remains a floating island. When requested, reserve
                 // exactly the currently visible island height so clients are
                 // pushed away from its screen edge instead of sitting beneath it.
@@ -75,10 +76,21 @@ Scope {
                     sourceComponent: Item {
                         Binding { target: barRoot.WlrLayershell; property: "namespace"; value: "quickshell:m3Island" }
                         Binding { target: barRoot.WlrLayershell; property: "layer"; value: WlrLayer.Top }
+                        Binding {
+                            target: barRoot.WlrLayershell
+                            property: "keyboardFocus"
+                            value: (barContent.isLauncher || barContent.isWallpaperSelector)
+                                ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+                        }
                     }
                 }
-                // Fixed window to avoid per-frame layer-shell resize - content morphs inside
-                implicitHeight: 520
+                // Keep a stable surface while the regular island morphs, but
+                // allow the embedded wallpaper selector to use its normal
+                // panel height. It is part of this same window in that state,
+                // just like M3LauncherInline.
+                implicitHeight: barContent.isWallpaperSelector
+                    ? Math.min(screen.height, Appearance.sizes.wallpaperSelectorHeight + 16)
+                    : 520
                 color: "transparent"
                 mask: Region { item: hoverMaskRegion }
 

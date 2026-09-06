@@ -125,7 +125,15 @@ Singleton {
 
     function focusWindow(id) { backend?.focusWindow(id) }
     function closeWindow(id) { backend?.closeWindow(id) }
+    function forceCloseWindow(id, pid) {
+        if (backend?.forceCloseWindow) backend.forceCloseWindow(id, pid)
+        else backend?.closeWindow(id)
+    }
     function switchWorkspace(id) { backend?.switchWorkspace(id) }
+    function switchWorkspacesOnMonitors(entries, focusMonitor) {
+        if (backend?.switchWorkspacesOnMonitors) backend.switchWorkspacesOnMonitors(entries, focusMonitor)
+        else if (entries.length > 0) backend?.switchWorkspace(entries.find(entry => entry.monitorName === focusMonitor)?.workspaceId ?? entries[0].workspaceId)
+    }
     function moveWindowToWorkspace(id, wsId) { backend?.moveWindowToWorkspace(id, wsId) }
     function monitorFor(screen) { return backend?.monitorFor(screen) ?? null }
     function activeWorkspaceForMonitor(monitorName) { return backend?.activeWorkspaceForMonitor(monitorName) ?? null }

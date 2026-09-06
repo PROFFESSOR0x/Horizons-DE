@@ -331,20 +331,23 @@ Singleton {
     // thread the way a synchronous call would.
     property list<string> fileResults: []
     property bool fileSearchRunning: false
-    // What filesProc should look for on the next tick. Set by whichever branch
-    // of results() wants files - the "~" prefix branch, or (when
-    // search.prefix.showFilesWithoutPrefix is on) the prefixless branch, which
-    // has no prefix to strip.
+    // What filesProc should look for on the next tick. This is deliberately
+    // driven by `onQueryChanged`, not by the result builder: mutating state
+    // from the old `results` binding made Qt evaluate that binding again and
+    // produced a binding loop for every keystroke.
     property string fileSearchTerm: ""
+    property int fileSearchRevision: 0
     Timer {
         id: fileResultsTimer
         interval: Config.options.search.nonAppResultDelay
-        onTriggered: filesProc.search(root.fileSearchTerm.trim())
+        onTriggered: filesProc.search(root.fileSearchTerm.trim(), root.fileSearchRevision)
     }
     Process {
         id: filesProc
-        function search(term) {
+        property int searchRevision: 0
+        function search(term, revision) {
             filesProc.running = false;
+            filesProc.searchRevision = revision;
             if (!term) {
                 root.fileResults = [];
                 root.fileSearchRunning = false;
@@ -385,8 +388,12 @@ Singleton {
         }
         stdout: StdioCollector {
             onStreamFinished: {
-                root.fileResults = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-                root.fileSearchRunning = false;
+                // A newer keystroke can cancel and replace this process. Do not
+                // let its late output overwrite results for the newer term.
+                if (filesProc.searchRevision === root.fileSearchRevision) {
+                    root.fileResults = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+                    root.fileSearchRunning = false;
+                }
             }
         }
     }
@@ -467,7 +474,80 @@ Singleton {
             Translation.tr("%1 %2 (%3)").arg(action).arg(unit.name).arg(unit.scope), "-a", "Shell"]);
     }
 
-    property list<var> results: {
+    // Keep result construction pure. The previous declarative binding started
+    // timers and reassigned file-search state while Qt was evaluating
+    // `results`, which is the binding loop reported in output.txt and made the
+    // M3 launcher stutter under rapid typing.
+    property list<var> results: []
+    Timer {
+        id: resultsUpdateTimer
+        interval: 24
+        repeat: false
+        onTriggered: root.updateResults()
+    }
+
+    function _fileSearchTermForQuery() {
+        const query = root.query;
+        if (query.startsWith(Config.options.search.prefix.files)) {
+            return Config.options.search.extras.filesEnable
+                ? StringUtils.cleanPrefix(query, Config.options.search.prefix.files).trim()
+                : "";
+        }
+
+        const isMath = /^\d/.test(query) || query.startsWith(Config.options.search.prefix.math);
+        const isCommand = query.startsWith(Config.options.search.prefix.shellCommand);
+        const isWeb = query.startsWith(Config.options.search.prefix.webSearch);
+        if (Config.options.search.prefix.showFilesWithoutPrefix
+                && Config.options.search.extras.filesEnable
+                && !isMath && !isCommand && !isWeb) {
+            const term = query.trim();
+            return term.length >= (Config.options.search.prefix.filesWithoutPrefixMinLength ?? 3) ? term : "";
+        }
+        return "";
+    }
+
+    function _requestFileSearch(term) {
+        if (term === root.fileSearchTerm)
+            return;
+
+        root.fileSearchTerm = term;
+        root.fileSearchRevision += 1;
+        fileResultsTimer.stop();
+        filesProc.running = false;
+        root.fileSearchRunning = false;
+        root.fileResults = [];
+        if (term.length > 0)
+            fileResultsTimer.restart();
+    }
+
+    function _scheduleAsyncResults() {
+        const query = root.query;
+        const needsMath = /^\d/.test(query)
+            || query.startsWith(Config.options.search.prefix.math)
+            || Config.options.search.prefix.showDefaultActionsWithoutPrefix;
+        if (query.length > 0 && needsMath)
+            nonAppResultsTimer.restart();
+        else
+            nonAppResultsTimer.stop();
+
+        root._requestFileSearch(root._fileSearchTermForQuery());
+    }
+
+    function updateResults() {
+        root.results = root.buildResults();
+    }
+
+    onQueryChanged: {
+        root._scheduleAsyncResults();
+        resultsUpdateTimer.restart();
+    }
+    onMathResultChanged: resultsUpdateTimer.restart()
+    onFileResultsChanged: resultsUpdateTimer.restart()
+    onSshHostNamesChanged: resultsUpdateTimer.restart()
+    onSystemServiceUnitsChanged: resultsUpdateTimer.restart()
+    onSettingsKeywordsCacheChanged: resultsUpdateTimer.restart()
+
+    function buildResults() {
         // Search results are handled here
         ////////////////// Skip? //////////////////
         if (root.query == "")
@@ -582,8 +662,6 @@ Singleton {
             if (!Config.options.search.extras.filesEnable) return [];
             // Local files (plocate/locate/find - see filesProc above)
             const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.files).trim();
-            root.fileSearchTerm = searchString;
-            fileResultsTimer.restart();
             if (searchString.length === 0) return [];
             return root.makeFileResults();
         } else if (root.query.startsWith(Config.options.search.prefix.sshHosts)) {
@@ -653,7 +731,6 @@ Singleton {
         }
 
         ////////////////// Init ///////////////////
-        nonAppResultsTimer.restart();
         const mathResultObject = resultComp.createObject(null, {
             name: root.mathResult,
             verb: Translation.tr("Copy"),
@@ -823,11 +900,7 @@ Singleton {
                 && !startsWithWebSearchPrefix && !startsWithNumber) {
             const fileTerm = root.query.trim();
             if (fileTerm.length >= (Config.options.search.prefix.filesWithoutPrefixMinLength ?? 3)) {
-                root.fileSearchTerm = fileTerm;
-                fileResultsTimer.restart();
                 result = result.concat(root.makeFileResults());
-            } else if (root.fileResults.length > 0) {
-                root.fileResults = [];
             }
         }
 

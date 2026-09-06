@@ -475,6 +475,107 @@ ContentPage {
                 }
             }
             ContentSubsection {
+                id: defaultApplicationsSection
+                title: Translation.tr("Default applications by file type")
+                property string pendingDesktopFile: ""
+                property var pendingMimeTypes: []
+
+                function scheduleDefaultApplication(desktopFile, mimeTypes) {
+                    pendingDesktopFile = desktopFile
+                    pendingMimeTypes = mimeTypes
+                    defaultApplicationCommit.restart()
+                }
+
+                Timer {
+                    id: defaultApplicationCommit
+                    interval: 550
+                    repeat: false
+                    onTriggered: SystemTheming.applyDefaultApplication(
+                        defaultApplicationsSection.pendingDesktopFile,
+                        defaultApplicationsSection.pendingMimeTypes)
+                }
+
+                GroupedList {
+                    ConfigTextArea {
+                        buttonIcon: "language"
+                        text: Translation.tr("Web links")
+                        description: Translation.tr("Desktop-entry ID, e.g. firefox.desktop")
+                        value: Config.options.apps.defaultApplications.browser
+                        onValueChanged: {
+                            Config.options.apps.defaultApplications.browser = value
+                            defaultApplicationsSection.scheduleDefaultApplication(value, ["x-scheme-handler/http", "x-scheme-handler/https", "text/html"])
+                        }
+                    }
+                    ConfigTextArea {
+                        buttonIcon: "folder"
+                        text: Translation.tr("Folders")
+                        description: Translation.tr("Desktop-entry ID for opening directories")
+                        value: Config.options.apps.defaultApplications.folders
+                        onValueChanged: {
+                            Config.options.apps.defaultApplications.folders = value
+                            defaultApplicationsSection.scheduleDefaultApplication(value, ["inode/directory"])
+                        }
+                    }
+                    ConfigTextArea {
+                        buttonIcon: "description"
+                        text: Translation.tr("Documents and text")
+                        description: Translation.tr("PDF, plain text, and common office documents")
+                        value: Config.options.apps.defaultApplications.documents
+                        onValueChanged: {
+                            Config.options.apps.defaultApplications.documents = value
+                            defaultApplicationsSection.scheduleDefaultApplication(value, ["application/pdf", "text/plain", "application/rtf", "application/vnd.oasis.opendocument.text", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"])
+                        }
+                    }
+                    ConfigTextArea {
+                        buttonIcon: "image"
+                        text: Translation.tr("Images")
+                        description: Translation.tr("JPEG, PNG, WebP, GIF, SVG, and AVIF")
+                        value: Config.options.apps.defaultApplications.images
+                        onValueChanged: {
+                            Config.options.apps.defaultApplications.images = value
+                            defaultApplicationsSection.scheduleDefaultApplication(value, ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml", "image/avif"])
+                        }
+                    }
+                    ConfigTextArea {
+                        buttonIcon: "audio_file"
+                        text: Translation.tr("Audio")
+                        description: Translation.tr("MP3, FLAC, OGG, WAV, and M4A")
+                        value: Config.options.apps.defaultApplications.audio
+                        onValueChanged: {
+                            Config.options.apps.defaultApplications.audio = value
+                            defaultApplicationsSection.scheduleDefaultApplication(value, ["audio/mpeg", "audio/flac", "audio/ogg", "audio/wav", "audio/mp4"])
+                        }
+                    }
+                    ConfigTextArea {
+                        buttonIcon: "video_file"
+                        text: Translation.tr("Video")
+                        description: Translation.tr("MP4, Matroska, WebM, and AVI")
+                        value: Config.options.apps.defaultApplications.video
+                        onValueChanged: {
+                            Config.options.apps.defaultApplications.video = value
+                            defaultApplicationsSection.scheduleDefaultApplication(value, ["video/mp4", "video/x-matroska", "video/webm", "video/x-msvideo"])
+                        }
+                    }
+                    ConfigTextArea {
+                        buttonIcon: "inventory_2"
+                        text: Translation.tr("Archives")
+                        description: Translation.tr("ZIP, 7z, RAR, tar, and gzip archives")
+                        value: Config.options.apps.defaultApplications.archives
+                        onValueChanged: {
+                            Config.options.apps.defaultApplications.archives = value
+                            defaultApplicationsSection.scheduleDefaultApplication(value, ["application/zip", "application/x-7z-compressed", "application/vnd.rar", "application/x-rar", "application/x-tar", "application/gzip"])
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Use the application's .desktop filename. Each change updates your user mimeapps.list, so it applies to file managers, xdg-open, browsers, and launcher results. Leave a field empty to keep its current system default.")
+                    }
+                }
+            }
+            ContentSubsection {
                 title: Translation.tr("Files, SSH & services")
                 GroupedList {
                     ConfigTextArea {

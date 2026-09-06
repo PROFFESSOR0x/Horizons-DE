@@ -7,9 +7,22 @@ import qs.modules.common.models
 TabBar {
     id: root
     property real indicatorPadding: 8
+    // Most uses live inside an already-solid page, so the surface remains opt
+    // in. The wallpaper-backed window switcher enables it explicitly.
+    property bool showSurface: false
+    property color surfaceColor: Appearance.colors.colLayer0
     Layout.fillWidth: true
 
     background: Item {
+        Rectangle {
+            anchors.fill: parent
+            radius: Appearance.rounding.normal
+            color: root.surfaceColor
+            visible: root.showSurface
+            border.width: root.showSurface ? 1 : 0
+            border.color: Appearance.colors.colLayer0Border
+        }
+
         WheelHandler {
             onWheel: (event) => {
                 if (event.angleDelta.y < 0) root.incrementCurrentIndex();

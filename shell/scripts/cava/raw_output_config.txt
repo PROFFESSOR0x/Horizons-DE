@@ -8,10 +8,13 @@ bars = 50
 method = raw
 raw_target = /dev/stdout
 data_format = ascii
+# Keep the raw scale explicit. QML normalizes this standard 0..1000 range;
+# without it a CAVA config/default change makes every visualizer look either
+# flat or permanently saturated.
+ascii_max_range = 1000
 channels = mono
 mono_option = average
 
 [smoothing]
 noise_reduction = 20
-
 

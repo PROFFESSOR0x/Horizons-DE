@@ -19,10 +19,14 @@ RowLayout {
     property real from: slider.from
     property real to: slider.to
     property real textWidth: 120
+    // Keep the interactive part compact so the setting label and description
+    // retain the majority of a wide settings card.
+    property real controlWidth: 184
     property bool showLabel: true
 
     RowLayout {
         id: row
+        Layout.fillWidth: true
         visible: root.showLabel
         spacing: 10
 
@@ -33,6 +37,7 @@ RowLayout {
         }
         StyledText {
             id: labelWidget
+            Layout.fillWidth: true
             Layout.preferredWidth: root.textWidth
             Layout.minimumWidth: 0
             text: root.text
@@ -42,7 +47,10 @@ RowLayout {
     }
     StyledSlider {
         id: slider
-        Layout.fillWidth: true
+        Layout.fillWidth: false
+        Layout.minimumWidth: 120
+        Layout.preferredWidth: Math.min(root.controlWidth, Math.max(120, root.width * 0.32))
+        Layout.maximumWidth: root.controlWidth
         configuration: StyledSlider.Configuration.XS
         usePercentTooltip: root.usePercentTooltip
         value: root.value

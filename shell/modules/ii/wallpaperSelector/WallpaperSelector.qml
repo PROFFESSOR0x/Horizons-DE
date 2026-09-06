@@ -15,6 +15,13 @@ Scope {
     id: root
 
     property bool reallyOpen: false
+    // In M3 mode the selector is hosted by M3IslandContent itself so the
+    // island morphs into one continuous surface (the same pattern used by
+    // the inline launcher). Keeping a second PanelWindow under the pill made
+    // the two surfaces look merely adjacent, especially over light wallpaper.
+    readonly property bool embeddedInM3Island: Config.options.bar.barMode === "m3Island"
+        && (Config.options.wallpaperSelector.dockToIsland ?? true)
+        && !Config.options.bar.vertical
 
     Connections {
         target: GlobalStates
@@ -36,7 +43,7 @@ Scope {
 
     Loader {
         id: wallpaperSelectorLoader
-        active: root.reallyOpen
+        active: root.reallyOpen && !root.embeddedInM3Island
 
         sourceComponent: PanelWindow {
             id: panelWindow

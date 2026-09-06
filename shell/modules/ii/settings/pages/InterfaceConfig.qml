@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import qs
 import qs.services
 import qs.modules.common
@@ -24,6 +25,7 @@ ContentPage {
         { name: "timers", label: Translation.tr("Timers"), icon: "timer" },
         { name: "images", label: Translation.tr("Images"), icon: "image" },
         { name: "visualizer", label: Translation.tr("Audio visualizer"), icon: "graphic_eq" },
+        { name: "visualizerMirror", label: Translation.tr("Mirrored visualizer"), icon: "vertical_align_center" },
         { name: "customImage", label: Translation.tr("Custom image"), icon: "photo" },
         { name: "resources", label: Translation.tr("System resources"), icon: "monitoring" },
         { name: "networkInfo", label: Translation.tr("Network info"), icon: "wifi" },
@@ -79,6 +81,20 @@ ContentPage {
         Layout.fillWidth: true   
         Layout.fillHeight: true
         spacing: 20
+
+        ContentSection {
+            icon: "desktop_windows"
+            title: Translation.tr("Screens & workspaces")
+            visible: WM.monitors.length > 1
+            GroupedList {
+                ConfigSwitch {
+                    buttonIcon: "view_carousel"
+                    text: Translation.tr("Use one workspace set across all screens")
+                    checked: Config.options.workspaceLinking.unifiedMultiMonitor
+                    onCheckedChanged: GlobalStates.setUnifiedMultiMonitorWorkspaces(checked)
+                }
+            }
+        }
 
         ContentSection {
             icon: "palette"
@@ -1022,6 +1038,44 @@ ContentPage {
         }
 
         ContentSection {
+            icon: "palette"
+            title: Translation.tr("System themes")
+            shape: MaterialShape.Shape.Cookie7Sided
+
+            GroupedList {
+                ConfigComboBox {
+                    buttonIcon: "palette"
+                    text: Translation.tr("System icon theme")
+                    description: Translation.tr("Applies to GTK, Qt/XSettings, and desktop applications")
+                    model: SystemTheming.iconThemes.map(theme => ({ displayName: theme, value: theme }))
+                    currentValue: SystemTheming.currentIconTheme
+                    onSelected: theme => SystemTheming.applyIconTheme(theme)
+                }
+                ConfigComboBox {
+                    buttonIcon: "mouse"
+                    text: Translation.tr("Mouse cursor theme")
+                    description: Translation.tr("Applies across the desktop and compatible applications")
+                    model: SystemTheming.cursorThemes.map(theme => ({ displayName: theme, value: theme }))
+                    currentValue: SystemTheming.currentCursorTheme
+                    onSelected: theme => SystemTheming.applyCursorTheme(theme, SystemTheming.currentCursorSize)
+                }
+                ConfigSpinBox {
+                    id: cursorSizeControl
+                    icon: "format_size"
+                    text: Translation.tr("Cursor size")
+                    value: SystemTheming.currentCursorSize
+                    from: 16; to: 96; stepSize: 2
+                    onValueChanged: cursorSizeTimer.restart()
+                    Timer {
+                        id: cursorSizeTimer
+                        interval: 400
+                        onTriggered: SystemTheming.applyCursorTheme(SystemTheming.currentCursorTheme, cursorSizeControl.value)
+                    }
+                }
+            }
+        }
+
+        ContentSection {
             icon: "lock"
             title: Translation.tr("Lock screen")
             shape: MaterialShape.Shape.Pentagon
@@ -1072,6 +1126,87 @@ ContentPage {
                     text: Translation.tr("Show media player info")
                     checked: Config.options.lock.showMedia
                     onCheckedChanged: { Config.options.lock.showMedia = checked }
+                }
+                ConfigSwitch {
+                    buttonIcon: "visibility_off"
+                    text: Translation.tr("Hide lock controls when idle")
+                    checked: Config.options.lock.autoHideControls
+                    onCheckedChanged: Config.options.lock.autoHideControls = checked
+                }
+                ConfigSpinBox {
+                    icon: "timer"
+                    enabled: Config.options.lock.autoHideControls
+                    text: Translation.tr("Hide controls after (seconds)")
+                    value: Config.options.lock.controlsIdleSeconds
+                    from: 5; to: 120; stepSize: 5
+                    onValueChanged: Config.options.lock.controlsIdleSeconds = value
+                }
+                ConfigSwitch {
+                    buttonIcon: "monitor"
+                    text: Translation.tr("Customize lock layout per display")
+                    checked: Config.options.lock.perScreenLayout
+                    onCheckedChanged: Config.options.lock.perScreenLayout = checked
+                }
+                ConfigComboBox {
+                    buttonIcon: "desktop_windows"
+                    text: Translation.tr("Primary lock-controls monitor")
+                    description: Translation.tr("Used when the unlock box is limited to one monitor")
+                    model: [
+                        { displayName: Translation.tr("First connected monitor"), value: "" },
+                        ...Quickshell.screens.map(screen => ({ displayName: screen.name, value: screen.name }))
+                    ]
+                    currentValue: Config.options.lock.primaryMonitor
+                    onSelected: newValue => Config.options.lock.primaryMonitor = newValue
+                }
+                ConfigSwitch {
+                    buttonIcon: "lock"
+                    text: Translation.tr("Unlock box just on the primary monitor")
+                    checked: Config.options.lock.unlockBoxPrimaryMonitorOnly
+                    onCheckedChanged: Config.options.lock.unlockBoxPrimaryMonitorOnly = checked
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Lock screen live preview")
+                GroupedList {
+                    RippleButton {
+                        Layout.fillWidth: true
+                        implicitHeight: 44
+                        toggled: GlobalStates.lockPreviewOpen
+                        buttonRadius: Appearance.rounding.normal
+                        colBackground: Appearance.colors.colLayer1
+                        colBackgroundToggled: Appearance.colors.colPrimaryContainer
+                        onClicked: {
+                            if (GlobalStates.lockPreviewOpen) {
+                                GlobalStates.cancelLockPreview()
+                            } else {
+                                GlobalStates.beginLockPreview()
+                                Config.options.lock.showWidgets = true
+                            }
+                        }
+                        contentItem: RowLayout {
+                            spacing: 10
+                            MaterialSymbol {
+                                text: GlobalStates.lockPreviewOpen ? "visibility_off" : "preview"
+                                iconSize: Appearance.font.pixelSize.large
+                                color: GlobalStates.lockPreviewOpen ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colPrimary
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: GlobalStates.lockPreviewOpen
+                                    ? Translation.tr("Exit live lock-screen preview")
+                                    : Translation.tr("Edit lock-screen layout live")
+                                color: GlobalStates.lockPreviewOpen ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer1
+                            }
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Shows the lock wallpaper and all permitted widgets on every monitor without locking the session. Drag widgets directly; the same alignment grid and saved positions as the desktop are used. Choose which widget types appear below.")
+                    }
                 }
             }
 

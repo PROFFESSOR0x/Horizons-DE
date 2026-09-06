@@ -25,6 +25,8 @@ Scope {
             appId: w.app_id ?? "",
             class: w.app_id ?? "",
             workspaceId: w.workspace_id,
+            monitorName: w.output ?? "",
+            pid: w.pid ?? 0,
             focused: w.is_focused ?? false,
             width: w.layout?.window_size?.[0] ?? 0,
             height: w.layout?.window_size?.[1] ?? 0,
@@ -39,6 +41,12 @@ Scope {
     function closeWindow(id) {
         actionProc.command = ["niri", "msg", "action", "close-window", "--id", id];
         actionProc.running = true;
+    }
+    function forceCloseWindow(id, pid) {
+        const numericPid = Number(pid)
+        if (Number.isInteger(numericPid) && numericPid > 1)
+            Quickshell.execDetached(["bash", "-c", "killtree(){ for child in $(pgrep -P \"$1\"); do killtree \"$child\"; done; kill -KILL \"$1\" 2>/dev/null || true; }; killtree \"$1\"", "horizons-end-task", String(numericPid)])
+        else root.closeWindow(id)
     }
     function switchWorkspace(id) {
         actionProc.command = ["niri", "msg", "action", "focus-workspace", String(id)];

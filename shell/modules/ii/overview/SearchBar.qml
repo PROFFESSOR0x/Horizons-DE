@@ -14,9 +14,26 @@ RowLayout {
     property bool animateWidth: false
     property alias searchInput: searchInput
     property string searchingText
+    // Owned by SearchWidget. Keeping a direct reference avoids trying to
+    // discover sibling ids through the parent tree (which made arrow-key
+    // navigation depend on the launcher's layout/position).
+    property var resultsView: null
+    signal activateResult()
 
     function forceFocus() {
         searchInput.forceActiveFocus();
+    }
+
+    function moveResult(step) {
+        const view = root.resultsView
+        if (!view || view.count <= 0) return false
+        const current = view.currentIndex < 0
+            ? (step > 0 ? -1 : view.count)
+            : view.currentIndex
+        const next = Math.max(0, Math.min(view.count - 1, current + step))
+        view.currentIndex = next
+        view.positionViewAtIndex(next, ListView.Contain)
+        return true
     }
 
     enum SearchPrefixType { Action, App, Clipboard, Emojis, Symbols, Math, ShellCommand, WebSearch, Keybinds, Files, SshHosts, SystemServices, DefaultSearch }
@@ -103,31 +120,21 @@ RowLayout {
         onTextChanged: LauncherSearch.query = text
 
         onAccepted: {
-            // Support both top/bottom list views (new position feature) and legacy single appResults
-            let lv = null
-            if (typeof appResultsTop !== 'undefined' && appResultsTop && appResultsTop.visible) lv = appResultsTop
-            else if (typeof appResultsBottom !== 'undefined' && appResultsBottom && appResultsBottom.visible) lv = appResultsBottom
-            else if (typeof appResults !== 'undefined' && appResults) lv = appResults
-            // Fallback: walk up parent tree to find any ListView with model
-            if (!lv) {
-                let p = root.parent
-                while (p && !lv) {
-                    if (p.appResultsTop) lv = p.appResultsTop
-                    else if (p.appResultsBottom) lv = p.appResultsBottom
-                    else if (p.appResults) lv = p.appResults
-                    p = p.parent
-                }
-            }
-            if (lv && lv.count > 0) {
-                let firstItem = lv.itemAtIndex(0)
-                if (firstItem && firstItem.clicked) firstItem.clicked()
-            }
+            root.activateResult()
         }
 
+        Keys.priority: Keys.BeforeItem
         Keys.onPressed: event => {
-            if (event.key === Qt.Key_Tab) {
+            if (event.key === Qt.Key_Down) {
+                if (root.moveResult(1)) event.accepted = true
+            } else if (event.key === Qt.Key_Up) {
+                if (root.moveResult(-1)) event.accepted = true
+            } else if (event.key === Qt.Key_Tab) {
                 if (LauncherSearch.results.length === 0) return;
-                const tabbedText = LauncherSearch.results[0].name;
+                const selected = root.resultsView?.currentItem?.entry
+                    ?? LauncherSearch.results[root.resultsView?.currentIndex ?? 0]
+                    ?? LauncherSearch.results[0]
+                const tabbedText = selected.name;
                 LauncherSearch.query = tabbedText;
                 searchInput.text = tabbedText;
                 event.accepted = true;

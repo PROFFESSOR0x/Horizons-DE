@@ -11,6 +11,7 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
 import "../bar" as Bar
+import "../wallpaperSelector" as WallpaperSelector
 
 Item {
     id: root
@@ -18,6 +19,22 @@ Item {
     property var panelWindow
     property bool mustShow: true
     property bool launcherOpen: GlobalStates.overviewOpen
+    function selectorTargetsThisScreen() {
+        const focusedMonitor = WM.focusedMonitor
+        // During compositor startup the focused-monitor model can briefly be
+        // empty. Fall back to one deterministic screen rather than letting
+        // `undefined === undefined` open a selector in every island.
+        if (!focusedMonitor?.name) return root.screen === Quickshell.screens[0]
+        return focusedMonitor.name === WM.monitorFor(root.screen)?.name
+    }
+    // The wallpaper selector is another full island state, not a separate
+    // drawer. Limiting it to the focused monitor means a multi-monitor setup
+    // morphs exactly one island while the others remain usable.
+    readonly property bool isWallpaperSelector: GlobalStates.wallpaperSelectorOpen
+        && Config.options.bar.barMode === "m3Island"
+        && (Config.options.wallpaperSelector.dockToIsland ?? true)
+        && !Config.options.bar.vertical
+        && root.selectorTargetsThisScreen()
     property bool hovered: hoverHandler.hovered
     property bool expanded: false
     // A launcher opened from an auto-hidden island needs its own arrival;
@@ -28,9 +45,9 @@ Item {
     readonly property bool isLauncher: launcherOpen
     property var pendingNotif: null
     property var notificationQueue: []
-    readonly property bool isNotification: pendingNotif !== null && !isLauncher
-    readonly property bool isExpanded: !isLauncher && !isNotification && expanded
-    readonly property bool isHoverPeek: !isLauncher && !isNotification && !expanded && hoveredDebounced && Config.options.m3Island.hoverPeek
+    readonly property bool isNotification: pendingNotif !== null && !isLauncher && !isWallpaperSelector
+    readonly property bool isExpanded: !isLauncher && !isWallpaperSelector && !isNotification && expanded
+    readonly property bool isHoverPeek: !isLauncher && !isWallpaperSelector && !isNotification && !expanded && hoveredDebounced && Config.options.m3Island.hoverPeek
 
     // Close expanded when launcher/notification opens. Keep a pending toast in
     // the queue so opening the launcher never silently drops a notification.
@@ -45,6 +62,16 @@ Item {
         } else {
             showNextNotification()
         }
+    }
+
+    onIsWallpaperSelectorChanged: {
+        if (!isWallpaperSelector || !root.panelWindow) return
+        // The standalone selector used to own this focus-grab. Once embedded,
+        // the island's PanelWindow owns it instead so Escape/outside-click
+        // keeps closing the same surface and keyboard navigation still lands
+        // in the selector.
+        GlobalFocusGrab.addDismissable(root.panelWindow)
+        Qt.callLater(() => wallpaperSelector.forceActiveFocus())
     }
 
     Component.onCompleted: {
@@ -137,7 +164,10 @@ Item {
     // Tap outside to collapse when expanded
     Connections {
         target: GlobalFocusGrab
-        function onDismissed() { if (root.isExpanded) root.expanded = false }
+        function onDismissed() {
+            if (root.isWallpaperSelector) GlobalStates.wallpaperSelectorOpen = false
+            else if (root.isExpanded) root.expanded = false
+        }
     }
 
     // Shared expand/collapse helper - used by click, scroll (layoutCycle),
@@ -164,6 +194,7 @@ Item {
 
     property bool notifHovered: false
     implicitHeight: {
+        if (isWallpaperSelector) return Appearance.sizes.wallpaperSelectorHeight
         // The inline launcher reports the height of its actual result list.
         // This keeps the island compact for one match and grows it only as
         // more matches arrive (up to the configured visible-result limit).
@@ -185,6 +216,9 @@ Item {
     readonly property real islandSpacing: 6
     readonly property real notificationWidth: Math.max(300, Math.min(520, Appearance.sizes.notificationPopupWidth))
     property real contentWidth: {
+        if (isWallpaperSelector) return Math.min(
+            Appearance.sizes.wallpaperSelectorWidth,
+            Math.max(360, (root.screen?.width ?? Appearance.sizes.wallpaperSelectorWidth) - 16))
         if (isLauncher) return 500
         if (isNotification) return notificationWidth
         if (isExpanded) return Math.max(expandedRow.implicitWidth + 8, restingRow.implicitWidth + 120)
@@ -232,7 +266,7 @@ Item {
         {
             icon: root.isExpanded ? "collapse_content" : "open_in_full",
             label: root.isExpanded ? Translation.tr("Collapse") : Translation.tr("Expand"),
-            visible: !root.isLauncher && !root.isNotification,
+            visible: !root.isLauncher && !root.isWallpaperSelector && !root.isNotification,
             action: () => root.setExpanded(!root.isExpanded)
         },
         {
@@ -444,7 +478,7 @@ Item {
         // Resolving the pill state to its *effective* radius (half the current,
         // already-animating height) makes the corners morph continuously with
         // the surface instead.
-        radius: (root.isLauncher || root.isExpanded || root.isNotification)
+        radius: (root.isLauncher || root.isWallpaperSelector || root.isExpanded || root.isNotification)
             ? Appearance.rounding.large
             : Math.max(0, root.height / 2)
         readonly property bool hugsScreen: Config.options.m3Island.cornerStyle === 0
@@ -524,7 +558,7 @@ Item {
                 contextMenuLoader.item.showAt(pt.x, pt.y)
                 return
             }
-            if (root.isLauncher) return
+            if (root.isLauncher || root.isWallpaperSelector) return
             if (Config.options.m3Island.clickToExpand) {
                 root.setExpanded(!root.expanded)
             }
@@ -545,7 +579,7 @@ Item {
         // The launcher grows the island's height while results are created.
         // Clip the stack during that growth so result text can never paint
         // outside the animated background.
-        clip: root.isLauncher || root.isHoverPeek || root.isExpanded
+        clip: root.isLauncher || root.isWallpaperSelector || root.isHoverPeek || root.isExpanded
 
         // Idle - restingLayout, customizable (used to be a hardcoded, always-
         // alone clock with no way to add widgets beside it or remove it -
@@ -555,7 +589,7 @@ Item {
             id: restingRow
             anchors.centerIn: parent
             spacing: root.islandSpacing
-            visible: !root.isLauncher && !root.isNotification && !root.isHoverPeek && !root.isExpanded
+            visible: !root.isLauncher && !root.isWallpaperSelector && !root.isNotification && !root.isHoverPeek && !root.isExpanded
             opacity: visible ? 1 : 0
             scale: visible ? 1 : 0.88
             Behavior on opacity { NumberAnimation { duration: root.animMs(220); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedAccel } }
@@ -897,6 +931,19 @@ Item {
             panelWindow: root.panelWindow
             Behavior on opacity { NumberAnimation { duration: root.animMs(220); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedDecel } }
             Behavior on scale { NumberAnimation { duration: root.animMs(300); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
+        }
+
+        // Unlike the former docked drawer, this lives in the island's own
+        // PanelWindow. The background therefore grows from the bar into the
+        // selector in one continuous shape, matching the launcher morph.
+        WallpaperSelector.WallpaperSelectorContent {
+            id: wallpaperSelector
+            anchors.fill: parent
+            visible: root.isWallpaperSelector
+            focus: visible
+            embeddedInM3Island: true
+            embeddedAtBottom: Config.options.bar.bottom
+            embeddedHugsScreen: Config.options.m3Island.cornerStyle === 0
         }
     }
 

@@ -43,6 +43,40 @@ ContentPage {
             : path
     }
 
+    function resetPrimaryVisualizer() {
+        const visualizer = Config.options.background.widgets.visualizer
+        visualizer.x = 80
+        visualizer.y = 720
+        visualizer.width = 960
+        visualizer.height = 220
+        visualizer.barCount = 50
+        visualizer.spacing = 6
+        visualizer.noiseFloor = 1.5
+        visualizer.attack = 0.68
+        visualizer.release = 0.24
+        visualizer.hideWhenObscured = true
+    }
+
+    function isWidgetLockOnly(name) {
+        return Config.options.background.widgets.lockOnly.indexOf(name) !== -1
+    }
+
+    function setWidgetLockOnly(name, on) {
+        let values = Config.options.background.widgets.lockOnly.slice()
+        if (on && values.indexOf(name) === -1) values.push(name)
+        if (!on) values = values.filter(value => value !== name)
+        Config.options.background.widgets.lockOnly = values
+
+        // "Lock only" should be immediately useful even when the lock screen
+        // is currently using an explicit widget allow-list.
+        if (on) {
+            Config.options.lock.showWidgets = true
+            const allowed = Config.options.lock.enabledWidgets.slice()
+            if (allowed.length > 0 && allowed.indexOf(name) === -1)
+                Config.options.lock.enabledWidgets = allowed.concat([name])
+        }
+    }
+
     ColumnLayout {
         id: mainLayout 
         Layout.fillWidth: true   
@@ -1005,71 +1039,91 @@ ContentPage {
                 Repeater {
                     model: [
                         {
+                            id: "weather",
                             icon: "weather_mix",
                             name: Translation.tr("Weather"),
                             enabled: Config.options.background.widgets.weather.enable
                         },
                         {
+                            id: "images",
                             icon: "image",
                             name: Translation.tr("Image converter"),
                             enabled: Config.options.background.widgets.images.enable
                         },
                         {
+                            id: "media",
                             icon: "music_note",
                             name: Translation.tr("Media Player"),
                             enabled: Config.options.background.widgets.media.enable
                         },
                         {
+                            id: "resources",
                             icon: "memory",
                             name: Translation.tr("Resources"),
                             enabled: Config.options.background.widgets.resources.enable
                         },
                         {
+                            id: "visualizer",
                             icon: "graphic_eq",
                             name: Translation.tr("Visualizer"),
                             enabled: Config.options.background.widgets.visualizer.enable
                         },
                         {
+                            id: "visualizerMirror",
+                            icon: "vertical_align_center",
+                            name: Translation.tr("Mirrored visualizer"),
+                            enabled: Config.options.background.widgets.visualizerMirror.enable
+                        },
+                        {
+                            id: "calendar",
                             icon: "calendar_month",
                             name: Translation.tr("Calendar"),
                             enabled: Config.options.background.widgets.calendar.enable
                         },
                         {
+                            id: "worldClock",
                             icon: "public",
                             name: Translation.tr("World Clock"),
                             enabled: Config.options.background.widgets.worldClock.enable
                         },
                         {
+                            id: "userCard",
                             icon: "person",
                             name: Translation.tr("User Card"),
                             enabled: Config.options.background.widgets.userCard.enable
                         },
                         {
+                            id: "notes",
                             icon: "note_stack_add",
                             name: Translation.tr("Notes"),
                             enabled: Config.options.background.widgets.notes.enable
                         },
                         {
+                            id: "todo",
                             icon: "add_task",
                             name: Translation.tr("To-Do"),
                             enabled: Config.options.background.widgets.todo.enable
                         },
                         {
+                            id: "timers",
                             icon: "timer",
                             name: Translation.tr("Timers"),
                             enabled: Config.options.background.widgets.timers.enable
                         },
                         {
+                            id: "networkInfo",
                             icon: "network_check",
                             name: Translation.tr("Network Info"),
                             enabled: Config.options.background.widgets.networkInfo.enable
                         },
                         {
+                            id: "systemHistory",
                             icon: "monitoring",
                             name: Translation.tr("System History"),
                             enabled: Config.options.background.widgets.systemHistory.enable
                         },
                         {
+                            id: "uptime",
                             icon: "schedule",
                             name: Translation.tr("Uptime"),
                             enabled: Config.options.background.widgets.uptime.enable
@@ -1113,6 +1167,8 @@ ContentPage {
                                             Config.options.background.widgets.resources.enable = checked
                                         else if (modelData.icon === "graphic_eq")
                                             Config.options.background.widgets.visualizer.enable = checked
+                                        else if (modelData.icon === "vertical_align_center")
+                                            Config.options.background.widgets.visualizerMirror.enable = checked
                                         else if (modelData.icon === "calendar_month")
                                             Config.options.background.widgets.calendar.enable = checked
                                         else if (modelData.icon === "public")
@@ -1131,6 +1187,14 @@ ContentPage {
                                             Config.options.background.widgets.systemHistory.enable = checked
                                         else if (modelData.icon === "schedule")
                                             Config.options.background.widgets.uptime.enable = checked
+                                    }
+                                }
+                                IconToolbarButton {
+                                    text: "lock"
+                                    toggled: page.isWidgetLockOnly(modelData.id)
+                                    onClicked: page.setWidgetLockOnly(modelData.id, !toggled)
+                                    StyledToolTip {
+                                        text: Translation.tr("Show only on the lock screen")
                                     }
                                 }
                             }
@@ -1153,6 +1217,27 @@ ContentPage {
                 visible: Config.options.background.widgets.visualizer.enable
 
                 GroupedList {
+                    RippleButton {
+                        Layout.fillWidth: true
+                        implicitHeight: 42
+                        buttonRadius: Appearance.rounding.normal
+                        colBackground: Appearance.colors.colLayer1
+                        colBackgroundHover: Appearance.colors.colLayer1Hover
+                        onClicked: page.resetPrimaryVisualizer()
+                        contentItem: RowLayout {
+                            spacing: 10
+                            MaterialSymbol {
+                                text: "restart_alt"
+                                iconSize: Appearance.font.pixelSize.large
+                                color: Appearance.colors.colPrimary
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: Translation.tr("Reset visualizer settings")
+                                color: Appearance.colors.colOnLayer1
+                            }
+                        }
+                    }
                     ConfigSwitch {
                         Layout.fillWidth: true
                         buttonIcon: "energy_savings_leaf"
@@ -1162,12 +1247,116 @@ ContentPage {
                             Config.options.background.widgets.visualizer.hideWhenObscured = checked;
                         }
                     }
+                    ConfigSpinBox {
+                        icon: "width"
+                        text: Translation.tr("Width")
+                        value: Config.options.background.widgets.visualizer.width
+                        from: 240; to: 1920; stepSize: 20
+                        onValueChanged: Config.options.background.widgets.visualizer.width = value
+                    }
+                    ConfigSpinBox {
+                        icon: "height"
+                        text: Translation.tr("Maximum height")
+                        value: Config.options.background.widgets.visualizer.height
+                        from: 80; to: 600; stepSize: 10
+                        onValueChanged: Config.options.background.widgets.visualizer.height = value
+                    }
+                    ConfigSpinBox {
+                        icon: "equalizer"
+                        text: Translation.tr("Frequency bands")
+                        value: Config.options.background.widgets.visualizer.barCount
+                        from: 8; to: 64; stepSize: 2
+                        onValueChanged: Config.options.background.widgets.visualizer.barCount = value
+                    }
+                    ConfigSlider {
+                        buttonIcon: "noise_aware"
+                        text: Translation.tr("Noise gate")
+                        value: Config.options.background.widgets.visualizer.noiseFloor
+                        from: 0; to: 10
+                        onValueChanged: Config.options.background.widgets.visualizer.noiseFloor = value
+                    }
+                    ConfigSlider {
+                        buttonIcon: "speed"
+                        text: Translation.tr("Rise response")
+                        value: Config.options.background.widgets.visualizer.attack * 100
+                        from: 10; to: 100
+                        onValueChanged: Config.options.background.widgets.visualizer.attack = value / 100
+                    }
+                    ConfigSlider {
+                        buttonIcon: "south"
+                        text: Translation.tr("Fall response")
+                        value: Config.options.background.widgets.visualizer.release * 100
+                        from: 5; to: 100
+                        onValueChanged: Config.options.background.widgets.visualizer.release = value / 100
+                    }
                     StyledText {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         color: Appearance.colors.colSubtext
                         font.pixelSize: Appearance.font.pixelSize.small
                         text: Translation.tr("The visualizer redraws on every audio frame and keeps cava capturing, so it is the most expensive thing on the desktop. With this on, it is torn down completely on any screen whose active workspace holds a tiled or fullscreen window - and cava stops once no screen is showing one. Floating windows don't count, since the desktop stays visible around them. Each screen is judged on its own: a window on one monitor never stops the visualizer on another.")
+                    }
+                }
+            }
+            ContentSubsection {
+                title: Translation.tr("Mirrored visualizer")
+                visible: Config.options.background.widgets.visualizerMirror.enable
+
+                GroupedList {
+                    ConfigSwitch {
+                        buttonIcon: "energy_savings_leaf"
+                        text: Translation.tr("Pause while a window covers the desktop")
+                        checked: Config.options.background.widgets.visualizerMirror.hideWhenObscured
+                        onCheckedChanged: Config.options.background.widgets.visualizerMirror.hideWhenObscured = checked
+                    }
+                    ConfigSpinBox {
+                        icon: "width"
+                        text: Translation.tr("Width")
+                        value: Config.options.background.widgets.visualizerMirror.width
+                        from: 240; to: 1920; stepSize: 20
+                        onValueChanged: Config.options.background.widgets.visualizerMirror.width = value
+                    }
+                    ConfigSpinBox {
+                        icon: "height"
+                        text: Translation.tr("Total height")
+                        value: Config.options.background.widgets.visualizerMirror.height
+                        from: 100; to: 800; stepSize: 10
+                        onValueChanged: Config.options.background.widgets.visualizerMirror.height = value
+                    }
+                    ConfigSpinBox {
+                        icon: "equalizer"
+                        text: Translation.tr("Frequency bands")
+                        value: Config.options.background.widgets.visualizerMirror.barCount
+                        from: 8; to: 64; stepSize: 2
+                        onValueChanged: Config.options.background.widgets.visualizerMirror.barCount = value
+                    }
+                    ConfigSlider {
+                        buttonIcon: "noise_aware"
+                        text: Translation.tr("Noise gate")
+                        value: Config.options.background.widgets.visualizerMirror.noiseFloor
+                        from: 0; to: 10
+                        onValueChanged: Config.options.background.widgets.visualizerMirror.noiseFloor = value
+                    }
+                    ConfigSlider {
+                        buttonIcon: "speed"
+                        text: Translation.tr("Rise response")
+                        value: Config.options.background.widgets.visualizerMirror.attack * 100
+                        from: 10; to: 100
+                        onValueChanged: Config.options.background.widgets.visualizerMirror.attack = value / 100
+                    }
+                    ConfigSlider {
+                        buttonIcon: "south"
+                        text: Translation.tr("Fall response")
+                        value: Config.options.background.widgets.visualizerMirror.release * 100
+                        from: 5; to: 100
+                        onValueChanged: Config.options.background.widgets.visualizerMirror.release = value / 100
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("This spectrum grows above and below its center line. Unlock desktop widgets, then drag it anywhere on the canvas; its position is saved like the other widgets.")
                     }
                 }
             }

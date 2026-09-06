@@ -5,6 +5,7 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
@@ -23,24 +24,62 @@ Item {
     property string filterText: ""
 
     readonly property var windowByAddress: HyprlandData.windowByAddress
-    readonly property real tileMaxWidth: 240
-    readonly property real tileMaxHeight: 155
+    readonly property string monitorName: root.screen?.name ?? ""
+    readonly property var linkedWorkspaceScope: {
+        const active = WM.activeWorkspaceForMonitor(root.monitorName)
+        if (!active) return []
+        return GlobalStates.linkedWorkspaceMembers(active.id, root.monitorName)
+    }
+    readonly property real tileMaxWidth: 300
+    readonly property real tileMaxHeight: 175
     readonly property real tileMinWidth: 90
     readonly property real tileMinHeight: 60
     readonly property real tileSpacing: 14
-    readonly property real flowWidth: tileMaxWidth * 4 + tileSpacing * 3
+    // Cell width is deliberately smaller than the largest thumbnail. This
+    // gives a narrow/portrait display two useful columns before falling back
+    // to one, while wide displays naturally gain more columns.
+    readonly property real preferredCellWidth: 220
+    // The switcher is often opened on a portrait/narrow display. Its width
+    // and column count are therefore derived from the current screen rather
+    // than from the first window delegate's implicit size (which is what made
+    // the old Flow collapse into one very tall column).
+    readonly property real gridWidth: Math.max(320, Math.min(
+        1040, Math.floor((root.screen?.width ?? 1280) * 0.82)))
+    readonly property int columnCount: Math.max(1, Math.floor(
+        (root.gridWidth + root.tileSpacing) / (root.preferredCellWidth + root.tileSpacing)))
+    readonly property real cellWidth: Math.floor(
+        (root.gridWidth - root.tileSpacing * (root.columnCount - 1)) / root.columnCount)
+    readonly property real cellHeight: Math.max(124, Math.min(
+        208, Math.round(root.cellWidth * 0.66)))
+    // Reserve room for tabs and the filter field, then scroll the thumbnails
+    // instead of letting a long window list extend past the screen.
+    readonly property real maxGridHeight: Math.max(220, Math.min(
+        560, Math.floor((root.screen?.height ?? 900) * 0.58)))
 
     // De-duplicated, filtered {toplevel, win, address} entries - same
     // toplevel/windowByAddress matching OverviewWidget already uses, just
-    // without the per-workspace grouping.
+    // without the per-workspace grouping. Hyprland's focusHistoryID is 0 for
+    // the focused client and grows with age, which makes it the natural order
+    // for a Super+Tab surface: the currently used window comes first and the
+    // rest follow by recency rather than an unstable IPC/toplevel order.
     readonly property var matchingWindows: {
         const needle = root.filterText.trim().toLowerCase();
+        const linkedScope = root.linkedWorkspaceScope;
         const seen = ({});
         const out = [];
         ToplevelManager.toplevels.values.forEach(toplevel => {
             const address = `0x${toplevel.HyprlandToplevel?.address}`;
             const win = root.windowByAddress[address];
             if (!win || seen[address]) return;
+            // A linked workspace set is navigated as a single desktop. Keep
+            // the Windows tab scoped to exactly that set; without a link the
+            // familiar all-windows switcher remains unchanged.
+            if (linkedScope.length > 1) {
+                const monitorName = HyprlandData.monitors.find(m => m.id === win.monitor)?.name ?? "";
+                const inLinkedSet = linkedScope.some(entry => String(entry.workspaceId) === String(win.workspace?.id)
+                    && entry.monitorName === monitorName);
+                if (!inLinkedSet) return;
+            }
             if (needle !== "") {
                 const title = (win.title ?? "").toLowerCase();
                 const cls = (win.class ?? "").toLowerCase();
@@ -49,30 +88,52 @@ Item {
             seen[address] = true;
             out.push({ toplevel, win, address });
         });
+        out.sort((a, b) => {
+            const aFocus = a.win?.focusHistoryID ?? Number.MAX_SAFE_INTEGER;
+            const bFocus = b.win?.focusHistoryID ?? Number.MAX_SAFE_INTEGER;
+            if (aFocus !== bFocus) return aFocus - bFocus;
+            return (a.win?.title ?? "").localeCompare(b.win?.title ?? "");
+        });
         return out;
     }
 
-    implicitWidth: Math.min(root.flowWidth, Math.max(flow.implicitWidth, emptyText.implicitWidth))
-    implicitHeight: Math.max(flow.visible ? flow.implicitHeight : 0, emptyText.visible ? emptyText.implicitHeight + 40 : 0)
+    implicitWidth: root.gridWidth
+    implicitHeight: root.matchingWindows.length > 0 ? grid.height : 120
 
-    Flow {
-        id: flow
-        width: root.implicitWidth
-        spacing: root.tileSpacing
+    GridView {
+        id: grid
+        width: root.gridWidth
+        height: visible ? Math.min(contentHeight, root.maxGridHeight) : 0
+        cellWidth: root.cellWidth + root.tileSpacing
+        cellHeight: root.cellHeight + root.tileSpacing
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
         visible: root.matchingWindows.length > 0
+        model: root.matchingWindows
 
-        Repeater {
-            model: root.matchingWindows
-            delegate: Rectangle {
+        ScrollBar.vertical: StyledScrollBar {}
+
+        delegate: Item {
+            id: cell
+            required property var modelData
+            width: grid.cellWidth
+            height: grid.cellHeight
+
+            Rectangle {
                 id: tile
-                required property var modelData
-                readonly property var win: modelData.win
-                readonly property var toplevel: modelData.toplevel
+                anchors.centerIn: parent
+                readonly property var win: cell.modelData.win
+                readonly property var toplevel: cell.modelData.toplevel
                 readonly property real rawW: win?.size?.[0] ?? 1
                 readonly property real rawH: win?.size?.[1] ?? 1
-                readonly property real fitScale: Math.min(root.tileMaxWidth / Math.max(rawW, 1), root.tileMaxHeight / Math.max(rawH, 1), 1)
-                width: Math.max(rawW * fitScale, root.tileMinWidth)
-                height: Math.max(rawH * fitScale, root.tileMinHeight)
+                readonly property real availableWidth: Math.max(root.tileMinWidth, grid.cellWidth - root.tileSpacing)
+                readonly property real availableHeight: Math.max(root.tileMinHeight, grid.cellHeight - root.tileSpacing)
+                readonly property real fitScale: Math.min(
+                    availableWidth / Math.max(rawW, 1),
+                    availableHeight / Math.max(rawH, 1), 1)
+                width: Math.max(root.tileMinWidth, Math.min(availableWidth, rawW * fitScale))
+                height: Math.max(root.tileMinHeight, Math.min(availableHeight, rawH * fitScale))
                 property bool hovered: false
                 property bool pressed: false
 
@@ -86,8 +147,11 @@ Item {
                 ScreencopyView {
                     id: preview
                     anchors.fill: parent
-                    captureSource: GlobalStates.overviewOpen ? tile.toplevel : null
-                    live: true
+                    // This view is opened by Win+Tab, not by the launcher
+                    // overview. The old overviewOpen guard kept every source
+                    // null, so the grid showed only each window's icon/title.
+                    captureSource: GlobalStates.windowSwitcherOpen ? tile.toplevel : null
+                    live: GlobalStates.windowSwitcherOpen
 
                     Rectangle { // Color overlay for interactions, mirrors OverviewWindow
                         anchors.fill: parent
@@ -138,10 +202,10 @@ Item {
                     onClicked: (event) => {
                         if (!tile.win) return;
                         if (event.button === Qt.LeftButton) {
-                            GlobalStates.overviewOpen = false;
-                            Hyprland.dispatch(`hl.dsp.focus({ window = "address:${tile.win.address}" })`);
+                            GlobalStates.windowSwitcherOpen = false;
+                            WM.focusWindow(tile.win.address);
                         } else if (event.button === Qt.MiddleButton) {
-                            Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${tile.win.address}" })`);
+                            WM.closeWindow(tile.win.address);
                         }
                     }
 

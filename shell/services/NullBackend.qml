@@ -16,6 +16,7 @@ Scope {
     function switchWorkspaceRelative(direction) {}
     function focusWindow(id) {}
     function closeWindow(id) {}
+    function forceCloseWindow(id, pid) {}
     function switchWorkspace(id) {}
     function moveWindowToWorkspace(id, wsId) {}
     function monitorFor(screen) { return null }

@@ -37,7 +37,7 @@ Toolbar {
         // two-way `currentIndex: <expr>` + onCurrentIndexChanged pair made Qt
         // report "Binding loop detected for property currentIndex" on every
         // switch.
-        Component.onCompleted: tabBar.setCurrentIndex(root.selectionModeIndex)
+        Component.onCompleted: tabBar.setCurrentIndex(root.selectionModeToIndex())
         onCurrentIndexChanged: {
             const newMode = currentIndex === 0 ? RegionSelection.SelectionMode.RectCorners : RegionSelection.SelectionMode.Circle;
             if (root.selectionMode !== newMode)
@@ -45,10 +45,13 @@ Toolbar {
         }
     }
 
-    readonly property int selectionModeIndex: root.selectionMode === RegionSelection.SelectionMode.RectCorners ? 0 : 1
-    onSelectionModeIndexChanged: {
-        if (tabBar.currentIndex !== root.selectionModeIndex)
-            tabBar.setCurrentIndex(root.selectionModeIndex);
+    function selectionModeToIndex() {
+        return root.selectionMode === RegionSelection.SelectionMode.RectCorners ? 0 : 1
+    }
+    onSelectionModeChanged: {
+        const index = root.selectionModeToIndex()
+        if (tabBar.currentIndex !== index)
+            tabBar.setCurrentIndex(index);
     }
 
     // Separator

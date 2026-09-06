@@ -16,7 +16,9 @@ RowLayout {
     property bool filled: true
     property bool showBorder: !filled
     property bool rounded: false
-    property real fieldWidth: 220
+    // Keep text editors aligned with the compact slider control column while
+    // leaving enough space for labels and descriptions.
+    property real fieldWidth: 240
     property real fieldHeight: 40
     property color colBackground: filled ? Appearance.colors.colLayer1 : "transparent"
     property color colBackgroundFocused: filled ? Appearance.colors.colLayer2 : "transparent"
@@ -46,7 +48,7 @@ RowLayout {
 
     ColumnLayout {
         Layout.fillWidth: true
-        Layout.minimumWidth: 0
+        Layout.minimumWidth: 160
         spacing: 0
         StyledText {
             Layout.fillWidth: true
@@ -70,14 +72,18 @@ RowLayout {
 
     Rectangle {
         id: fieldBg
-        Layout.preferredWidth: root.fieldWidth
-        Layout.minimumWidth: root.fieldWidth
+        Layout.preferredWidth: Math.min(root.fieldWidth, Math.max(160, root.width * 0.42))
+        Layout.minimumWidth: 160
+        Layout.maximumWidth: root.fieldWidth
         Layout.preferredHeight: root.fieldHeight
         Layout.alignment: Qt.AlignVCenter
         radius: root.cornerRadius
         clip: true
         color: textArea.activeFocus ? root.colBackgroundFocused : root.colBackground
-        border.width: (hoverHandler.hovered || textArea.activeFocus) ? (textArea.activeFocus ? 2 : 1) : 0
+        // Text inputs must remain identifiable before the first hover. A
+        // persistent low-contrast outline makes the editable area clear while
+        // focus still receives the stronger two-pixel accent.
+        border.width: textArea.activeFocus ? 2 : 1
         border.color: textArea.activeFocus ? root.colBorderFocused : root.colBorder
 
         Behavior on color {

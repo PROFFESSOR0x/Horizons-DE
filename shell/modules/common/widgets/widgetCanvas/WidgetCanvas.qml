@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 import qs.modules.common
 
 MouseArea {
@@ -6,7 +7,10 @@ MouseArea {
     property int gridSize: 24
     property bool showGrid: false
     readonly property bool isWidgetCanvas: true
-    readonly property bool gridVisible: showGrid && Config.options.background.showGrid
+    // Lock preview is explicitly a layout-editing surface, so its alignment
+    // grid must be available while dragging even if the desktop grid is hidden.
+    readonly property bool gridVisible: showGrid
+        && (Config.options.background.showGrid || GlobalStates.lockPreviewOpen)
 
     property bool centerXActive: false
     property bool centerYActive: false

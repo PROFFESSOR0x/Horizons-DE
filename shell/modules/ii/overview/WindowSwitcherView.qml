@@ -13,14 +13,48 @@ import Quickshell
 // to sit directly, so every existing open/close/search-cancel flow (Escape,
 // left/right arrow workspace switching, search auto-cancel) keeps working
 // unchanged - this only decides what's shown when there's no search text.
-Item {
+Rectangle {
     id: root
     required property var screen
+
+    // The switcher is an overlay, so its own surface—not the wallpaper or the
+    // focused application behind it—must define the visual grouping. An opaque
+    // card also makes thumbnails, tabs and search read as one deliberate UI.
+    color: Appearance.colors.colLayer0
+    radius: Appearance.rounding.large
+    border.width: 1
+    border.color: Appearance.colors.colLayer0Border
+    clip: true
 
     readonly property int workspacesTabIndex: 0
     readonly property int windowsTabIndex: 1
     property int activeTabIndex: root.workspacesTabIndex
     property string filterText: ""
+
+    function toggleTab() {
+        const nextIndex = root.activeTabIndex === root.windowsTabIndex
+            ? root.workspacesTabIndex
+            : root.windowsTabIndex
+        // Keep TabBar's internal state and the loaded page in lockstep. This
+        // is imperative on purpose: `currentIndex` is also changed by mouse
+        // clicks, so a two-way binding here would create a loop.
+        tabBar.setCurrentIndex(nextIndex)
+        root.activeTabIndex = nextIndex
+        if (nextIndex === root.windowsTabIndex)
+            Qt.callLater(() => filterField.forceActiveFocus())
+        else
+            Qt.callLater(() => root.forceActiveFocus())
+    }
+
+    function openPowerMenu() {
+        // Reuse SessionScreen's existing destructive-action confirmation and
+        // optional password gate. This entry point only changes presentation:
+        // the sheet hugs the right screen edge instead of using the user's
+        // usual centered/left session-menu layout.
+        GlobalStates.sessionForceRightEdge = true
+        GlobalStates.windowSwitcherOpen = false
+        Qt.callLater(() => GlobalStates.sessionOpen = true)
+    }
 
     // Fresh state (Workspaces tab, empty filter) every time the switcher is
     // opened again, so a previous windows-tab search doesn't linger silently.
@@ -45,33 +79,75 @@ Item {
     // focus - nothing ever gave it any while the Workspaces tab was up, since
     // the filter field is hidden there.
     focus: true
+    Keys.priority: Keys.BeforeItem
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+            root.toggleTab()
+            event.accepted = true
+        }
+    }
 
-    implicitWidth: columnLayout.implicitWidth
-    implicitHeight: columnLayout.implicitHeight
+    readonly property real panelPadding: 18
+    implicitWidth: columnLayout.implicitWidth + panelPadding * 2
+    implicitHeight: columnLayout.implicitHeight + panelPadding * 2
+
+    StyledRectangularShadow { target: root }
 
     ColumnLayout {
         id: columnLayout
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: 8
+        anchors.fill: parent
+        anchors.margins: root.panelPadding
+        spacing: 12
 
-        SecondaryTabBar {
-            id: tabBar
-            Layout.alignment: Qt.AlignHCenter
-            Layout.fillWidth: false
-            // Driven one way only. TabBar assigns its own currentIndex when a
-            // tab is activated, so pairing a `currentIndex: <expr>` binding
-            // with onCurrentIndexChanged writing back to that same expression
-            // is a binding loop.
-            Component.onCompleted: tabBar.setCurrentIndex(root.activeTabIndex)
-            onCurrentIndexChanged: root.activeTabIndex = tabBar.currentIndex
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
 
-            SecondaryTabButton {
-                buttonIcon: "grid_view"
-                buttonText: Translation.tr("Workspaces")
+            // Match the power control's width on the other side so the two
+            // switcher tabs remain visually centered in the panel.
+            Item { Layout.preferredWidth: powerButton.implicitWidth }
+
+            SecondaryTabBar {
+                id: tabBar
+                Layout.alignment: Qt.AlignHCenter
+                Layout.fillWidth: false
+                // The switcher floats directly over the wallpaper. Give its tabs
+                // an opaque, outlined surface so their labels and active underline
+                // keep contrast even on a very light image.
+                showSurface: true
+                // Driven one way only. TabBar assigns its own currentIndex when a
+                // tab is activated, so pairing a `currentIndex: <expr>` binding
+                // with onCurrentIndexChanged writing back to that same expression
+                // is a binding loop.
+                Component.onCompleted: tabBar.setCurrentIndex(root.activeTabIndex)
+                onCurrentIndexChanged: root.activeTabIndex = tabBar.currentIndex
+
+                SecondaryTabButton {
+                    buttonIcon: "grid_view"
+                    buttonText: Translation.tr("Workspaces")
+                }
+                SecondaryTabButton {
+                    buttonIcon: "web_asset"
+                    buttonText: Translation.tr("Windows")
+                }
             }
-            SecondaryTabButton {
-                buttonIcon: "web_asset"
-                buttonText: Translation.tr("Windows")
+
+            RippleButton {
+                id: powerButton
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: 38
+                implicitHeight: 38
+                buttonRadius: Appearance.rounding.full
+                colBackground: hovered ? Appearance.colors.colErrorContainer : Appearance.colors.colLayer1
+                colBackgroundHover: Appearance.colors.colErrorContainer
+                onClicked: root.openPowerMenu()
+                contentItem: MaterialSymbol {
+                    anchors.centerIn: parent
+                    text: "power_settings_new"
+                    iconSize: Appearance.font.pixelSize.normal
+                    color: powerButton.hovered ? Appearance.colors.colOnErrorContainer : Appearance.colors.colOnLayer1
+                }
+                StyledToolTip { text: Translation.tr("Power options") }
             }
         }
 
@@ -111,6 +187,13 @@ Item {
             placeholderText: Translation.tr("Type to filter windows...")
             text: root.filterText
             onTextChanged: root.filterText = text
+            Keys.priority: Keys.BeforeItem
+            Keys.onPressed: event => {
+                if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+                    root.toggleTab()
+                    event.accepted = true
+                }
+            }
             // Escape has to keep closing the switcher even while the filter
             // field holds focus, otherwise the only way out of the Windows tab
             // is the mouse.

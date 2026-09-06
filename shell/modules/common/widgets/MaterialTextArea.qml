@@ -25,23 +25,13 @@ TextArea {
 
     background: Rectangle {
         implicitHeight: 56
-        color: Appearance.colors.colLayer1 
-        topLeftRadius: 4
-        topRightRadius: 4
-        Rectangle {
-            anchors {
-                left: parent.left
-                right: parent.right
-                bottom: parent.bottom
-            }
-            height: 1
-            color: root.focus ? Appearance.m3colors.m3primary : 
-                root.hovered ? Appearance.m3colors.m3outline : Appearance.m3colors.m3outlineVariant
+        color: root.focus ? Appearance.colors.colLayer2 : Appearance.colors.colLayer1
+        radius: Appearance.rounding.small
+        border.width: root.focus ? 2 : 1
+        border.color: root.focus ? Appearance.m3colors.m3primary : Appearance.m3colors.m3outlineVariant
 
-            Behavior on color {
-                animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
-            }
-        }
+        Behavior on color { ColorAnimation { duration: Appearance.animation.elementMoveFast.duration } }
+        Behavior on border.color { ColorAnimation { duration: Appearance.animation.elementMoveFast.duration } }
     }
 
     font {

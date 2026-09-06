@@ -11,6 +11,7 @@ Item {
     property real bigRadius: Appearance.rounding.normal
     property real smallRadius: Appearance.rounding.unsharpenmore
     property color bgcolor: Appearance.colors.colLayer1
+    property color borderColor: Appearance.colors.colLayer0Border
     property real itemVerticalPadding: 24
     // Config* rows have genuinely different natural heights (a ConfigSwitch
     // is just an icon/label/toggle; a ConfigTextArea carries a description
@@ -50,7 +51,10 @@ Item {
     ColumnLayout {
         id: contentArea
         width: parent.width
-        spacing: 2
+        // Each setting gets a little air around it instead of visually
+        // merging with the next one. This makes long settings pages easy to
+        // scan without relying on hover state to find row boundaries.
+        spacing: 8
 
         Component.onCompleted: {
             // Reserve the same vertical space the old wrapper rectangles
@@ -76,32 +80,22 @@ Item {
             required property int index
             readonly property Item row: root.items[index]
             readonly property bool itemVisible: row ? row.visible : false
-            readonly property bool isFirst: {
-                for (let i = 0; i < index; ++i) {
-                    if (root.items[i]?.visible) return false
-                }
-                return true
-            }
-            readonly property bool isLast: {
-                for (let i = index + 1; i < root.items.length; ++i) {
-                    if (root.items[i]?.visible) return false
-                }
-                return true
-            }
-
             readonly property real extraPad: root.extraPadFor(row)
 
-            x: row?.x ?? 0
+            // Individual controls often set their own Layout.left/rightMargin
+            // to align icons or editors. A card is the group-level surface,
+            // though, so it must not inherit those content margins; otherwise
+            // adjacent setting cards have visibly uneven left/right edges.
+            x: 0
             y: (row?.y ?? 0) - root.itemVerticalPadding / 2 - extraPad
-            width: row?.width ?? 0
+            width: root.width
             height: itemVisible ? (row.height + root.itemVerticalPadding + 2 * extraPad) : 0
             visible: itemVisible
             z: -1
             color: root.bgcolor
-            topLeftRadius: isFirst ? root.bigRadius : root.smallRadius
-            topRightRadius: isFirst ? root.bigRadius : root.smallRadius
-            bottomLeftRadius: isLast ? root.bigRadius : root.smallRadius
-            bottomRightRadius: isLast ? root.bigRadius : root.smallRadius
+            radius: root.bigRadius
+            border.width: 1
+            border.color: root.borderColor
         }
     }
 }

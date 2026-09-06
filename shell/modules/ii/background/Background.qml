@@ -30,6 +30,8 @@ import qs.modules.ii.background.widgets.usercard
 import qs.modules.ii.background.widgets.notes
 import qs.modules.ii.background.widgets.todo
 import qs.modules.ii.background.widgets.timers
+import qs.modules.ii.bar as Bar
+import Quickshell.Services.SystemTray
 
 Variants {
     id: root
@@ -97,6 +99,9 @@ Variants {
         property string currentWallpaperSource: Config.options.background.wallpaperPath
         property string previousWallpaperSource: Config.options.background.wallpaperPath
         property bool videoRevealed: false
+        // Preview uses the same visual rules as a real lock screen without
+        // taking a session lock or moving this layer above applications.
+        readonly property bool lockPresentationActive: GlobalStates.screenLocked || GlobalStates.lockPreviewOpen
 
         readonly property real splitFraction: {
             switch (Config.options.background.splitRatio) {
@@ -110,7 +115,7 @@ Variants {
         readonly property bool blurFullScreen: bgRoot.overviewBlurActive || bgRoot.splitFraction >= 1.0
 
         //centered Wallpaper
-        property bool centeredWallpaperEnabled: Config.options.background.centeredWallpaper && (!Config.options.background.centeredWallpaperOnlyWhenLocked || GlobalStates.screenLocked)
+        property bool centeredWallpaperEnabled: Config.options.background.centeredWallpaper && (!Config.options.background.centeredWallpaperOnlyWhenLocked || bgRoot.lockPresentationActive)
         property int centeredWallpaperShape: getShapeFromName(Config.options.background.centeredWallpaperShape)
         property int centeredWallpaperSize: Config.options.background.centeredWallpaperSize
         property color centeredWallpaperColor: root.getColorFromName(Config.options.background.centeredWallpaperColor)
@@ -126,12 +131,12 @@ Variants {
         readonly property bool activeWorkspaceWithFullscreen: WM.fullscreenOnMonitor(monitor?.name)
         visible: true
 
-        readonly property bool hiddenForFullscreen: !GlobalStates.screenLocked
+        readonly property bool hiddenForFullscreen: !bgRoot.lockPresentationActive
             && activeWorkspaceWithFullscreen
             && Config?.options.background.hideWhenFullscreen
 
         property string effectiveWallpaperPath: {
-            if (GlobalStates.screenLocked && Config.options.background.lockWall !== "")
+            if (bgRoot.lockPresentationActive && Config.options.background.lockWall !== "")
                 return Config.options.background.lockWall;
             return Wallpapers.previewPath || Wallpapers.confirmedPath || Config.options.background.wallpaperPath;
         }
@@ -145,13 +150,13 @@ Variants {
             return enabled && sensitiveWallpaper && sensitiveNetwork;
         }
 
-        property bool shouldBlur: (GlobalStates.screenLocked && Config.options.lock.blur.enable)
+        property bool shouldBlur: (bgRoot.lockPresentationActive && Config.options.lock.blur.enable)
         property color dominantColor: Appearance.colors.colPrimary
         property bool dominantColorIsDark: dominantColor.hslLightness < 0.5
         property color colText: {
             if (wallpaperSafetyTriggered)
                 return CF.ColorUtils.mix(Appearance.colors.colOnLayer0, Appearance.colors.colPrimary, 0.75);
-            return (GlobalStates.screenLocked && shouldBlur) ? Appearance.colors.colOnLayer0 : CF.ColorUtils.colorWithLightness(Appearance.colors.colPrimary, (dominantColorIsDark ? 0.8 : 0.12));
+            return (bgRoot.lockPresentationActive && shouldBlur) ? Appearance.colors.colOnLayer0 : CF.ColorUtils.colorWithLightness(Appearance.colors.colPrimary, (dominantColorIsDark ? 0.8 : 0.12));
         }
         Behavior on colText {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
@@ -171,7 +176,7 @@ Variants {
                 Binding {
                     target: bgRoot.WlrLayershell
                     property: "layer"
-                    value: (GlobalStates.screenLocked && !scaleAnim.running) ? WlrLayer.Overlay : WlrLayer.Bottom
+                    value: (bgRoot.lockPresentationActive && !scaleAnim.running) ? WlrLayer.Overlay : WlrLayer.Bottom
                 }
                 Binding {
                     target: bgRoot.WlrLayershell
@@ -358,10 +363,10 @@ Variants {
 
             Loader {
                 id: blurLoader
-                active: Config.options.lock.blur.enable && (GlobalStates.screenLocked || scaleAnim.running)
+                active: Config.options.lock.blur.enable && (bgRoot.lockPresentationActive || scaleAnim.running)
                     && !(bgRoot.userBlurActive || bgRoot.overviewBlurActive)
                 anchors.fill: parent
-                scale: GlobalStates.screenLocked ? Config.options.lock.blur.extraZoom : 1
+                scale: bgRoot.lockPresentationActive ? Config.options.lock.blur.extraZoom : 1
                 Behavior on scale {
                     NumberAnimation {
                         id: scaleAnim
@@ -372,10 +377,10 @@ Variants {
                 }
                 sourceComponent: GaussianBlur {
                     source: bgRoot.wallpaperAnimation === "" || bgRoot.transitionProgress >= 1.0 ? wallpaper : transitionEffect
-                    radius: GlobalStates.screenLocked ? Config.options.lock.blur.radius : 0
+                    radius: bgRoot.lockPresentationActive ? Config.options.lock.blur.radius : 0
                     samples: Config.options.lock.blur.size 
                     Rectangle {
-                        opacity: GlobalStates.screenLocked ? 1 : 0
+                        opacity: bgRoot.lockPresentationActive ? 1 : 0
                         anchors.fill: parent
                         color: CF.ColorUtils.transparentize(Appearance.colors.colLayer0, 0.7)
                     }
@@ -569,9 +574,13 @@ Variants {
             WidgetCanvas {
                 id: widgetCanvas
                 anchors.fill: parent
-                // Desktop widgets become lock-screen widgets only when the user
-                // explicitly permits them; this keeps private notes/media hidden.
-                visible: !GlobalStates.screenLocked || Config.options.lock.showWidgets
+                // The clock is the one intentional exception to the private
+                // desktop-widget rule: it remains the lock-screen anchor even
+                // when notes, media, and every other desktop widget are hidden.
+                // Individual widgets still decide their own lock visibility.
+                visible: !bgRoot.lockPresentationActive
+                    || Config.options.lock.showWidgets
+                    || Config.options.background.widgets.clock.enable
 
                 transitions: Transition {
                     PropertyAnimation {
@@ -593,8 +602,20 @@ Variants {
                     // opacity, so going false really destroys the widget (and
                     // with it every per-frame binding it owns) rather than
                     // leaving it invisible but still animating.
-                    shown: DesktopVisualizer.shownOnScreen(bgRoot.screen.name)
+                    shown: DesktopVisualizer.shownOnScreen(
+                        bgRoot.screen.name, Config.options.background.widgets.visualizer)
                     sourceComponent: VisualizerWidget {
+                        screenWidth: bgRoot.screen.width
+                        screenHeight: bgRoot.screen.height
+                        scaledScreenWidth: bgRoot.screen.width
+                        scaledScreenHeight: bgRoot.screen.height
+                        wallpaperScale: 1
+                    }
+                }
+                FadeLoader {
+                    shown: DesktopVisualizer.shownOnScreen(
+                        bgRoot.screen.name, Config.options.background.widgets.visualizerMirror)
+                    sourceComponent: MirroredVisualizerWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height
                         scaledScreenWidth: bgRoot.screen.width
@@ -640,7 +661,7 @@ Variants {
                 }
                 FadeLoader {
                     shown: Config.options.background.widgets.clock.enable
-                        && (GlobalStates.screenLocked
+                        && (bgRoot.lockPresentationActive
                             || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: ClockWidget {
@@ -792,6 +813,565 @@ Variants {
                         scaledScreenWidth:  bgRoot.screen.width
                         scaledScreenHeight: bgRoot.screen.height
                         wallpaperScale:     1
+                    }
+                }
+            }
+
+            // The real password, identity/media and power toolbars belong to
+            // WlSessionLockSurface, so they do not exist while Settings is
+            // showing its non-locking preview.  Render a deliberately
+            // non-interactive counterpart here so the preview matches the
+            // actual lower lock-screen composition without ever accepting a
+            // password or creating a second session lock.
+            Item {
+                id: lockControlsPreview
+                anchors.fill: parent
+                z: 50
+                readonly property string interactionScreenName:
+                    WM.focusedMonitor?.name ?? Quickshell.screens[0]?.name ?? ""
+                readonly property bool isInteractionScreen:
+                    interactionScreenName === "" || bgRoot.screen.name === interactionScreenName
+                readonly property bool isPrimaryControlsScreen: !Config.options.lock.unlockBoxPrimaryMonitorOnly
+                    || bgRoot.screen.name === GlobalStates.primaryLockOutputName()
+                readonly property bool shown: GlobalStates.lockPreviewOpen && isInteractionScreen
+                    && isPrimaryControlsScreen
+                readonly property var screenLayout: GlobalStates.lockLayoutForOutput(bgRoot.screen.name)
+                readonly property string passwordPlacement: screenLayout.passwordPlacement
+                property string draggedToolbar: ""
+                property var toolbarDraftOffsets: ({})
+                property real dragStartX: 0
+                property real dragStartY: 0
+                property real dragStartOffsetX: 0
+                property real dragStartOffsetY: 0
+
+                function snapToGrid(value) {
+                    return Math.round(value / widgetCanvas.gridSize) * widgetCanvas.gridSize
+                }
+                function toolbarOffset(group) {
+                    return toolbarDraftOffsets[group] ?? screenLayout[group]
+                }
+                function toolbarOffsetX(group) { return toolbarOffset(group)?.offsetX ?? 0 }
+                function toolbarOffsetY(group) { return toolbarOffset(group)?.offsetY ?? 0 }
+                function toolbarFor(group) {
+                    if (group === "password") return previewPasswordToolbar
+                    if (group === "leftToolbar") return previewLeftToolbar
+                    return previewRightToolbar
+                }
+                // Drag handles are translated with the toolbar. MouseArea's
+                // local coordinates therefore change while the pointer is held;
+                // using them directly fed the moving offset back into itself
+                // and caused the visible left/right jitter. Always work in the
+                // stable coordinate system of this preview surface instead.
+                function previewPoint(item, mouse) {
+                    return item.mapToItem(lockControlsPreview, mouse.x, mouse.y)
+                }
+                function toolbarGuideRect(group) {
+                    const item = toolbarFor(group)
+                    const factor = item.scale
+                    const width = item.width * factor
+                    const height = item.height * factor
+                    return {
+                        x: item.x + toolbarOffsetX(group) + (item.width - width) / 2,
+                        y: item.y + toolbarOffsetY(group) + (item.height - height) / 2,
+                        width: width,
+                        height: height,
+                    }
+                }
+                function updateToolbarGuides(group) {
+                    const rect = toolbarGuideRect(group)
+                    widgetCanvas.setCenterActive(
+                        Math.abs(rect.x + rect.width / 2 - widgetCanvas.width / 2) < widgetCanvas.gridSize,
+                        Math.abs(rect.y + rect.height / 2 - widgetCanvas.height / 2) < widgetCanvas.gridSize
+                    )
+                }
+                function beginToolbarDrag(group, x, y) {
+                    const layout = screenLayout[group]
+                    if (!layout) return
+                    draggedToolbar = group
+                    dragStartX = x
+                    dragStartY = y
+                    dragStartOffsetX = layout.offsetX
+                    dragStartOffsetY = layout.offsetY
+                    const drafts = Object.assign({}, toolbarDraftOffsets)
+                    drafts[group] = { offsetX: layout.offsetX, offsetY: layout.offsetY }
+                    toolbarDraftOffsets = drafts
+                    widgetCanvas.setDragging(true)
+                }
+                function updateToolbarDrag(x, y) {
+                    if (draggedToolbar === "") return
+                    const drafts = Object.assign({}, toolbarDraftOffsets)
+                    drafts[draggedToolbar] = {
+                        offsetX: snapToGrid(dragStartOffsetX + x - dragStartX),
+                        offsetY: snapToGrid(dragStartOffsetY + y - dragStartY),
+                    }
+                    toolbarDraftOffsets = drafts
+                    updateToolbarGuides(draggedToolbar)
+                }
+                function endToolbarDrag() {
+                    const group = draggedToolbar
+                    const draft = toolbarDraftOffsets[group]
+                    const layout = screenLayout[group]
+                    if (draft && layout) {
+                        GlobalStates.updateLockLayoutOffset(bgRoot.screen.name, group, draft.offsetX, draft.offsetY)
+                        const rect = toolbarGuideRect(group)
+                        widgetCanvas.flashLines([rect.x, rect.x + rect.width], [rect.y, rect.y + rect.height])
+                    }
+                    const remaining = Object.assign({}, toolbarDraftOffsets)
+                    delete remaining[group]
+                    toolbarDraftOffsets = remaining
+                    draggedToolbar = ""
+                    widgetCanvas.setDragging(false)
+                }
+
+                Toolbar {
+                    id: previewPasswordToolbar
+                    visible: lockControlsPreview.shown
+                    anchors {
+                        horizontalCenter: lockControlsPreview.passwordPlacement === "bottom"
+                            || lockControlsPreview.passwordPlacement === "center" ? parent.horizontalCenter : undefined
+                        verticalCenter: lockControlsPreview.passwordPlacement === "center" ? parent.verticalCenter : undefined
+                        left: lockControlsPreview.passwordPlacement === "left" ? parent.left : undefined
+                        right: lockControlsPreview.passwordPlacement === "right" ? parent.right : undefined
+                        bottom: lockControlsPreview.passwordPlacement !== "center" ? parent.bottom : undefined
+                        leftMargin: lockControlsPreview.passwordPlacement === "left" ? 28 : 0
+                        rightMargin: lockControlsPreview.passwordPlacement === "right" ? 28 : 0
+                        bottomMargin: lockControlsPreview.passwordPlacement !== "center"
+                            ? lockControlsPreview.screenLayout.bottomMargin : 0
+                    }
+                    transform: Translate {
+                        x: lockControlsPreview.toolbarOffsetX("password")
+                        y: lockControlsPreview.toolbarOffsetY("password")
+                    }
+                    scale: lockControlsPreview.screenLayout.password.scale
+
+                    Item {
+                        // These are the exact 40px slots and margins used by
+                        // LockSurface.qml.  The preview must reserve them too:
+                        // using a bare icon made its password island visibly
+                        // narrower than the real session-lock island.
+                        Layout.leftMargin: 10
+                        Layout.rightMargin: 6
+                        Layout.preferredWidth: Config.options.lock.biometrics.enableFingerprint ? 40 : 0
+                        Layout.preferredHeight: 40
+                        visible: Config.options.lock.biometrics.enableFingerprint
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "fingerprint"
+                            iconSize: Appearance.font.pixelSize.larger
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                    }
+                    Item {
+                        Layout.leftMargin: 2
+                        Layout.rightMargin: 2
+                        Layout.preferredWidth: Config.options.lock.biometrics.enableFaceAuth ? 40 : 0
+                        Layout.preferredHeight: 40
+                        visible: Config.options.lock.biometrics.enableFaceAuth
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "face"
+                            iconSize: Appearance.font.pixelSize.larger
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                    }
+                    Rectangle {
+                        // ToolbarTextField's real implicit width is 200.
+                        Layout.preferredWidth: 200
+                        Layout.preferredHeight: 36
+                        radius: Appearance.rounding.full
+                        color: Appearance.colors.colLayer1
+                        border.width: 1
+                        border.color: Appearance.colors.colLayer0Border
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.leftMargin: 14
+                            text: Translation.tr("Enter password")
+                            color: Appearance.colors.colSubtext
+                        }
+                    }
+                    Item {
+                        Layout.preferredWidth: 40
+                        Layout.preferredHeight: 40
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "arrow_right_alt"
+                            iconSize: 24
+                            color: Appearance.colors.colPrimary
+                        }
+                    }
+                }
+
+                Toolbar {
+                    id: previewLeftToolbar
+                    readonly property bool stackedAboveMain: lockControlsPreview.passwordPlacement === "left"
+                    visible: lockControlsPreview.shown && Config.options.lock.showToolbars
+                        && Config.options.lock.showLeftToolbar
+                    anchors {
+                        left: stackedAboveMain ? previewPasswordToolbar.left : undefined
+                        right: stackedAboveMain ? undefined : previewPasswordToolbar.left
+                        top: stackedAboveMain ? undefined : previewPasswordToolbar.top
+                        bottom: stackedAboveMain ? previewPasswordToolbar.top : previewPasswordToolbar.bottom
+                        rightMargin: stackedAboveMain ? 0 : 10
+                        bottomMargin: stackedAboveMain ? 10 : 0
+                    }
+                    transform: Translate {
+                        x: lockControlsPreview.toolbarOffsetX("leftToolbar")
+                        y: lockControlsPreview.toolbarOffsetY("leftToolbar")
+                    }
+                    scale: lockControlsPreview.screenLayout.leftToolbar.scale
+
+                    Row {
+                        Layout.leftMargin: 10
+                        Layout.rightMargin: 10
+                        spacing: 4
+                        visible: !Config.options.lock.showMedia || MprisController.activePlayer === null
+                        MaterialSymbol {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "account_circle"
+                            iconSize: Appearance.font.pixelSize.huge
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: SystemInfo.username
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                    }
+                    Item {
+                        Layout.leftMargin: 2
+                        Layout.rightMargin: 2
+                        visible: Config.options.lock.showMedia && MprisController.activePlayer !== null
+                        implicitWidth: previewMediaRow.implicitWidth
+                        implicitHeight: previewMediaRow.implicitHeight
+
+                        RowLayout {
+                            id: previewMediaRow
+                            anchors.centerIn: parent
+                            spacing: 8
+                            Rectangle {
+                                implicitWidth: 40
+                                implicitHeight: 40
+                                radius: Appearance.rounding.full
+                                color: Appearance.colors.colPrimaryContainer
+                                MaterialSymbol {
+                                    anchors.centerIn: parent
+                                    text: "music_note"
+                                    iconSize: Appearance.font.pixelSize.normal
+                                    color: Appearance.colors.colOnSecondaryContainer
+                                }
+                            }
+                            Column {
+                                Layout.alignment: Qt.AlignVCenter
+                                spacing: -2
+                                StyledText {
+                                    horizontalAlignment: Text.AlignLeft
+                                    elide: Text.ElideRight
+                                    maximumLineCount: 1
+                                    width: Math.min(implicitWidth, 180)
+                                    color: Appearance.colors.colOnSurfaceVariant
+                                    text: {
+                                        const artist = MprisController.activePlayer?.trackArtist || " "
+                                        return artist.length > 25 ? artist.substring(0, 25) + "..." : artist
+                                    }
+                                    font.pixelSize: Appearance.font.pixelSize.smaller
+                                }
+                                StyledText {
+                                    horizontalAlignment: Text.AlignLeft
+                                    elide: Text.ElideRight
+                                    maximumLineCount: 1
+                                    width: Math.min(implicitWidth, 180)
+                                    color: Appearance.colors.colOnSurfaceVariant
+                                    text: {
+                                        const title = CF.StringUtils.cleanMusicTitle(MprisController.activePlayer?.trackTitle) || ""
+                                        return title.length > 30 ? title.substring(0, 30) + "..." : title
+                                    }
+                                    font.weight: Font.Medium
+                                    font.pixelSize: Appearance.font.pixelSize.small
+                                }
+                            }
+                            ClippedFilledCircularProgress {
+                                Layout.alignment: Qt.AlignVCenter
+                                lineWidth: Appearance.rounding.unsharpen
+                                value: MprisController.activePlayer?.position / MprisController.activePlayer?.length
+                                implicitSize: 24
+                                colPrimary: Appearance.colors.colOnSurfaceVariant
+                                enableAnimation: false
+                                MaterialSymbol {
+                                    anchors.centerIn: parent
+                                    text: "music_note"
+                                    iconSize: Appearance.font.pixelSize.normal
+                                    color: Appearance.colors.colOnSurfaceVariant
+                                }
+                            }
+                        }
+                    }
+                    Row {
+                        Layout.rightMargin: 8
+                        Layout.fillHeight: true
+                        spacing: 8
+                        MaterialSymbol {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "keyboard_alt"
+                            iconSize: Appearance.font.pixelSize.huge
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: HyprlandXkb.currentLayoutCode
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                    }
+                    // The real lock surface includes a pinned Fcitx tray item
+                    // when present.  Keeping this conditional copy prevents a
+                    // real-only width jump on systems using Fcitx.
+                    Bar.SysTray {
+                        Layout.rightMargin: 10
+                        Layout.alignment: Qt.AlignVCenter
+                        showSeparator: false
+                        showOverflowMenu: false
+                        pinnedItems: SystemTray.items.values.filter(i => i.id == "Fcitx")
+                        visible: pinnedItems.length > 0
+                    }
+                }
+
+                Toolbar {
+                    id: previewRightToolbar
+                    readonly property bool stackedAboveMain: lockControlsPreview.passwordPlacement === "right"
+                    visible: lockControlsPreview.shown && Config.options.lock.showToolbars
+                        && Config.options.lock.showRightToolbar
+                    anchors {
+                        right: stackedAboveMain ? previewPasswordToolbar.right : undefined
+                        left: stackedAboveMain ? undefined : previewPasswordToolbar.right
+                        top: stackedAboveMain ? undefined : previewPasswordToolbar.top
+                        bottom: stackedAboveMain ? previewPasswordToolbar.top : previewPasswordToolbar.bottom
+                        leftMargin: stackedAboveMain ? 0 : 10
+                        bottomMargin: stackedAboveMain ? 10 : 0
+                    }
+                    transform: Translate {
+                        x: lockControlsPreview.toolbarOffsetX("rightToolbar")
+                        y: lockControlsPreview.toolbarOffsetY("rightToolbar")
+                    }
+                    scale: lockControlsPreview.screenLayout.rightToolbar.scale
+
+                    Row {
+                        Layout.leftMargin: 10
+                        Layout.rightMargin: 10
+                        spacing: 4
+                        visible: Battery.available
+                        MaterialSymbol {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Battery.isCharging ? "bolt" : "battery_android_full"
+                            iconSize: Appearance.font.pixelSize.huge
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Math.round(Battery.percentage * 100)
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                    }
+                    Item {
+                        Layout.preferredWidth: 40
+                        Layout.preferredHeight: 40
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "dark_mode"
+                            iconSize: 22
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                    }
+                    Item {
+                        Layout.preferredWidth: 40
+                        Layout.preferredHeight: 40
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "power_settings_new"
+                            iconSize: 22
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                    }
+                    Item {
+                        Layout.rightMargin: 8
+                        Layout.preferredWidth: 40
+                        Layout.preferredHeight: 40
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "restart_alt"
+                            iconSize: 22
+                            color: Appearance.colors.colOnSurfaceVariant
+                        }
+                    }
+                }
+
+                // Toolbar is anchored in the real lock surface, so dragging it
+                // directly would break those anchors. These transparent handles
+                // edit its persisted translation instead; the same values are
+                // used by LockSurface.qml when the session is actually locked.
+                MouseArea {
+                    id: previewPasswordDragHandle
+                    anchors.fill: previewPasswordToolbar
+                    visible: previewPasswordToolbar.visible
+                    z: 2
+                    hoverEnabled: true
+                    cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                    transform: Translate {
+                        x: lockControlsPreview.toolbarOffsetX("password")
+                        y: lockControlsPreview.toolbarOffsetY("password")
+                    }
+                    scale: lockControlsPreview.screenLayout.password.scale
+                    onPressed: mouse => {
+                        const point = lockControlsPreview.previewPoint(previewPasswordDragHandle, mouse)
+                        lockControlsPreview.beginToolbarDrag("password", point.x, point.y)
+                    }
+                    onPositionChanged: mouse => {
+                        if (pressed) {
+                            const point = lockControlsPreview.previewPoint(previewPasswordDragHandle, mouse)
+                            lockControlsPreview.updateToolbarDrag(point.x, point.y)
+                        }
+                    }
+                    onReleased: lockControlsPreview.endToolbarDrag()
+                }
+
+                MouseArea {
+                    id: previewLeftDragHandle
+                    anchors.fill: previewLeftToolbar
+                    visible: previewLeftToolbar.visible
+                    z: 2
+                    hoverEnabled: true
+                    cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                    transform: Translate {
+                        x: lockControlsPreview.toolbarOffsetX("leftToolbar")
+                        y: lockControlsPreview.toolbarOffsetY("leftToolbar")
+                    }
+                    scale: lockControlsPreview.screenLayout.leftToolbar.scale
+                    onPressed: mouse => {
+                        const point = lockControlsPreview.previewPoint(previewLeftDragHandle, mouse)
+                        lockControlsPreview.beginToolbarDrag("leftToolbar", point.x, point.y)
+                    }
+                    onPositionChanged: mouse => {
+                        if (pressed) {
+                            const point = lockControlsPreview.previewPoint(previewLeftDragHandle, mouse)
+                            lockControlsPreview.updateToolbarDrag(point.x, point.y)
+                        }
+                    }
+                    onReleased: lockControlsPreview.endToolbarDrag()
+                }
+
+                MouseArea {
+                    id: previewRightDragHandle
+                    anchors.fill: previewRightToolbar
+                    visible: previewRightToolbar.visible
+                    z: 2
+                    hoverEnabled: true
+                    cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                    transform: Translate {
+                        x: lockControlsPreview.toolbarOffsetX("rightToolbar")
+                        y: lockControlsPreview.toolbarOffsetY("rightToolbar")
+                    }
+                    scale: lockControlsPreview.screenLayout.rightToolbar.scale
+                    onPressed: mouse => {
+                        const point = lockControlsPreview.previewPoint(previewRightDragHandle, mouse)
+                        lockControlsPreview.beginToolbarDrag("rightToolbar", point.x, point.y)
+                    }
+                    onPositionChanged: mouse => {
+                        if (pressed) {
+                            const point = lockControlsPreview.previewPoint(previewRightDragHandle, mouse)
+                            lockControlsPreview.updateToolbarDrag(point.x, point.y)
+                        }
+                    }
+                    onReleased: lockControlsPreview.endToolbarDrag()
+                }
+            }
+
+            Rectangle {
+                id: lockPreviewToolbar
+                z: 100
+                anchors.top: parent.top
+                anchors.topMargin: 24
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: GlobalStates.lockPreviewOpen
+                implicitWidth: previewButtons.implicitWidth + 16
+                implicitHeight: previewButtons.implicitHeight + 12
+                property bool applyTargetMenuOpen: false
+                readonly property var otherOutputs: GlobalStates.lockOutputNames()
+                    .filter(name => name !== bgRoot.screen.name)
+                radius: Appearance.rounding.full
+                color: Appearance.colors.colLayer0
+                border.width: 1
+                border.color: Appearance.colors.colLayer0Border
+
+                RowLayout {
+                    id: previewButtons
+                    anchors.centerIn: parent
+                    spacing: 6
+
+                    IconAndTextToolbarButton {
+                        iconText: "close"
+                        text: Translation.tr("Close")
+                        onClicked: GlobalStates.cancelLockPreview()
+                    }
+                    IconAndTextToolbarButton {
+                        iconText: "save"
+                        text: Translation.tr("Save")
+                        onClicked: GlobalStates.saveLockPreview()
+                    }
+                    IconAndTextToolbarButton {
+                        iconText: "restart_alt"
+                        text: Translation.tr("Reset")
+                        onClicked: GlobalStates.resetLockWidgetLayout()
+                    }
+                    IconAndTextToolbarButton {
+                        visible: Config.options.lock.perScreenLayout
+                        iconText: "content_copy"
+                        text: Translation.tr("Apply other screen")
+                        onClicked: {
+                            if (lockPreviewToolbar.otherOutputs.length === 1) {
+                                GlobalStates.applyLockDesignToOutput(
+                                    bgRoot.screen.name, lockPreviewToolbar.otherOutputs[0])
+                            } else if (lockPreviewToolbar.otherOutputs.length > 1) {
+                                lockPreviewToolbar.applyTargetMenuOpen = !lockPreviewToolbar.applyTargetMenuOpen
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    id: applyTargetMenu
+                    visible: lockPreviewToolbar.applyTargetMenuOpen
+                    anchors.top: parent.bottom
+                    anchors.topMargin: 8
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    implicitWidth: targetMenuColumn.implicitWidth + 16
+                    implicitHeight: targetMenuColumn.implicitHeight + 16
+                    radius: Appearance.rounding.normal
+                    color: Appearance.colors.colLayer0
+                    border.width: 1
+                    border.color: Appearance.colors.colLayer0Border
+                    z: 120
+                    Column {
+                        id: targetMenuColumn
+                        anchors.centerIn: parent
+                        spacing: 4
+                        Repeater {
+                            model: lockPreviewToolbar.otherOutputs
+                            delegate: RippleButton {
+                                required property string modelData
+                                implicitWidth: targetText.implicitWidth + 20
+                                implicitHeight: 34
+                                buttonRadius: Appearance.rounding.small
+                                contentItem: StyledText {
+                                    id: targetText
+                                    anchors.centerIn: parent
+                                    text: modelData
+                                    color: Appearance.colors.colOnLayer0
+                                }
+                                onClicked: {
+                                    GlobalStates.applyLockDesignToOutput(bgRoot.screen.name, modelData)
+                                    lockPreviewToolbar.applyTargetMenuOpen = false
+                                }
+                            }
+                        }
                     }
                 }
             }

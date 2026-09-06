@@ -65,19 +65,28 @@ ButtonMouseArea {
     }
 
     function switchWorkspaceToHovered() {
-        WM.switchWorkspace(wsModel.getWorkspaceIdAt(hoverIndex));
+        GlobalStates.activateWorkspace(wsModel.getWorkspaceIdAt(hoverIndex), wsModel.monitorName);
     }
     onPressed: mouse => {
         if (mouse.button == Qt.LeftButton)
             switchWorkspaceToHovered();
-        else if (mouse.button == Qt.RightButton)
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+        else if (mouse.button == Qt.RightButton) {
+            const workspaceId = wsModel.getWorkspaceIdAt(hoverIndex)
+            GlobalStates.selectWorkspace(workspaceId, wsModel.monitorName,
+                (mouse.modifiers & Qt.ControlModifier) !== 0)
+            workspaceContextMenu.showAt(workspaceId, wsModel.monitorName, mouse.x, mouse.y)
+        }
     }
     onWheel: event => {
         if (event.angleDelta.y < 0)
             WM.switchWorkspaceRelative("next");
         else if (event.angleDelta.y > 0)
             WM.switchWorkspaceRelative("prev");
+    }
+
+    WorkspaceContextMenu {
+        id: workspaceContextMenu
+        hostWindow: root.QsWindow.window
     }
 
     // Indications
@@ -183,6 +192,28 @@ ButtonMouseArea {
                 press: root.containsPress
                 drag: true // There are too many layers so we need to force this to be a lil more opaque
                 contentColor: Appearance.colors.colPrimary
+            }
+        }
+
+        // Ctrl+right-click can collect workspaces from several outputs before
+        // linking them. Keep that selection visible instead of making the
+        // contextual action feel like it acted on an invisible state.
+        WorkspaceLayout {
+            id: selectedWorkspacesGrid
+            z: 3.5
+            Repeater {
+                model: wsModel.shownCount
+                delegate: WorkspaceItem {
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: root.activeWorkspaceSize
+                        height: root.activeWorkspaceSize
+                        radius: width / 2
+                        color: "transparent"
+                        border.width: GlobalStates.workspaceSelectionContains(parent.wsId, wsModel.monitorName) ? 2 : 0
+                        border.color: Appearance.colors.colPrimary
+                    }
+                }
             }
         }
 
