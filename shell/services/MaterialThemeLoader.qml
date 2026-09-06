@@ -20,7 +20,19 @@ Singleton {
         themeFileView.reload()
     }
 
+    // Content of the last theme that was actually pushed into
+    // Appearance.m3colors. A single colour-scheme switch reaches applyColors()
+    // twice - once through FileView's onLoadedChanged and once more through
+    // the onFileChanged -> delayedFileRead timer below (which exists for a
+    // race where the file is still half-written on the first read) - and each
+    // pass re-assigns every m3* property, so every binding in the shell
+    // re-evaluated twice per switch. That double cascade is what made
+    // switching schemes visibly hitch. Re-applying an identical theme is a
+    // no-op, so the second pass is now dropped instead of paid for.
+    property string lastAppliedContent: ""
+
     function applyColors(fileContent) {
+        if (fileContent === root.lastAppliedContent) return
         let json
         try {
             json = JSON.parse(fileContent)
@@ -32,11 +44,16 @@ Singleton {
             console.log("[MaterialThemeLoader] Ignoring color theme with an invalid shape")
             return
         }
+        root.lastAppliedContent = fileContent
         for (const key in json) {
             if (json.hasOwnProperty(key)) {
                 // Convert snake_case to CamelCase
                 const camelCaseKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())
                 const m3Key = `m3${camelCaseKey}`
+                // Skip colours that didn't actually change. Two generated
+                // themes usually share a good number of them, and every real
+                // assignment re-runs every binding that reads it.
+                if (String(Appearance.m3colors[m3Key]).toLowerCase() === String(json[key]).toLowerCase()) continue
                 Appearance.m3colors[m3Key] = json[key]
             }
         }
@@ -50,8 +67,11 @@ Singleton {
             const inactive = "rgb(" + Appearance.colors.colOutlineVariant.toString().replace("#", "").substring(0, 6) + ")"
             Config.options.hyprland.general.colActiveBorder = active
             Config.options.hyprland.general.colInactiveBorder = inactive
-            HyprlandConfig.set("general:col.active_border", active)
-            HyprlandConfig.set("general:col.inactive_border", inactive)
+            // Batched: concurrent hyprconfigurator.py runs race on the same file.
+            HyprlandConfig.setMany({
+                "general:col.active_border": active,
+                "general:col.inactive_border": inactive,
+            })
         }
     }
 
@@ -60,11 +80,13 @@ Singleton {
     }
 
     function useLockTheme() {
+        root.lastAppliedContent = ""
         root.filePath = ""
         root.filePath = Directories.generatedLockMaterialThemePath
     }
 
     function useLiveTheme() {
+        root.lastAppliedContent = ""
         root.filePath = ""
         root.filePath = Directories.generatedMaterialThemePath
     }

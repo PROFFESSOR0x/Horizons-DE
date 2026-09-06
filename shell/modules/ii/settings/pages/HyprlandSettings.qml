@@ -1220,6 +1220,12 @@ ContentPage {
                 ConfigSelectionArray {
                     icon: "blur_on"
                     text: Translation.tr("Blur Style")
+                    // Picking a variant the running Hyprland doesn't have is a
+                    // silent no-op: hyprconfigurator.py's option_is_supported()
+                    // drops the key on write, so the UI would keep showing a
+                    // style that isn't applied. Grey the control out instead of
+                    // only warning above it.
+                    enabled: page.blurVariantSupported
                     currentValue: Config.options.hyprland.decoration.blur.variant
                     onSelected: newValue => {
                         if (newValue === Config.options.hyprland.decoration.blur.variant) return
@@ -1248,7 +1254,7 @@ ContentPage {
                     text: Translation.tr("Native Hyprland blur variants (decoration:blur:variant, merged upstream Aug 2026) — applies to every window Hyprland blurs, not just this shell's panels. Fancier styles cost more GPU/CPU, especially the animated ones.")
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
                     icon: "water"
                     text: Translation.tr("Glass Refraction")
                     value: Config.options.hyprland.decoration.blur.glass.refraction
@@ -1260,7 +1266,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
                     icon: "texture"
                     text: Translation.tr("Glass Pattern Size")
                     value: Config.options.hyprland.decoration.blur.glass.size
@@ -1272,7 +1278,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
                     icon: "grain"
                     text: Translation.tr("Glass Roughness")
                     value: Math.round(Config.options.hyprland.decoration.blur.glass.roughness * 100)
@@ -1285,7 +1291,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic"
                     icon: "water_drop"
                     text: Translation.tr("Liquid Glass Refraction")
                     value: Config.options.hyprland.decoration.blur.acrylic.refraction
@@ -1297,7 +1303,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic"
                     icon: "border_outer"
                     text: Translation.tr("Liquid Glass Edge Width")
                     value: Config.options.hyprland.decoration.blur.acrylic.bulb
@@ -1309,7 +1315,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic"
                     icon: "visibility"
                     text: Translation.tr("Liquid Glass Clarity")
                     value: Math.round(Config.options.hyprland.decoration.blur.acrylic.clarity * 100)
@@ -1322,7 +1328,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic"
                     icon: "palette"
                     text: Translation.tr("Liquid Glass Chromatic Aberration")
                     value: Math.round(Config.options.hyprland.decoration.blur.acrylic.aberration * 400)
@@ -1335,7 +1341,7 @@ ContentPage {
                     }
                 }
                 ConfigTextArea {
-                    visible: Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic"
                     buttonIcon: "colorize"
                     text: Translation.tr("Liquid Glass Tint (0xAARRGGBB)")
                     value: Config.options.hyprland.decoration.blur.acrylic.tint
@@ -1348,7 +1354,7 @@ ContentPage {
                 }
                 // ── Ripple ──────────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "ripple"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple"
                     icon: "waves"
                     text: Translation.tr("Ripple Strength")
                     value: Config.options.hyprland.decoration.blur.ripple.strength
@@ -1360,7 +1366,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "ripple"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple"
                     icon: "radio_button_unchecked"
                     text: Translation.tr("Ripple Radius")
                     value: Config.options.hyprland.decoration.blur.ripple.radius
@@ -1372,7 +1378,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "ripple"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple"
                     icon: "line_weight"
                     text: Translation.tr("Ripple Wave Width")
                     value: Config.options.hyprland.decoration.blur.ripple.width
@@ -1384,7 +1390,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "ripple"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple"
                     icon: "timer"
                     text: Translation.tr("Ripple Duration")
                     value: Math.round(Config.options.hyprland.decoration.blur.ripple.duration * 100)
@@ -1398,7 +1404,7 @@ ContentPage {
                 }
                 // ── Drops ───────────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "drops"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "drops"
                     icon: "water_drop"
                     text: Translation.tr("Drops Speed (0 = still, costs more GPU above 0)")
                     value: Config.options.hyprland.decoration.blur.drops.speed
@@ -1411,7 +1417,7 @@ ContentPage {
                 }
                 // ── Water ───────────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "water"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water"
                     icon: "water"
                     text: Translation.tr("Water Strength")
                     value: Config.options.hyprland.decoration.blur.water.strength
@@ -1423,7 +1429,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "water"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water"
                     icon: "radio_button_unchecked"
                     text: Translation.tr("Water Pointer Radius")
                     value: Config.options.hyprland.decoration.blur.water.radius
@@ -1435,7 +1441,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "water"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water"
                     icon: "speed"
                     text: Translation.tr("Water Propagation Speed")
                     value: Math.round(Config.options.hyprland.decoration.blur.water.speed * 100)
@@ -1448,7 +1454,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "water"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water"
                     icon: "trending_down"
                     text: Translation.tr("Water Damping")
                     value: Math.round(Config.options.hyprland.decoration.blur.water.damping * 100)
@@ -1461,7 +1467,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "water"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water"
                     icon: "timer"
                     text: Translation.tr("Water Max Duration (s)")
                     value: Math.round(Config.options.hyprland.decoration.blur.water.duration * 10)
@@ -1475,7 +1481,7 @@ ContentPage {
                 }
                 // ── Fluid Jar ───────────────────────────────────────────────
                 ConfigTextArea {
-                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
                     buttonIcon: "colorize"
                     text: Translation.tr("Fluid Jar Color (0xAARRGGBB)")
                     value: Config.options.hyprland.decoration.blur.fluidJar.color
@@ -1487,7 +1493,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
                     icon: "speed"
                     text: Translation.tr("Fluid Jar Speed")
                     value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.speed * 100)
@@ -1500,7 +1506,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
                     icon: "opacity"
                     text: Translation.tr("Fluid Jar Fill Amount")
                     value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.fillAmount * 100)
@@ -1513,7 +1519,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
                     icon: "fitness_center"
                     text: Translation.tr("Fluid Jar Mass")
                     value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.mass * 100)
@@ -1526,7 +1532,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
                     icon: "grain"
                     text: Translation.tr("Fluid Jar Precision (2x recommended, 4x+ expensive)")
                     value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.precision * 100)
@@ -1539,7 +1545,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
                     icon: "air"
                     text: Translation.tr("Fluid Jar Turbulence")
                     value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.turbulence * 100)
@@ -1552,7 +1558,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
                     icon: "water"
                     text: Translation.tr("Fluid Jar Distortion")
                     value: Config.options.hyprland.decoration.blur.fluidJar.distortion
@@ -1565,7 +1571,7 @@ ContentPage {
                 }
                 // ── Heat Shimmer ────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "heat_shimmer"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "heat_shimmer"
                     icon: "thermostat"
                     text: Translation.tr("Heat Shimmer Speed (0 = still, costs more GPU above 0)")
                     value: Config.options.hyprland.decoration.blur.heatShimmer.speed
@@ -1578,7 +1584,7 @@ ContentPage {
                 }
                 // ── Aurora ──────────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "aurora"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora"
                     icon: "auto_awesome"
                     text: Translation.tr("Aurora Speed (0 = frozen, costs more GPU above 0)")
                     value: Config.options.hyprland.decoration.blur.aurora.speed
@@ -1590,7 +1596,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "aurora"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora"
                     icon: "gradient"
                     text: Translation.tr("Aurora Intensity")
                     value: Math.round(Config.options.hyprland.decoration.blur.aurora.intensity * 100)
@@ -1603,7 +1609,7 @@ ContentPage {
                     }
                 }
                 ConfigTextArea {
-                    visible: Config.options.hyprland.decoration.blur.variant === "aurora"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora"
                     buttonIcon: "colorize"
                     text: Translation.tr("Aurora Color 1 (0xAARRGGBB)")
                     value: Config.options.hyprland.decoration.blur.aurora.color1
@@ -1615,7 +1621,7 @@ ContentPage {
                     }
                 }
                 ConfigTextArea {
-                    visible: Config.options.hyprland.decoration.blur.variant === "aurora"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora"
                     buttonIcon: "colorize"
                     text: Translation.tr("Aurora Color 2 (0xAARRGGBB)")
                     value: Config.options.hyprland.decoration.blur.aurora.color2
@@ -1628,7 +1634,7 @@ ContentPage {
                 }
                 // ── Haze ────────────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "haze"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "haze"
                     icon: "blur_circular"
                     text: Translation.tr("Haze Intensity")
                     value: Math.round(Config.options.hyprland.decoration.blur.haze.intensity * 100)
@@ -1641,7 +1647,7 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: Config.options.hyprland.decoration.blur.variant === "haze"
+                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "haze"
                     icon: "auto_awesome"
                     text: Translation.tr("Haze Iridescence")
                     value: Math.round(Config.options.hyprland.decoration.blur.haze.iridescence * 100)

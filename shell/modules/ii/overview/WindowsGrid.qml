@@ -109,6 +109,8 @@ Item {
                         spacing: 6
                         Image {
                             Layout.preferredWidth: 18
+                            // Decode off the UI thread (see StyledImage.qml).
+                            asynchronous: true
                             Layout.preferredHeight: 18
                             source: Quickshell.iconPath(AppSearch.guessIcon(tile.win?.class), "image-missing")
                             sourceSize: Qt.size(18, 18)

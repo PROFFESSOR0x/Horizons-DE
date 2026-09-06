@@ -3,6 +3,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import qs.modules.ii.m3Island
 import QtQuick
 import QtQuick.Controls
 import Quickshell
@@ -57,9 +58,52 @@ Scope {
             }
             color: "transparent"
 
-            anchors.top: true
+            // ── Docking to the M3 island ──────────────────────────────────
+            // With the island bar the selector used to open as an unrelated
+            // slab under a bar-height offset the island doesn't even have.
+            // Docked, it attaches to the pill's real, live edge (published by
+            // M3IslandContent into M3IslandState.geometry) and reads as a
+            // drawer pulled out of the island - the content side draws the
+            // fillets that join the two shapes, see WallpaperSelectorContent.
+            readonly property var islandGeometry: M3IslandState.geometryFor(panelWindow.screen?.name ?? "")
+            readonly property bool dockedToIsland: Config.options.bar.barMode === "m3Island"
+                && (Config.options.wallpaperSelector.dockToIsland ?? true)
+                && !Config.options.bar.vertical
+                && panelWindow.islandGeometry !== null
+            // The island lives at whichever edge the bar is on, so the drawer
+            // comes out of the matching side.
+            readonly property bool dockedAtBottom: panelWindow.dockedToIsland && Config.options.bar.bottom
+            // How far the drawer's own surface sits inside this window on the
+            // island side: its shadow inset plus the band the junction fillets
+            // are drawn in. Subtracted from the window offset so the surface
+            // edge still lands exactly on the pill's edge.
+            // Same corner size the island uses to blend into the screen edge,
+            // so both junctions speak the same shape language. Clamped to the
+            // drawer's own corner radius so the fillet can't outgrow it.
+            readonly property real junctionCornerSize: panelWindow.dockedToIsland
+                ? Math.max(0, Math.min(Config.options.m3Island.hugCornerSize ?? 22,
+                                       Appearance.rounding.screenRounding + 5))
+                : 0
+            readonly property real dockSurfaceInset: Appearance.sizes.elevationMargin + panelWindow.junctionCornerSize
+
+            anchors.top: !panelWindow.dockedAtBottom
+            anchors.bottom: panelWindow.dockedAtBottom
             margins {
-                top: Config?.options.bar.vertical ? Appearance.sizes.hyprlandGapsOut : Appearance.sizes.barHeight + Appearance.sizes.hyprlandGapsOut
+                // WallpaperSelectorContent insets its own surface by
+                // elevationMargin (that inset is where its shadow is drawn), so
+                // the window has to start that much earlier for the surface's
+                // edge to land exactly on the island's.
+                top: {
+                    if (panelWindow.dockedAtBottom) return 0
+                    if (panelWindow.dockedToIsland)
+                        return Math.max(0, panelWindow.islandGeometry.bottom - panelWindow.dockSurfaceInset)
+                    return Config?.options.bar.vertical ? Appearance.sizes.hyprlandGapsOut : Appearance.sizes.barHeight + Appearance.sizes.hyprlandGapsOut
+                }
+                bottom: {
+                    if (!panelWindow.dockedAtBottom) return 0
+                    const screenHeight = panelWindow.screen?.height ?? 0
+                    return Math.max(0, screenHeight - panelWindow.islandGeometry.top - panelWindow.dockSurfaceInset)
+                }
             }
 
             mask: Region {
@@ -90,8 +134,28 @@ Scope {
                 x: 0
                 y: 0
 
+                // Told where the island is (in this window's coordinates) so it
+                // can draw the junction between the pill and this surface.
+                dockedToIsland: panelWindow.dockedToIsland
+                dockedAtBottom: panelWindow.dockedAtBottom
+                junctionCornerSize: panelWindow.junctionCornerSize
+                // The window is centred by the compositor and doesn't report a
+                // usable x under layer-shell, so the island's offset inside it
+                // is derived from the two known widths rather than read back.
+                islandLeft: panelWindow.dockedToIsland
+                    ? (panelWindow.islandGeometry.x - ((panelWindow.screen?.width ?? panelWindow.width) - panelWindow.width) / 2)
+                    : 0
+                islandWidth: panelWindow.dockedToIsland ? panelWindow.islandGeometry.width : 0
+
+                // Docked, the drawer emerges from the pill: a short travel plus
+                // a fade, instead of falling a full panel-height from off-screen
+                // and sweeping across the island on the way.
+                readonly property real hiddenOffset: panelWindow.dockedToIsland
+                    ? (panelWindow.dockedAtBottom ? 36 : -36)
+                    : -content.height
+
                 function slideIn() {
-                    content.y = -content.height;
+                    content.y = content.hiddenOffset;
                     if (WM.compositor === "niri") {
                         Qt.callLater(() => { Qt.callLater(() => { content.y = 0; }); });
                     } else {
@@ -99,11 +163,19 @@ Scope {
                     }
                 }
 
+                opacity: GlobalStates.wallpaperSelectorOpen ? 1 : 0
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Appearance.animation.elementMoveFast.duration
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
                 Connections {
                     target: GlobalStates
                     function onWallpaperSelectorOpenChanged() {
                         if (!GlobalStates.wallpaperSelectorOpen) {
-                            content.y = -content.height;
+                            content.y = content.hiddenOffset;
                         }
                     }
                 }

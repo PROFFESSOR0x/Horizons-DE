@@ -96,7 +96,19 @@ Singleton {
         root[name] = true;
     }
 
+    // Non-zero while something that lives *outside* a hover-opened panel's own
+    // window is on screen on its behalf - today that's StyledComboBox's
+    // dropdown. Qt renders those as their own surface, so the pointer moving
+    // onto the dropdown leaves the panel's HoverHandler and the panel decides
+    // the pointer left and closes itself, taking the dropdown with it (the
+    // "right sidebar vanishes when I reach for an audio output device" bug).
+    // Panels that auto-close on hover-out check this first.
+    property int hoverCloseGuard: 0
+    function pushHoverCloseGuard() { root.hoverCloseGuard++ }
+    function popHoverCloseGuard() { root.hoverCloseGuard = Math.max(0, root.hoverCloseGuard - 1) }
+
     function closeHoverState(name) {
+        if (root.hoverCloseGuard > 0) return;
         if (root.hoverOpenedState !== name) return;
         root.hoverOpenedState = "";
         root[name] = false;

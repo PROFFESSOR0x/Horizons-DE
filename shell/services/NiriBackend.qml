@@ -27,7 +27,8 @@ Scope {
             workspaceId: w.workspace_id,
             focused: w.is_focused ?? false,
             width: w.layout?.window_size?.[0] ?? 0,
-            height: w.layout?.window_size?.[1] ?? 0
+            height: w.layout?.window_size?.[1] ?? 0,
+            floating: w.is_floating ?? false
         };
     }
 
@@ -62,6 +63,19 @@ Scope {
         const wins = root.windowList.filter(w => w.workspaceId === wsId);
         if (wins.length === 0) return null;
         return wins.reduce((a, b) => (a.width * a.height >= b.width * b.height ? a : b));
+    }
+
+    // See HyprlandBackend.obscuredMonitors. niri tiles by default, so any
+    // non-floating window on the monitor's active workspace covers the desktop.
+    readonly property var obscuredMonitors: computeObscuredMonitors()
+    function computeObscuredMonitors() {
+        const out = ({});
+        for (const m of (root.monitors ?? [])) {
+            if (!m?.name) continue;
+            const ws = root.workspaces.find(w => w.output === m.name && w.is_active);
+            out[m.name] = !!ws && root.windowList.some(w => w.workspaceId === ws.id && !w.floating);
+        }
+        return out;
     }
 
     function fullscreenOnMonitor(monitorName) {

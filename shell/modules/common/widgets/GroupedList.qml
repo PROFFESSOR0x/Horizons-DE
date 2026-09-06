@@ -21,11 +21,30 @@ Item {
     // height without touching genuinely-taller rows (wrapped multi-line
     // text, etc.) — they simply exceed the minimum and keep their own size.
     property real minRowHeight: 48
+    // Rows taller than this are genuinely tall (a wrapped multi-line
+    // description, a text area, a two-line Flow of option buttons) and keep
+    // their own height. Rows below it are all normalized to the tallest of
+    // them, not just to minRowHeight - a control row whose natural height is,
+    // say, 52 used to skip padding entirely and end up a few pixels taller
+    // than every 48-and-under neighbour, which is the uneven-pill look in a
+    // group of otherwise identical-looking settings.
+    property real maxNormalizedRowHeight: 64
+    readonly property real normalizedRowHeight: {
+        let tallest = root.minRowHeight
+        const rows = root.items
+        for (let i = 0; i < rows.length; ++i) {
+            const it = rows[i]
+            if (!it || !it.visible) continue
+            const h = it.implicitHeight
+            if (h > tallest && h <= root.maxNormalizedRowHeight) tallest = h
+        }
+        return tallest
+    }
     Layout.fillWidth: true
     implicitHeight: contentArea.implicitHeight
 
     function extraPadFor(item) {
-        return item ? Math.max(0, (root.minRowHeight - item.implicitHeight) / 2) : 0
+        return item ? Math.max(0, (root.normalizedRowHeight - item.implicitHeight) / 2) : 0
     }
 
     ColumnLayout {

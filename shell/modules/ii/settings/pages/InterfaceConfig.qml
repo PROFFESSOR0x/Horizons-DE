@@ -114,8 +114,18 @@ ContentPage {
                         onSelected: newValue => {
                             Config.options.appearance.visualEffect = newValue;
                             Config.applyVisualEffectExclusivity(newValue);
-                            HyprlandConfig.set("decoration:blur:enabled", Config.options.hyprland.decoration.blur.enabled ? 1 : 0);
-                            HyprlandConfig.set("decoration:blur:variant", Config.options.hyprland.decoration.blur.variant);
+                            // One setMany, not two set() calls. Every set()
+                            // spawns its own hyprconfigurator.py, and two of
+                            // them race on the same shellOverrides/main.lua:
+                            // whichever reads the file first has its edit
+                            // silently overwritten by the other's atomic
+                            // rewrite. That is why picking a panel style
+                            // sometimes landed on the previous one's blur
+                            // state instead of the one just chosen.
+                            HyprlandConfig.setMany({
+                                "decoration:blur:enabled": Config.options.hyprland.decoration.blur.enabled ? 1 : 0,
+                                "decoration:blur:variant": Config.options.hyprland.decoration.blur.variant,
+                            });
                         }
                         options: [
                             { displayName: Translation.tr("None"), icon: "block", value: "none" },
@@ -124,12 +134,48 @@ ContentPage {
                             { displayName: Translation.tr("Liquid Glass"), icon: "water_drop", value: "glass" }
                         ]
                     }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("What each one actually changes:\n• None - shell panels are painted solid. Compositor blur is turned off.\n• Blur - turns Hyprland's blur on (decoration:blur) and makes this shell's own panels translucent so there is something for it to show through. Windows stay opaque unless you also turn on the switch below.\n• Transparency - only this shell's panels; the compositor is left alone, so what shows through is the raw wallpaper/windows, unblurred. The sliders below set how much.\n• Liquid Glass - Blur plus Hyprland's \"acrylic\" blur variant (decoration:blur:variant), which adds refraction and tint on top.\nAll three of the non-None options are mutually exclusive, and none of them touch app windows' own opacity.")
+                    }
+                    StyledText {
+                        // Liquid Glass silently degrades to plain blur on any
+                        // Hyprland that predates the blur-variant patch: the
+                        // shell-side translucency still applies (which is what
+                        // makes it look like a "fake" glass that only affects
+                        // this shell's panels), but the compositor half of the
+                        // effect never arrives. Say so here rather than only
+                        // on the Hyprland page, since this is where the option
+                        // is picked.
+                        visible: Config.options.appearance.visualEffect === "glass" && !HyprlandData.blurVariantSupported
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.m3colors.m3error
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Your running Hyprland has no decoration:blur:variant support (it needs a build newer than any tagged release), so the compositor half of Liquid Glass - the refraction and tint on windows - is being ignored. What you're seeing is the shell's own panel translucency over ordinary blur. Settings > Hyprland > Blur Style has the details.")
+                    }
                 }
             }
             ContentSubsection {
                 title: Translation.tr("Window Transparency (for Blur/Glass)")
                 visible: Config.options.appearance.visualEffect === "blur" || Config.options.appearance.visualEffect === "glass"
                 GroupedList {
+                    ConfigSlider {
+                        // Blur behind an opaque panel is invisible - this is
+                        // how much of the blurred background this shell's own
+                        // panels let through. 0 = the old fully-opaque look,
+                        // where "Blur" was indistinguishable from "None".
+                        visible: Config.options.appearance.visualEffect === "blur"
+                        text: Translation.tr("Panel translucency")
+                        textWidth: 110
+                        buttonIcon: "deblur"
+                        value: Config.options.appearance.blurPanelTransparency * 100
+                        from: 0; to: 60
+                        onValueChanged: { Config.options.appearance.blurPanelTransparency = value / 100 }
+                    }
                     ConfigSwitch {
                         buttonIcon: "opacity"
                         text: Translation.tr("Make regular app windows slightly transparent")
@@ -143,8 +189,10 @@ ContentPage {
                                 Config.options.hyprland.decoration.activeOpacity = 1.0
                                 Config.options.hyprland.decoration.inactiveOpacity = 1.0
                             }
-                            HyprlandConfig.set("decoration:active_opacity", Config.options.hyprland.decoration.activeOpacity)
-                            HyprlandConfig.set("decoration:inactive_opacity", Config.options.hyprland.decoration.inactiveOpacity)
+                            HyprlandConfig.setMany({
+                                "decoration:active_opacity": Config.options.hyprland.decoration.activeOpacity,
+                                "decoration:inactive_opacity": Config.options.hyprland.decoration.inactiveOpacity,
+                            })
                         }
                     }
                     StyledText {
@@ -1507,6 +1555,23 @@ ContentPage {
             title: Translation.tr("Wallpaper selector")
 
             GroupedList {
+                ConfigSwitch {
+                    buttonIcon: "dock_to_bottom"
+                    visible: Config.options.bar.barMode === "m3Island"
+                    text: Translation.tr('Attach to the M3 island')
+                    checked: Config.options.wallpaperSelector.dockToIsland
+                    onCheckedChanged: {
+                        Config.options.wallpaperSelector.dockToIsland = checked;
+                    }
+                }
+                StyledText {
+                    visible: Config.options.bar.barMode === "m3Island"
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("Opens the selector against the island's real edge - tracking it as the pill morphs and moves - with the same concave corners the island uses to meet the screen edge, so it reads as a drawer pulled out of the island instead of a separate panel underneath it. Off falls back to the fixed bar-height offset, which the island doesn't actually have.")
+                }
                 ConfigSwitch {
                     buttonIcon: "ad"
                     text: Translation.tr('Use system file picker')

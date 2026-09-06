@@ -43,10 +43,22 @@ Singleton {
     property real configuredContentTransparency: Config?.options.appearance.transparency.enable
         ? (Config?.options.appearance.transparency.automatic ? autoContentTransparency : Config?.options.appearance.transparency.contentTransparency)
         : 0
+    // "Blur" visual effect. Hyprland's blur is applied to this shell's layer
+    // surfaces already, but it can only be seen through a panel that isn't
+    // fully opaque - with every transparency source off, "Blur" rendered
+    // identically to "None". This gives panels a modest translucency for as
+    // long as blur is the selected effect (Settings > Interface > Panel style),
+    // tunable through appearance.blurPanelTransparency, 0 to opt out.
+    property bool blurPanelsEnabled: (Config?.options?.appearance?.visualEffect ?? "none") === "blur"
+    property real blurPanelTransparency: Math.max(0, Math.min(0.6, Config?.options?.appearance?.blurPanelTransparency ?? 0.16))
     // All shared layers consume these values, so glass is consistent across
     // panels, popups, widgets, notifications, and settings.
-    property real backgroundTransparency: Math.max(configuredBackgroundTransparency, liquidGlassEnabled ? 1 - glassOpacity : 0)
-    property real contentTransparency: Math.max(configuredContentTransparency, liquidGlassEnabled ? 1 - glassOpacity : 0)
+    property real backgroundTransparency: Math.max(configuredBackgroundTransparency,
+        liquidGlassEnabled ? 1 - glassOpacity : 0,
+        blurPanelsEnabled ? blurPanelTransparency : 0)
+    property real contentTransparency: Math.max(configuredContentTransparency,
+        liquidGlassEnabled ? 1 - glassOpacity : 0,
+        blurPanelsEnabled ? blurPanelTransparency : 0)
     
     function getColorFromName(name) {
         switch (name) {

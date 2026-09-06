@@ -17,13 +17,27 @@ def source(relative_path: str) -> str:
 
 
 class M3IslandContractTests(unittest.TestCase):
-    def test_clock_owns_volume_scrolling(self) -> None:
+    def test_exactly_one_wheel_handler_owns_island_scrolling(self) -> None:
+        """Scroll handling has exactly one owner.
+
+        It used to be M3ClockCenter (clock area only).  It now lives in
+        M3IslandContent so it covers the whole pill and so the three scroll
+        actions (volume / mediaSeek / layoutCycle) share one wheel accounting
+        instead of competing handlers double-firing on the same event.  What
+        this test protects is unchanged: one handler, not two.
+        """
         clock = source("modules/ii/m3Island/M3ClockCenter.qml")
         island = source("modules/ii/m3Island/M3IslandContent.qml")
 
-        self.assertIn("WheelHandler", clock)
-        self.assertIn("scrollVolume", clock)
-        self.assertNotIn("onWheel:", island)
+        self.assertIn("id: islandWheelHandler", island)
+        self.assertIn("onWheel: event =>", island)
+        for action in ('"volume"', '"mediaSeek"', '"layoutCycle"'):
+            self.assertIn(action, island)
+        self.assertIn("Config.options.m3Island.scrollAction", island)
+
+        # The clock must not bring a second handler back.
+        self.assertNotIn("WheelHandler {", clock)
+        self.assertNotIn("onWheel:", clock)
 
     def test_notification_queue_respects_popup_state(self) -> None:
         island = source("modules/ii/m3Island/M3IslandContent.qml")
@@ -79,7 +93,30 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("liquidGlassEnabled", appearance)
         self.assertIn("configuredContentTransparency: Config?.options.appearance.transparency.enable", appearance)
         self.assertIn('motionStyle === "smooth"', appearance)
-        self.assertIn("Enable Liquid Glass", settings)
+
+        # Blur / transparency / glass are no longer three independent switches
+        # ("Enable Liquid Glass" and friends) - they are one exclusive
+        # appearance.visualEffect choice, applied through
+        # Config.applyVisualEffectExclusivity().  The settings page must drive
+        # that single value rather than poking the individual flags.
+        self.assertIn("property string visualEffect", config)
+        self.assertIn("function applyVisualEffectExclusivity", config)
+        self.assertIn("Config.options.appearance.visualEffect", settings)
+        self.assertIn("Config.applyVisualEffectExclusivity(newValue)", settings)
+        for effect in ('"none"', '"blur"', '"transparency"', '"glass"'):
+            self.assertIn(f"value: {effect}", settings)
+
+        # Each effect still has to reach its own knobs from the same page.
+        self.assertIn("Config.options.appearance.glass.opacity", settings)
+        self.assertIn("Config.options.appearance.motion.style", settings)
+        self.assertIn("Config.options.appearance.motion.durationScale", settings)
+
+        # "Blur" is invisible behind a fully opaque panel, so panel
+        # translucency in blur mode is part of the same central chain:
+        # config -> Appearance -> settings.
+        self.assertIn("property real blurPanelTransparency", config)
+        self.assertIn("blurPanelsEnabled", appearance)
+        self.assertIn("Config.options.appearance.blurPanelTransparency", settings)
 
     def test_persistent_and_compositor_data_fail_closed(self) -> None:
         todo = source("services/Todo.qml")
@@ -103,10 +140,14 @@ class M3IslandContractTests(unittest.TestCase):
 
     def test_hyprland_customization_never_writes_removed_options(self) -> None:
         config = source("modules/common/Config.qml")
-        settings = source("modules/ii/settings/pages/HyprlandConfig.qml")
+        settings = source("modules/ii/settings/pages/HyprlandSettings.qml")
         configurator = source("scripts/hyprland/hyprconfigurator.py")
+        # decoration:blur:variant is deliberately no longer in this list: it is
+        # a real Hyprland option that simply predates no tagged release, so it
+        # is offered but gated at runtime instead of removed - see the two
+        # assertions below.  The rest were removed upstream outright and must
+        # never be written again.
         unsupported = (
-            "decoration:blur:variant",
             "input:scroll_lock",
             "input:scroll_point_scroll",
             "input:touchpad:dragfinger_distance",
@@ -120,6 +161,15 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertNotIn("scrollLock", config)
         self.assertNotIn("dragfingerDistance", config)
         self.assertIn("def option_is_supported", configurator)
+
+        # Runtime gating for decoration:blur:variant, in both directions:
+        # the settings page warns instead of silently no-opping, and the
+        # configurator drops the key (and clears any stale line) when the
+        # running compositor says it does not exist.
+        self.assertIn("property string variant", config)
+        self.assertIn("HyprlandData.blurVariantSupported", settings)
+        self.assertIn("blurVariantSupported", source("services/HyprlandData.qml"))
+        self.assertIn("option_is_supported(key) is False", configurator)
 
     def test_notification_expiry_reassigns_the_derived_popup_model(self) -> None:
         notifications = source("services/Notifications.qml")

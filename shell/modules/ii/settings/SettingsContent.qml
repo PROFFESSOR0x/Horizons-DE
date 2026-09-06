@@ -32,7 +32,7 @@ Item {
     // Rebuilt (not cached-once) every time search opens rather than gated
     // behind a one-shot "already built" flag: pages load asynchronously
     // (see pageLoader.asynchronous below), so a search opened in the brief
-    // window before a heavier page like HyprlandConfig.qml finishes loading
+    // window before a heavier page like HyprlandSettings.qml finishes loading
     // would otherwise permanently miss everything in it for the rest of the
     // session. Opening search isn't a hot path, so re-walking on every open
     // (never on keystrokes - SettingsSearch.qml only re-filters the cached
@@ -75,7 +75,6 @@ Item {
             if (loader && loader.item) walkForSections(loader.item, root.pages[i].name, root.pages[i].icon)
         }
         root.searchIndex = index
-        root.searchIndexBuilt = true
     }
 
     function navigateToSearchResult(entry) {
@@ -160,11 +159,11 @@ Item {
             { name: Translation.tr("Services"),   icon: "settings",       component: Qt.resolvedUrl("pages/ServicesConfig.qml") },
         ]
         if (WM.compositor === "hyprland") {
-                    list.push({ name: Translation.tr("Hyprland"), icon: "select_window_2", component: Qt.resolvedUrl("pages/HyprlandConfig.qml") })
+                    list.push({ name: Translation.tr("Hyprland"), icon: "select_window_2", component: Qt.resolvedUrl("pages/HyprlandSettings.qml") })
                     list.push({ name: Translation.tr("Keybinds"), icon: "keyboard", component: Qt.resolvedUrl("pages/KeybindsConfig.qml") })
                 }
         if (WM.compositor === "niri") {
-                    list.push({ name: Translation.tr("Niri"), icon: "select_window_2", component: Qt.resolvedUrl("pages/NiriConfig.qml") })
+                    list.push({ name: Translation.tr("Niri"), icon: "select_window_2", component: Qt.resolvedUrl("pages/NiriSettings.qml") })
                 }
         list.push({ name: Translation.tr("About"), icon: "info", component: Qt.resolvedUrl("pages/About.qml") })
         return list
@@ -233,6 +232,9 @@ Item {
 
                             Image {
                                 id: avatarImage
+                                // Decode off the UI thread - a synchronous load of an arbitrarily
+                                // large user/theme image stalls the whole shell (one QML thread).
+                                asynchronous: true
                                 anchors.fill: parent
                                 source: Config.options.profile.avatarPath !== "" 
                                     ? "file://" + Config.options.profile.avatarPicture 
@@ -316,42 +318,57 @@ Item {
                         opacity: 0.15
                     }
 
-                    FloatingActionButton {
-                        id: fab
-                        visible: !isMinimal
+                    // Both FABs sit on one row as plain icon buttons. They
+                    // used to be two full-width pills stacked vertically,
+                    // which is a lot of rail height for two actions whose
+                    // icons (edit / search) already say what they do - the
+                    // labels move into the tooltips instead.
+                    GridLayout {
+                        // Side by side while the rail is expanded; stacked when
+                        // it collapses to a single icon column (its width is
+                        // one FAB wide - see navRailWrapper.implicitWidth).
+                        columns: navRail.expanded ? 2 : 1
+                        Layout.alignment: Qt.AlignHCenter
                         Layout.bottomMargin: -25
-                        property bool justCopied: false
-                        iconText: justCopied ? "check" : "edit"
-                        buttonText: justCopied ? Translation.tr("Path copied") : Translation.tr("Config file")
-                        expanded: navRail.expanded
-                        downAction: () => {
-                            Qt.openUrlExternally(`${Directories.config}/horizons/config.json`);
-                        }
-                        altAction: () => {
-                            Quickshell.clipboardText = CF.FileUtils.trimFileProtocol(`${Directories.config}/horizons/config.json`);
-                            fab.justCopied = true;
-                            revertTextTimer.restart()
-                        }
-                        Timer {
-                            id: revertTextTimer
-                            interval: 1500
-                            onTriggered: fab.justCopied = false
-                        }
-                        StyledToolTip {
-                            text: Translation.tr("Open the shell config file\nAlternatively right-click to copy path")
-                        }
-                    }
-
-                    FloatingActionButton {
-                        id: searchFab
                         visible: !isMinimal
-                        Layout.bottomMargin: -15
-                        iconText: "search"
-                        buttonText: Translation.tr("Search settings")
-                        expanded: navRail.expanded
-                        downAction: () => { root.showingSearch = !root.showingSearch }
-                        StyledToolTip {
-                            text: Translation.tr("Search every setting (title, description, regex supported)")
+                        rowSpacing: 8
+                        columnSpacing: 8
+
+                        FloatingActionButton {
+                            id: fab
+                            property bool justCopied: false
+                            iconText: justCopied ? "check" : "edit"
+                            // Icon-only: `expanded` false keeps the pill at
+                            // baseSize instead of growing to fit buttonText.
+                            expanded: false
+                            downAction: () => {
+                                Qt.openUrlExternally(`${Directories.config}/horizons/config.json`);
+                            }
+                            altAction: () => {
+                                Quickshell.clipboardText = CF.FileUtils.trimFileProtocol(`${Directories.config}/horizons/config.json`);
+                                fab.justCopied = true;
+                                revertTextTimer.restart()
+                            }
+                            Timer {
+                                id: revertTextTimer
+                                interval: 1500
+                                onTriggered: fab.justCopied = false
+                            }
+                            StyledToolTip {
+                                text: fab.justCopied
+                                    ? Translation.tr("Path copied")
+                                    : Translation.tr("Config file\nOpen the shell config file\nAlternatively right-click to copy path")
+                            }
+                        }
+
+                        FloatingActionButton {
+                            id: searchFab
+                            iconText: "search"
+                            expanded: false
+                            downAction: () => { root.showingSearch = !root.showingSearch }
+                            StyledToolTip {
+                                text: Translation.tr("Search settings\nSearch every setting (title, description, regex supported)")
+                            }
                         }
                     }
 
@@ -398,7 +415,7 @@ Item {
                             required property var modelData
                             required property var index
                             source: modelData.component
-                            // Settings pages can be large (HyprlandConfig.qml
+                            // Settings pages can be large (HyprlandSettings.qml
                             // especially) - loading one synchronously on first
                             // visit was a real, if brief, main-thread hitch
                             // every time Settings opened onto a heavy page.

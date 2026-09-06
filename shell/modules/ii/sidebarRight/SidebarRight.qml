@@ -215,6 +215,19 @@ Scope {
                 else if (GlobalStates.hoverOpenedState !== "sidebarRightOpen")
                     hoverCloseTimer.stop();
             }
+            // A dropdown opened from inside the panel (see
+            // GlobalStates.hoverCloseGuard) suppresses the hover-out close while
+            // it is up. Re-arm the timer once it goes away, otherwise a panel the
+            // pointer has already left stays open forever.
+            function onHoverCloseGuardChanged() {
+                if (GlobalStates.hoverCloseGuard > 0) {
+                    hoverCloseTimer.stop();
+                } else if (GlobalStates.hoverOpenedState === "sidebarRightOpen"
+                        && !sidebarHoverHandler.hovered) {
+                    hoverCloseTimer.restart();
+                }
+            }
+
         }
 
         IpcHandler {

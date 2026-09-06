@@ -117,6 +117,9 @@ ContentPage {
 
                                 Image {
                                     id: avatarImage
+                                    // Decode off the UI thread - a synchronous load of an arbitrarily
+                                    // large user/theme image stalls the whole shell (one QML thread).
+                                    asynchronous: true
                                     anchors.fill: parent
                                     source: filePath
                                     fillMode: Image.PreserveAspectCrop

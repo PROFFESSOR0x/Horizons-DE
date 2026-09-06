@@ -163,7 +163,12 @@ ContentPage {
             ...Config.options.m3Island.layouts.hoverLayout,
             ...Config.options.m3Island.layouts.expandedLayout
         ]
-        const multipleAllowed = ["visualizer", "divisor"]
+        // m3Clock is listed even when it's already placed: the island draws a
+        // clock in the hover and expanded rows by default (M3IslandContent's
+        // hoverLayoutHasClock/expandedLayoutHasClock fallbacks), so it has to be
+        // addable to those two lists as well - otherwise the one clock you can
+        // see in the resting pill hides it from every other row's picker.
+        const multipleAllowed = ["visualizer", "divisor", "m3Clock"]
         return [...allWidgets, ...m3OnlyWidgets].filter(w => {
             if (w.id === "divisor" && Config.options.m3Island.borderless !== "transparent") return false
             return !used.includes(w.id) || multipleAllowed.includes(w.id)
@@ -495,6 +500,25 @@ ContentPage {
                     onValueChanged: { Config.options.m3Island.expandedHeight = value }
                 }
                 ConfigSelectionArray {
+                    text: Translation.tr("Animation speed")
+                    icon: "speed"
+                    currentValue: Config.options.m3Island.animationSpeed
+                    onSelected: newValue => { Config.options.m3Island.animationSpeed = newValue }
+                    options: [
+                        { displayName: Translation.tr("Fast"),   icon: "fast_forward", value: "fast" },
+                        { displayName: Translation.tr("Normal"), icon: "speed",        value: "normal" },
+                        { displayName: Translation.tr("Slow"),   icon: "slow_motion_video", value: "slow" },
+                    ]
+                }
+                ConfigSpinBox {
+                    icon: "line_curve"
+                    text: Translation.tr("Hug corner size")
+                    visible: Config.options.m3Island.cornerStyle === 0
+                    value: Config.options.m3Island.hugCornerSize
+                    from: 0; to: 48; stepSize: 2
+                    onValueChanged: { Config.options.m3Island.hugCornerSize = value }
+                }
+                ConfigSelectionArray {
                     text: Translation.tr("Corner style")
                     icon: "style"
                     currentValue: Config.options.m3Island.cornerStyle
@@ -525,6 +549,39 @@ ContentPage {
                         checked: Config.options.m3Island.showFrame
                         onCheckedChanged: { Config.options.m3Island.showFrame = checked }
                     }
+                }
+                ConfigSwitch {
+                    buttonIcon: "wallpaper"
+                    enabled: Config.options.m3Island.showBackground
+                    text: Translation.tr("Blend the wallpaper into the island")
+                    checked: Config.options.m3Island.wallpaperBackground.enable
+                    onCheckedChanged: { Config.options.m3Island.wallpaperBackground.enable = checked }
+                }
+                ConfigSlider {
+                    visible: Config.options.m3Island.wallpaperBackground.enable
+                    text: Translation.tr("Wallpaper strength")
+                    textWidth: 130
+                    buttonIcon: "opacity"
+                    value: Config.options.m3Island.wallpaperBackground.opacity * 100
+                    from: 0; to: 100
+                    onValueChanged: { Config.options.m3Island.wallpaperBackground.opacity = value / 100 }
+                }
+                ConfigSlider {
+                    visible: Config.options.m3Island.wallpaperBackground.enable
+                    text: Translation.tr("Readability scrim")
+                    textWidth: 130
+                    buttonIcon: "contrast"
+                    value: Config.options.m3Island.wallpaperBackground.scrim * 100
+                    from: 0; to: 100
+                    onValueChanged: { Config.options.m3Island.wallpaperBackground.scrim = value / 100 }
+                }
+                StyledText {
+                    visible: Config.options.m3Island.wallpaperBackground.enable
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("The island shows the exact piece of wallpaper it is sitting on, lined up with the desktop behind it, so it reads as carved out of the wallpaper instead of floating on top of it. The scrim lays the island's normal colour back over that image - drop it to 0 for a pure window onto the wallpaper, raise it if the pill's text gets lost over a busy one.")
                 }
                 ConfigSwitch {
                     buttonIcon: "colors"

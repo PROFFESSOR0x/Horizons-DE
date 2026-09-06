@@ -587,9 +587,13 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.visualizer.enable
-                        && (Config.options.background.screenList.length === 0
-                            || Config.options.background.screenList.includes(bgRoot.screen.name))
+                    // DesktopVisualizer folds in the per-screen "is anything
+                    // covering the desktop here" check on top of the usual
+                    // enable/screenList pair. FadeLoader ties `active` to
+                    // opacity, so going false really destroys the widget (and
+                    // with it every per-frame binding it owns) rather than
+                    // leaving it invisible but still animating.
+                    shown: DesktopVisualizer.shownOnScreen(bgRoot.screen.name)
                     sourceComponent: VisualizerWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height

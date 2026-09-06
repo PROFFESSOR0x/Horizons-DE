@@ -143,7 +143,7 @@ Singleton {
     // Enforces that exactly one of blur / transparency / glass is enabled in
     // the JSON config, matching `effect`. "Glass" ("Liquid Glass") is just
     // Hyprland's native blur with the "acrylic" variant (decoration:blur:
-    // variant — see HyprlandConfig.qml's "Blur Style" control), not a separate
+    // variant — see HyprlandSettings.qml's "Blur Style" control), not a separate
     // mechanism, so it also turns blur.enabled on and only differs in variant.
     // This only touches Config.options; callers that need the change to
     // actually reach the compositor (HyprlandConfig.set(...)) do so themselves
@@ -168,7 +168,7 @@ Singleton {
     // exactly like the Interface page's own visual-effect picker does.
     //
     // Only touches Config.options - like applyVisualEffectExclusivity(), it
-    // never calls into HyprlandConfig.qml (avoiding a circular import back
+    // never calls into services/HyprlandConfig.qml (avoiding a circular import back
     // into this foundational singleton). The caller (a settings page) must
     // still push the returned `hypr` keys via HyprlandConfig.setMany() and
     // `animPreset` via HyprlandConfig.setAnimPreset() for the compositor-side
@@ -286,6 +286,13 @@ Singleton {
                     property real backgroundTransparency: 0.11
                     property real contentTransparency: 0.57
                 }
+                // How translucent this shell's own panels become while the
+                // "Blur" visual effect is selected. Hyprland blurs the shell's
+                // layer surfaces (see hypr rules.lua's layer_rule blur entries),
+                // but blur behind a fully opaque panel is invisible - which is
+                // why picking "Blur" used to look exactly like picking "None".
+                // 0 restores the old fully-opaque panels.
+                property real blurPanelTransparency: 0.16
                 property JsonObject glass: JsonObject {
                     // Applies to every shared surface through Appearance.qml.
                     // "Glass" ("Liquid Glass") is backed by Hyprland's own native
@@ -631,6 +638,11 @@ Singleton {
                 // searchToggle/searchToggleRelease handlers for the actual
                 // launch commands.
                 property string launcher: "quickshell" // quickshell | walker | vicinae | fuzzel
+                // Command used to open a file/folder picked from the launcher's
+                // file results. Empty means the system default (xdg-open, which
+                // reads ~/.config/mimeapps.list). The path is appended as a
+                // quoted argument, e.g. "nautilus" or "gio open".
+                property string fileOpener: ""
             }
 
             property JsonObject settings: JsonObject {
@@ -768,6 +780,13 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 0
                         property real y: 0
+                        // Unload the widget (and stop cava with it) on any
+                        // monitor whose active workspace has a non-floating or
+                        // fullscreen window on it - nothing can be seen there,
+                        // so nothing should be spent on it. Per-monitor: a
+                        // window on one screen never stops the visualizer on
+                        // another. See services/DesktopVisualizer.qml.
+                        property bool hideWhenObscured: true
                     }
 
                     property JsonObject customImage: JsonObject {
@@ -881,12 +900,22 @@ Singleton {
                 property real frameThickness: 4
                 property string frameColor: "black"
                 property bool followFrameColor: false
+                // Show the slice of desktop wallpaper the island is sitting on
+                // as its background, instead of a flat surface colour, so the
+                // pill reads as carved out of the desktop. `scrim` is how much
+                // of the normal island colour is laid back over it - the pill's
+                // contents are unreadable over a busy wallpaper without some.
+                property JsonObject wallpaperBackground: JsonObject {
+                    property bool enable: false
+                    property real opacity: 0.5
+                    property real scrim: 0.35
+                }
                 property bool bottom: false // Instead of top
                 property int cornerStyle: 0 // 0: Hug | 1: Float | 2: Plain rectangle
                 property string groupColor: "layer1"
                 property bool floatStyleShadow: true // Show shadow behind bar when cornerStyle == 1 (Float)
                 property string borderless: "pills"
-                property string topLeftIcon: "spark" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
+                property string topLeftIcon: "spark-symbolic" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
                 property bool showBackground: true
                 property bool verbose: true
                 property bool vertical: false
@@ -1166,6 +1195,10 @@ Singleton {
                 // Animation - scales the morph/transition durations used throughout
                 // the island. Curves are untouched, only speed changes.
                 property string animationSpeed: "normal" // "slow" | "normal" | "fast"
+                // Size of the two inverted corners that blend the hugging
+                // island into the screen edge. Was hardcoded to at most 14px,
+                // which reads as too tight next to a taller island.
+                property int hugCornerSize: 22
                 // Subtle overscale/overshoot spring on notification-card arrival.
                 property bool expressiveNotifications: true
                 // Debounce before/after entering hover-peek state (ms).
@@ -1470,11 +1503,24 @@ Singleton {
 
             property JsonObject search: JsonObject {
                 property int nonAppResultDelay: 30 // This prevents lagging when typing
+                // Upper bound on how many app matches are turned into result
+                // objects per keystroke (see LauncherSearch.qml). Relevance-
+                // sorted, so this trims the tail nobody scrolls to, not the
+                // match you meant.
+                property int maxAppResults: 100
                 property string engineBaseUrl: "https://www.google.com/search?q="
                 property list<string> excludedSites: ["quora.com", "facebook.com"]
                 property bool sloppy: false // Uses levenshtein distance based scoring instead of fuzzy sort. Very weird.
                 property JsonObject prefix: JsonObject {
                     property bool showDefaultActionsWithoutPrefix: true
+                    // Files ("~") and launcher/system actions ("/") normally
+                    // only appear once their prefix is typed. With these on
+                    // they also show up in a plain, prefixless search, mixed in
+                    // after apps. Files stays off by default because every
+                    // keystroke then costs a plocate run.
+                    property bool showFilesWithoutPrefix: false
+                    property int filesWithoutPrefixMinLength: 3
+                    property bool showActionsWithoutPrefix: false
                     property string action: "/"
                     property string app: ">"
                     property string clipboard: ";"
@@ -1579,7 +1625,11 @@ Singleton {
             }
 
             property JsonObject custom: JsonObject {
-                property string distroIcon: "spark"
+                // Must match a real file in shell/assets/icons (CustomIcon just
+                // appends ".svg"). The asset is spark-symbolic.svg, so a bare
+                // "spark" resolved to a nonexistent path and the bar's distro
+                // button came up empty.
+                property string distroIcon: "spark-symbolic"
                 property bool colorizeIcon: true
             }
 
@@ -1684,6 +1734,12 @@ Singleton {
                 property int columns: 4
                 property bool closeAfterSelection: true
                 property int changeInterval: 0 
+                // With the M3 island bar, attach the selector to the island's
+                // real (live, morphing) bottom edge and draw the fillets that
+                // join the two shapes, so it reads as a drawer pulled out of
+                // the pill rather than an unrelated slab floating under it.
+                // Off = the old fixed bar-height offset.
+                property bool dockToIsland: true
             }
 
             property JsonObject windows: JsonObject {

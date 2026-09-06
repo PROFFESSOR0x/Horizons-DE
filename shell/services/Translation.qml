@@ -117,6 +117,12 @@ Singleton {
 
     component TranslationReader: FileView {
         id: translationReader
+        // A missing <lang>.json is the normal case (English has no file, and
+        // most locales have no generated file), and onLoadFailed already
+        // handles it by falling back to the untranslated string. Without this
+        // every language change logged a "File does not exist" warning per
+        // reader - it was one of the loudest things in the shell's journal.
+        printErrors: false
         required property string translationsDir
         property string languageCode: root.languageCode
         signal contentLoaded(var data)

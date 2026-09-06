@@ -21,7 +21,7 @@ Scope {
         actionProc.running = true
     }
 
-    function normalizeWindow(node, workspace) {
+    function normalizeWindow(node, workspace, floating) {
         const rect = node.rect ?? ({})
         return {
             id: String(node.id),
@@ -33,16 +33,20 @@ Scope {
             focused: node.focused ?? false,
             width: rect.width ?? 0,
             height: rect.height ?? 0,
-            fullscreen: (node.fullscreen_mode ?? 0) !== 0
+            fullscreen: (node.fullscreen_mode ?? 0) !== 0,
+            // i3 reports floating windows in a container's floating_nodes
+            // rather than on the node itself, so it is threaded down from
+            // collectWindows() instead of read off `node`.
+            floating: floating ?? false
         }
     }
 
-    function collectWindows(node, workspace, result) {
+    function collectWindows(node, workspace, result, floating) {
         if (!node) return
         const currentWorkspace = node.type === "workspace" ? node : workspace
-        if (node.window || node.app_id) result.push(normalizeWindow(node, currentWorkspace))
-        for (const child of (node.nodes ?? [])) collectWindows(child, currentWorkspace, result)
-        for (const child of (node.floating_nodes ?? [])) collectWindows(child, currentWorkspace, result)
+        if (node.window || node.app_id) result.push(normalizeWindow(node, currentWorkspace, floating))
+        for (const child of (node.nodes ?? [])) collectWindows(child, currentWorkspace, result, floating)
+        for (const child of (node.floating_nodes ?? [])) collectWindows(child, currentWorkspace, result, true)
     }
 
     function switchWorkspaceRelative(direction) {
@@ -71,6 +75,17 @@ Scope {
         const ws = activeWorkspaceForMonitor(monitorName)
         return ws ? windowList.some(w => w.workspaceId === ws.id && w.fullscreen) : false
     }
+    // See HyprlandBackend.obscuredMonitors.
+    readonly property var obscuredMonitors: computeObscuredMonitors()
+    function computeObscuredMonitors() {
+        const out = ({})
+        for (const m of (monitors ?? [])) {
+            if (!m?.name) continue
+            const ws = activeWorkspaceForMonitor(m.name)
+            out[m.name] = !!ws && windowList.some(w => w.workspaceId === ws.id && (w.fullscreen || !w.floating))
+        }
+        return out
+    }
     function monitorGeometry(screen) {
         const monitor = monitorFor(screen)
         if (!monitor) return { x: 0, y: 0, scale: 1 }
@@ -97,7 +112,7 @@ Scope {
             onStreamFinished: {
                 try {
                     const windows = []
-                    root.collectWindows(JSON.parse(text), null, windows)
+                    root.collectWindows(JSON.parse(text), null, windows, false)
                     root.windowList = windows
                 } catch (error) { console.log("[I3Backend] tree parse error: " + error) }
             }

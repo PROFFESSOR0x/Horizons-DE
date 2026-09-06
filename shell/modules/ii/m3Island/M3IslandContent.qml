@@ -50,6 +50,7 @@ Item {
     Component.onCompleted: {
         if (launcherOpen)
             launcherEntrance.restart()
+        scheduleGeometryPublish()
     }
 
     SequentialAnimation {
@@ -59,13 +60,13 @@ Item {
         ParallelAnimation {
             NumberAnimation {
                 target: root; property: "launcherEntryScale"; to: 1
-                duration: 420
+                duration: root.animMs(420)
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial
             }
             NumberAnimation {
                 target: root; property: "launcherEntryOpacity"; to: 1
-                duration: 300
+                duration: root.animMs(300)
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
             }
@@ -176,9 +177,9 @@ Item {
     clip: false
     // One visible surface morph. Hover expansion gets enough travel time to be
     // perceived as a deliberate widening of the island, not a one-frame jump.
-    Behavior on implicitHeight { NumberAnimation { duration: isHoverPeek || isExpanded ? 360 : 240; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
-    Behavior on implicitWidth { NumberAnimation { duration: isHoverPeek || isExpanded ? 440 : 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
-    Behavior on width { NumberAnimation { duration: isHoverPeek || isExpanded ? 440 : 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
+    Behavior on implicitHeight { NumberAnimation { duration: root.animMs(root.isHoverPeek || root.isExpanded ? 360 : 240); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
+    Behavior on implicitWidth { NumberAnimation { duration: root.animMs(root.isHoverPeek || root.isExpanded ? 440 : 260); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
+    Behavior on width { NumberAnimation { duration: root.animMs(root.isHoverPeek || root.isExpanded ? 440 : 260); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
 
     readonly property real islandPadding: 10
     readonly property real islandSpacing: 6
@@ -215,6 +216,13 @@ Item {
         if (speed === "slow") return 1.5
         if (speed === "fast") return 0.6
         return 1.0
+    }
+    // animScale used to be declared and then never read, so the "Animation
+    // speed" setting did nothing at all. Every island duration goes through
+    // here now. Appearance.motionDurationScale is folded in as well so the
+    // island follows the global motion setting like the rest of the shell.
+    function animMs(baseDuration) {
+        return Math.max(1, Math.round(baseDuration * root.animScale * Appearance.motionDurationScale))
     }
 
     // Right-click quick-actions menu contents. Kept as a plain reactive array
@@ -263,16 +271,40 @@ Item {
     // Reused bar widgets normally read Config.options.bar. Give them an
     // explicit M3 scope instead of duplicating their implementation.
     function configureM3Widget(item) {
-        if (item && "useM3IslandConfig" in item)
+        if (!item) return
+        if ("useM3IslandConfig" in item)
             item.useM3IslandConfig = true
-        if (item && "isMaterial" in item)
-            item.isMaterial = true
+        // `in` is true for read-only properties too, and a widget that binds
+        // isMaterial read-only would throw on assignment - don't let one
+        // widget's declaration break the whole row.
+        if ("isMaterial" in item) {
+            try { item.isMaterial = true } catch (e) {}
+        }
+    }
+
+    // Every row loads widgets by id, and "m3Clock" needs its own options
+    // applied instead of the generic bar-widget ones. Keep that in one place so
+    // the clock behaves identically wherever it is placed in a layout.
+    function applyWidgetConfig(name, item) {
+        if (!item) return
+        if (name === "m3Clock") {
+            item.clockStyle = Config.options.m3Island.clockStyle
+            item.showDate = Config.options.m3Island.clockShowDate
+            item.use24Hour = Config.options.m3Island.clockUse24h
+        } else {
+            root.configureM3Widget(item)
+        }
     }
 
     readonly property var restingLayout: Config.options.m3Island?.layouts?.restingLayout ?? ["m3Clock"]
     readonly property var hoverLayout: Config.options.m3Island?.layouts?.hoverLayout ?? ["media", "systemIcons"]
     readonly property var expandedLayout: Config.options.m3Island?.layouts?.expandedLayout ?? ["resources", "batteryIndicator"]
     readonly property var filteredExpandedLayout: expandedLayout.filter(n => n !== "systemIcons" && n !== "utilButtons")
+    // The hover/expanded rows each still draw a clock of their own so the
+    // stock layouts look unchanged, but it has to step aside as soon as the
+    // user places "m3Clock" in that row themselves.
+    readonly property bool hoverLayoutHasClock: hoverLayout.includes("m3Clock")
+    readonly property bool expandedLayoutHasClock: expandedLayout.includes("m3Clock")
 
     HoverHandler { id: hoverHandler }
     // Debounce hover to avoid flicker when mouse jitters at edge
@@ -341,12 +373,80 @@ Item {
         }
     }
 
+    // ── Wallpaper backdrop ────────────────────────────────────────────────
+    // Optional "carved out of the desktop" look: instead of a flat surface
+    // colour, the island shows the piece of wallpaper it is sitting on top of,
+    // with a scrim of its normal colour over it so text stays readable. The
+    // image is drawn at full screen size and shifted by the island's own
+    // position on that screen, so the visible slice lines up pixel-for-pixel
+    // with the real wallpaper behind the panel - which is what makes the pill
+    // read as a window into the desktop rather than a picture pasted onto it.
+    readonly property var wallpaperConfig: Config.options.m3Island.wallpaperBackground
+    readonly property bool wallpaperBackdropEnabled: (wallpaperConfig?.enable ?? false)
+        && Config.options.m3Island.showBackground
+        && root.wallpaperSource.length > 0
+    readonly property string rawWallpaperPath: Config.options.background.wallpaperPath ?? ""
+    readonly property bool wallpaperIsVideo: [".mp4", ".webm", ".mkv", ".avi", ".mov"]
+        .some(ext => root.rawWallpaperPath.toLowerCase().endsWith(ext))
+    readonly property string wallpaperSource: root.wallpaperIsVideo
+        ? (Config.options.background.thumbnailPath ?? "")
+        : root.rawWallpaperPath
+    // Island position in screen coordinates. The panel spans the full screen
+    // width and is pinned to one edge, so its own origin is (0, edge offset)
+    // and the island's offset inside it is just root.x/root.y - including the
+    // auto-hide slide, so the backdrop tracks the island as it moves.
+    readonly property real panelScreenY: {
+        if (!root.panelWindow || !root.screen) return 0
+        if (Config.options.bar.bottom)
+            return root.screen.height - root.panelWindow.height - (root.panelWindow.margins?.bottom ?? 0)
+        return root.panelWindow.margins?.top ?? 0
+    }
+
+    // Publish where the pill actually is, so panels that dock to the island
+    // (the wallpaper selector) can attach to its real edge as it moves and
+    // morphs, instead of assuming a fixed bar height. Coalesced through
+    // Qt.callLater so a frame that changes x, y, width and height at once
+    // still writes only a single update. See M3IslandState.geometry.
+    readonly property string screenName: root.screen?.name ?? ""
+    function publishIslandGeometry() {
+        if (root.screenName === "") return
+        M3IslandState.setGeometry(root.screenName, {
+            x: root.x,
+            width: root.width,
+            height: root.height,
+            top: root.panelScreenY + root.y,
+            bottom: root.panelScreenY + root.y + root.height
+        })
+    }
+    function scheduleGeometryPublish() { Qt.callLater(root.publishIslandGeometry) }
+    onXChanged: scheduleGeometryPublish()
+    onYChanged: scheduleGeometryPublish()
+    onWidthChanged: scheduleGeometryPublish()
+    onHeightChanged: scheduleGeometryPublish()
+    onPanelScreenYChanged: scheduleGeometryPublish()
+    onScreenNameChanged: scheduleGeometryPublish()
+    Component.onDestruction: M3IslandState.clearGeometry(root.screenName)
+
     // Background pill - morphs radius and hug corners
     Rectangle {
         id: islandBg
         anchors.fill: parent
+        // Rounded-shape-aware clipping (Qt 6.7+, same mechanism RippleButton
+        // uses for its ripple) keeps the wallpaper slice inside the pill
+        // without an OpacityMask offscreen pass. Only paid for when the
+        // backdrop is actually on.
+        clip: root.wallpaperBackdropEnabled
         // Hug: top edge square against screen, float: all rounded; notification uses secondary container
-        radius: root.isLauncher || root.isExpanded || root.isNotification ? Appearance.rounding.large : Appearance.rounding.full
+        // Appearance.rounding.full is a 9999 sentinel that Rectangle clamps to
+        // min(w,h)/2 at paint time. Animating 9999 -> 23 therefore looked like
+        // nothing at all until the value finally dropped under the clamp near
+        // the very end of the transition, where it popped square in one frame.
+        // Resolving the pill state to its *effective* radius (half the current,
+        // already-animating height) makes the corners morph continuously with
+        // the surface instead.
+        radius: (root.isLauncher || root.isExpanded || root.isNotification)
+            ? Appearance.rounding.large
+            : Math.max(0, root.height / 2)
         readonly property bool hugsScreen: Config.options.m3Island.cornerStyle === 0
             && (!root.isLauncher || Config.options.m3Island.launcherHug)
         topLeftRadius: hugsScreen && !Config.options.bar.bottom ? 0 : radius
@@ -364,8 +464,47 @@ Item {
         border.color: Config.options.m3Island.showFrame
             ? Appearance.getColorFromName(Config.options.m3Island.frameColor)
             : Appearance.colors.colLayer0Border
-        Behavior on radius { NumberAnimation { duration: 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
-        Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        Image {
+            id: wallpaperBackdrop
+            visible: root.wallpaperBackdropEnabled
+            // Full-screen image, shifted so the part showing through this pill
+            // is exactly the part of the wallpaper underneath it.
+            width: root.screen?.width ?? 0
+            height: root.screen?.height ?? 0
+            x: -root.x
+            y: -(root.panelScreenY + root.y)
+            source: root.wallpaperBackdropEnabled ? Qt.resolvedUrl(root.wallpaperSource) : ""
+            fillMode: Image.PreserveAspectCrop
+            // Decoded off the UI thread and at screen resolution - the same
+            // treatment Background.qml gives the desktop wallpaper, for the
+            // same reason (a 4K decode on the QML thread stalls everything).
+            asynchronous: true
+            cache: true
+            smooth: true
+            sourceSize.width: root.screen?.width ?? 0
+            sourceSize.height: root.screen?.height ?? 0
+            opacity: Math.max(0, Math.min(1, root.wallpaperConfig?.opacity ?? 0.5))
+            Behavior on opacity { NumberAnimation { duration: root.animMs(180); easing.type: Easing.OutCubic } }
+        }
+        Rectangle {
+            // Scrim in the island's own colour. Without it the pill's contents
+            // sit on whatever the wallpaper happens to be doing at that spot,
+            // which is unreadable over a busy or light image.
+            visible: root.wallpaperBackdropEnabled
+            anchors.fill: parent
+            radius: islandBg.radius
+            topLeftRadius: islandBg.topLeftRadius
+            topRightRadius: islandBg.topRightRadius
+            bottomLeftRadius: islandBg.bottomLeftRadius
+            bottomRightRadius: islandBg.bottomRightRadius
+            color: islandBg.color
+            opacity: Math.max(0, Math.min(1, root.wallpaperConfig?.scrim ?? 0.35))
+        }
+
+        // Matches the surface's own height/width durations so the corner and
+        // the box arrive together.
+        Behavior on radius { NumberAnimation { duration: root.animMs(root.isHoverPeek || root.isExpanded ? 360 : 240); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
+        Behavior on color { ColorAnimation { duration: root.animMs(180); easing.type: Easing.OutCubic } }
     }
     StyledRectangularShadow {
         target: islandBg
@@ -419,22 +558,15 @@ Item {
             visible: !root.isLauncher && !root.isNotification && !root.isHoverPeek && !root.isExpanded
             opacity: visible ? 1 : 0
             scale: visible ? 1 : 0.88
-            Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedAccel } }
-            Behavior on scale { NumberAnimation { duration: 280; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
+            Behavior on opacity { NumberAnimation { duration: root.animMs(220); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedAccel } }
+            Behavior on scale { NumberAnimation { duration: root.animMs(280); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
 
             Repeater {
                 model: root.restingLayout
                 delegate: Loader {
                     required property var modelData
                     source: root.getWidgetUrl(modelData)
-                    onLoaded: {
-                        if (modelData === "m3Clock") {
-                            item.clockStyle = Config.options.m3Island.clockStyle
-                            item.showDate = Config.options.m3Island.clockShowDate
-                        } else {
-                            root.configureM3Widget(item)
-                        }
-                    }
+                    onLoaded: root.applyWidgetConfig(modelData, item)
                 }
             }
         }
@@ -448,22 +580,27 @@ Item {
             visible: root.isHoverPeek
             opacity: visible ? 1 : 0
             scale: visible ? 1 : 0.96
-            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic; alwaysRunToEnd: true } }
-            Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial } }
+            Behavior on opacity { NumberAnimation { duration: root.animMs(180); easing.type: Easing.OutCubic; alwaysRunToEnd: true } }
+            Behavior on scale { NumberAnimation { duration: root.animMs(260); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial } }
 
+            // Only a fallback now. If "m3Clock" is in hoverLayout the clock is
+            // rendered by the Repeater below at the position the user chose -
+            // keeping this one unconditionally is what put two clocks in the
+            // peeked island at once.
             M3ClockCenter {
+                visible: !root.hoverLayoutHasClock
                 opacity: root.isHoverPeek ? 1 : 0
                 scale: root.isHoverPeek ? 1 : 0.84
                 Behavior on opacity {
                     SequentialAnimation {
-                        PauseAnimation { duration: root.isHoverPeek ? 20 : 0 }
-                        NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                        PauseAnimation { duration: root.isHoverPeek ? root.animMs(20) : 0 }
+                        NumberAnimation { duration: root.animMs(160); easing.type: Easing.OutCubic }
                     }
                 }
                 Behavior on scale {
                     SequentialAnimation {
-                        PauseAnimation { duration: root.isHoverPeek ? 20 : 0 }
-                        NumberAnimation { duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial }
+                        PauseAnimation { duration: root.isHoverPeek ? root.animMs(20) : 0 }
+                        NumberAnimation { duration: root.animMs(220); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial }
                     }
                 }
                 clockStyle: Config.options.m3Island.clockStyle
@@ -471,12 +608,13 @@ Item {
                 use24Hour: Config.options.m3Island.clockUse24h
             }
             Rectangle {
+                visible: !root.hoverLayoutHasClock
                 width: 1; height: 18; color: Appearance.colors.colOutlineVariant
                 opacity: root.isHoverPeek ? 0.5 : 0
                 Behavior on opacity {
                     SequentialAnimation {
-                        PauseAnimation { duration: root.isHoverPeek ? 60 : 0 }
-                        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                        PauseAnimation { duration: root.isHoverPeek ? root.animMs(40) : 0 }
+                        NumberAnimation { duration: root.animMs(140); easing.type: Easing.OutCubic }
                     }
                 }
             }
@@ -493,14 +631,14 @@ Item {
                     transformOrigin: Item.Center
                     Behavior on opacity {
                         SequentialAnimation {
-                            PauseAnimation { duration: root.isHoverPeek ? 105 + index * 70 : 0 }
-                            NumberAnimation { duration: 170; easing.type: Easing.OutCubic }
+                            PauseAnimation { duration: root.isHoverPeek ? root.animMs(60 + index * 32) : 0 }
+                            NumberAnimation { duration: root.animMs(170); easing.type: Easing.OutCubic }
                         }
                     }
                     Behavior on scale {
                         SequentialAnimation {
-                            PauseAnimation { duration: root.isHoverPeek ? 105 + index * 70 : 0 }
-                            NumberAnimation { duration: 250; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
+                            PauseAnimation { duration: root.isHoverPeek ? root.animMs(60 + index * 32) : 0 }
+                            NumberAnimation { duration: root.animMs(250); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
                         }
                     }
                     Bar.BarGroup {
@@ -511,7 +649,7 @@ Item {
                         totalCount: root.hoverLayout.length
                         Loader {
                             source: root.getWidgetUrl(modelData)
-                            onLoaded: root.configureM3Widget(item)
+                            onLoaded: root.applyWidgetConfig(modelData, item)
                         }
                     }
                     Rectangle {
@@ -542,8 +680,8 @@ Item {
             opacity: visible ? 1 : 0
             scale: visible ? 1 : 0.9
             spacing: 4
-            Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on scale { NumberAnimation { duration: 280; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
+            Behavior on opacity { NumberAnimation { duration: root.animMs(200); easing.type: Easing.OutCubic } }
+            Behavior on scale { NumberAnimation { duration: root.animMs(280); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
 
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
@@ -563,6 +701,7 @@ Item {
                     }
                 }
                 M3ClockCenter {
+                    visible: !root.expandedLayoutHasClock
                     clockStyle: Config.options.m3Island.clockStyle
                     showDate: true
                     use24Hour: Config.options.m3Island.clockUse24h
@@ -599,14 +738,14 @@ Item {
                         scale: root.isExpanded ? 1 : 0.82
                         Behavior on opacity {
                             SequentialAnimation {
-                                PauseAnimation { duration: root.isExpanded ? 100 + index * 60 : 0 }
-                                NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                                PauseAnimation { duration: root.isExpanded ? root.animMs(60 + index * 30) : 0 }
+                                NumberAnimation { duration: root.animMs(160); easing.type: Easing.OutCubic }
                             }
                         }
                         Behavior on scale {
                             SequentialAnimation {
-                                PauseAnimation { duration: root.isExpanded ? 100 + index * 60 : 0 }
-                                NumberAnimation { duration: 230; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
+                                PauseAnimation { duration: root.isExpanded ? root.animMs(60 + index * 30) : 0 }
+                                NumberAnimation { duration: root.animMs(230); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
                             }
                         }
                         Bar.BarGroup {
@@ -616,7 +755,7 @@ Item {
                             totalCount: root.filteredExpandedLayout.length
                             Loader {
                                 source: root.getWidgetUrl(modelData)
-                                onLoaded: root.configureM3Widget(item)
+                                onLoaded: root.applyWidgetConfig(modelData, item)
                             }
                         }
                     }
@@ -639,14 +778,14 @@ Item {
                         scale: root.isExpanded ? 1 : 0.82
                         Behavior on opacity {
                             SequentialAnimation {
-                                PauseAnimation { duration: root.isExpanded ? 140 + index * 60 : 0 }
-                                NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                                PauseAnimation { duration: root.isExpanded ? root.animMs(90 + index * 30) : 0 }
+                                NumberAnimation { duration: root.animMs(160); easing.type: Easing.OutCubic }
                             }
                         }
                         Behavior on scale {
                             SequentialAnimation {
-                                PauseAnimation { duration: root.isExpanded ? 140 + index * 60 : 0 }
-                                NumberAnimation { duration: 230; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
+                                PauseAnimation { duration: root.isExpanded ? root.animMs(90 + index * 30) : 0 }
+                                NumberAnimation { duration: root.animMs(230); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
                             }
                         }
                         Bar.BarGroup {
@@ -656,7 +795,7 @@ Item {
                             totalCount: Config.options.m3Island.expandedQuickToggles.length
                             Loader {
                                 source: root.getWidgetUrl(modelData)
-                                onLoaded: root.configureM3Widget(item)
+                                onLoaded: root.applyWidgetConfig(modelData, item)
                             }
                         }
                     }
@@ -699,10 +838,10 @@ Item {
                 notifications: [root.pendingNotif],
                 time: root.pendingNotif.time
             }) : null
-            Behavior on opacity { NumberAnimation { duration: 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedDecel } }
+            Behavior on opacity { NumberAnimation { duration: root.animMs(260); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedDecel } }
             Behavior on scale {
                 id: scaleBehavior
-                NumberAnimation { duration: 320; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
+                NumberAnimation { duration: root.animMs(320); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
             }
             // Subtle overscale/overshoot spring on arrival, opt-in via
             // Config.options.m3Island.expressiveNotifications. Reuses the same
@@ -715,8 +854,8 @@ Item {
             SequentialAnimation {
                 id: expressiveArrival
                 onStopped: scaleBehavior.enabled = true
-                NumberAnimation { target: notifContainer; property: "scale"; to: 1.08; duration: 150; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial }
-                NumberAnimation { target: notifContainer; property: "scale"; to: 1.0; duration: 190; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial }
+                NumberAnimation { target: notifContainer; property: "scale"; to: 1.08; duration: root.animMs(150); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial }
+                NumberAnimation { target: notifContainer; property: "scale"; to: 1.0; duration: root.animMs(190); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial }
             }
             onExpandedChanged: {
                 root.notifHovered = expanded
@@ -756,8 +895,8 @@ Item {
             opacity: visible ? 1 : 0
             scale: visible ? 1 : 0.94
             panelWindow: root.panelWindow
-            Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedDecel } }
-            Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
+            Behavior on opacity { NumberAnimation { duration: root.animMs(220); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedDecel } }
+            Behavior on scale { NumberAnimation { duration: root.animMs(300); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
         }
     }
 

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import qs
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -158,6 +159,19 @@ ComboBox {
     }
 
     popup: Popup {
+        id: comboPopup
+        // Qt gives this dropdown its own surface, so opening it counts as the
+        // pointer leaving whatever panel the combo box lives in. Panels that
+        // close themselves on hover-out (the hot-corner-opened sidebars) would
+        // otherwise disappear the moment you reach for an entry - taking this
+        // popup with them. See GlobalStates.hoverCloseGuard.
+        onVisibleChanged: {
+            if (visible) GlobalStates.pushHoverCloseGuard()
+            else GlobalStates.popHoverCloseGuard()
+        }
+        Component.onDestruction: {
+            if (visible) GlobalStates.popHoverCloseGuard()
+        }
         y: root.height + 4
         width: root.width
         height: Math.min(listView.contentHeight + topPadding + bottomPadding, 300)

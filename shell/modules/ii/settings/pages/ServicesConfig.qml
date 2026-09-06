@@ -435,6 +435,36 @@ ContentPage {
                             }
                         }
                     }
+                    ConfigSwitch {
+                        buttonIcon: "bolt"
+                        text: Translation.tr("Show actions without typing their prefix")
+                        checked: Config.options.search.prefix.showActionsWithoutPrefix
+                        onCheckedChanged: { Config.options.search.prefix.showActionsWithoutPrefix = checked }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "description"
+                        text: Translation.tr("Show files without typing their prefix")
+                        checked: Config.options.search.prefix.showFilesWithoutPrefix
+                        onCheckedChanged: { Config.options.search.prefix.showFilesWithoutPrefix = checked }
+                    }
+                    ConfigSpinBox {
+                        visible: Config.options.search.prefix.showFilesWithoutPrefix
+                        icon: "text_fields"
+                        text: Translation.tr("Minimum characters before searching files")
+                        value: Config.options.search.prefix.filesWithoutPrefixMinLength
+                        from: 1; to: 8; stepSize: 1
+                        onValueChanged: {
+                            if (value === Config.options.search.prefix.filesWithoutPrefixMinLength) return
+                            Config.options.search.prefix.filesWithoutPrefixMinLength = value
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("With these on, actions and files also appear in an ordinary search, after the app results, instead of only behind their prefix character. Each new file search term runs one plocate query, which is why there's a minimum length.")
+                    }
                     StyledText {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
@@ -447,6 +477,20 @@ ContentPage {
             ContentSubsection {
                 title: Translation.tr("Files, SSH & services")
                 GroupedList {
+                    ConfigTextArea {
+                        buttonIcon: "open_in_new"
+                        text: Translation.tr("Open files with")
+                        value: Config.options.apps.fileOpener
+                        placeholderText: "xdg-open"
+                        onValueChanged: { Config.options.apps.fileOpener = value }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Left empty, opening a file result hands it to xdg-open, i.e. whatever ~/.config/mimeapps.list says. An editor that registered itself as the handler for every text-like MIME type will therefore claim most files - if everything keeps opening in the same app, that file is why (`xdg-mime query default text/plain` shows the current winner). Put a command here to bypass it entirely; the path is appended as one quoted argument.")
+                    }
                     ConfigSwitch {
                         buttonIcon: "folder"
                         text: Translation.tr("Enable file search")

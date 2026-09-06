@@ -21,6 +21,8 @@ Scope {
     function monitorFor(screen) { return null }
     function activeWorkspaceForMonitor(monitorName) { return null }
     function biggestWindowForWorkspace(wsId) { return null }
+    // See HyprlandBackend.obscuredMonitors - nothing known, nothing covered.
+    property var obscuredMonitors: ({})
     function fullscreenOnMonitor(monitorName) { return false }
     function monitorGeometry(screen) { return { x: 0, y: 0, scale: 1 } }
 }

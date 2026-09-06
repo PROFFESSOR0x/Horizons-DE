@@ -13,6 +13,11 @@ TabButton {
     property int rippleDuration: 1200
     property int tabContentWidth: buttonBackground.width - buttonBackground.radius*2
 
+    // Breathing room around the (now correctly measured, see contentItem)
+    // icon+label row so tabs don't sit label-to-label.
+    leftPadding: 14
+    rightPadding: 14
+
     property color colBackground: ColorUtils.transparentize(Appearance.colors.colSurfaceContainer)
     property color colBackgroundHover: ColorUtils.transparentize(Appearance.colors.colOnSurface, root.checked ? 1 : 0.95)
     property color colRipple: ColorUtils.transparentize(Appearance.colors.colOnSurface, 0.95)
@@ -137,7 +142,16 @@ TabButton {
 
     contentItem: Item {
         anchors.centerIn: buttonBackground
+        // The icon+label row is centered inside this Item, which means the Item
+        // itself has to report the row's size - with no implicit size of its
+        // own it reported 0, so TabBar handed every tab a width of just its
+        // padding and the labels of neighbouring tabs drew straight on top of
+        // each other (visible wherever the bar isn't stretched to fill, e.g.
+        // the Super+Tab switcher's Workspaces/Windows tabs).
+        implicitWidth: tabContentRow.implicitWidth
+        implicitHeight: tabContentRow.implicitHeight
         RowLayout {
+            id: tabContentRow
             anchors.centerIn: parent
             spacing: 0
             

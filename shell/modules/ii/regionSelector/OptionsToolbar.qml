@@ -31,12 +31,24 @@ Toolbar {
             {"icon": "activity_zone", "name": Translation.tr("Rect")},
             {"icon": "gesture", "name": Translation.tr("Circle")}
         ]
-        currentIndex: root.selectionMode === RegionSelection.SelectionMode.RectCorners ? 0 : 1
+        // Driven imperatively rather than with a declarative binding.
+        // ToolbarTabBar.currentIndex is an alias onto a Controls TabBar, which
+        // writes that same property itself when a tab is activated - a plain
+        // two-way `currentIndex: <expr>` + onCurrentIndexChanged pair made Qt
+        // report "Binding loop detected for property currentIndex" on every
+        // switch.
+        Component.onCompleted: tabBar.setCurrentIndex(root.selectionModeIndex)
         onCurrentIndexChanged: {
             const newMode = currentIndex === 0 ? RegionSelection.SelectionMode.RectCorners : RegionSelection.SelectionMode.Circle;
             if (root.selectionMode !== newMode)
                 root.selectionMode = newMode;
         }
+    }
+
+    readonly property int selectionModeIndex: root.selectionMode === RegionSelection.SelectionMode.RectCorners ? 0 : 1
+    onSelectionModeIndexChanged: {
+        if (tabBar.currentIndex !== root.selectionModeIndex)
+            tabBar.setCurrentIndex(root.selectionModeIndex);
     }
 
     // Separator

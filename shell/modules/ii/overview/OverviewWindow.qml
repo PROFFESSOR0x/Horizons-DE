@@ -108,6 +108,9 @@ Rectangle { // Window
 
         Image {
             id: windowIcon
+            // Decode off the UI thread - a synchronous load of an arbitrarily
+            // large user/theme image stalls the whole shell (one QML thread).
+            asynchronous: true
             property real baseSize: Math.min(root.targetWindowWidth, root.targetWindowHeight)
             anchors {
                 top: root.centerIcons ? undefined : parent.top

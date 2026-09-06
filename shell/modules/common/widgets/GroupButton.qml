@@ -111,7 +111,10 @@ Button {
         }
 
         onPressAndHold: () => {
-            altAction(); 
+            // Guarded like the right-click path above: altAction is optional,
+            // and long-pressing a button that doesn't define one used to throw
+            // "Property 'altAction' ... is not a function".
+            if (root.altAction) root.altAction();
             root.down = false; 
             root.clicked = false;
         };

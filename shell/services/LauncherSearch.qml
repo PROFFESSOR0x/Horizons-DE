@@ -91,7 +91,7 @@ Singleton {
         { page: "Desktop",   path: "BackgroundConfig.qml" },
         { page: "Interface", path: "InterfaceConfig.qml" },
         { page: "Services",  path: "ServicesConfig.qml" },
-        { page: "Hyprland",  path: "HyprlandConfig.qml" },
+        { page: "Hyprland",  path: "HyprlandSettings.qml" },
         { page: "About",     path: "About.qml" },
         { page: "Quick",     path: "QuickConfig.qml" },
     ]
@@ -260,6 +260,66 @@ Singleton {
         }
     }
 
+    // Opens a path with the user's chosen opener (Settings > Services >
+    // Search, apps.fileOpener) or the system default. xdg-open follows
+    // ~/.config/mimeapps.list, so an editor that registered itself for every
+    // text-ish MIME type wins there by default; this is the escape hatch for
+    // pointing the launcher at something else without rewriting mimeapps.
+    function openPath(path) {
+        const opener = (Config.options.apps.fileOpener ?? "").trim();
+        if (opener.length === 0) {
+            Quickshell.execDetached(["xdg-open", path]);
+            return;
+        }
+        Quickshell.execDetached(["bash", "-c", `${opener} "$1"`, "file-open", path]);
+    }
+
+    // Shared by the "~" prefix branch and the prefixless branch (when
+    // search.prefix.showFilesWithoutPrefix is on), so both render and open
+    // file hits identically.
+    function makeFileResults() {
+        return root.fileResults.map(rawPath => {
+            // Directory hits arrive with a trailing "/" (see filesProc); keep
+            // that fact but work with the bare path everywhere else.
+            const isDirectory = rawPath.endsWith("/") && rawPath.length > 1;
+            const path = isDirectory ? rawPath.slice(0, -1) : rawPath;
+            const fileName = path.split("/").pop();
+            const dirPath = path.slice(0, path.length - fileName.length - 1) || "/";
+            // Every file used to be a generic "description" page. A Material
+            // Symbol picked per file type keeps the list monochrome (these are
+            // single-colour glyphs that take the shell's text colour, unlike a
+            // themed MIME icon set) while still letting you tell a video from
+            // an archive without reading the name.
+            return resultComp.createObject(null, {
+                rawValue: path,
+                name: fileName,
+                comment: dirPath,
+                iconName: FileUtils.iconForPath(path, isDirectory),
+                iconType: LauncherSearchResult.IconType.Material,
+                verb: Translation.tr("Open"),
+                type: isDirectory ? Translation.tr("Folder") : Translation.tr("File"),
+                execute: () => {
+                    root.openPath(path);
+                },
+                actions: [resultComp.createObject(null, {
+                        name: Translation.tr("Open containing folder"),
+                        iconName: "folder_open",
+                        iconType: LauncherSearchResult.IconType.Material,
+                        execute: () => {
+                            root.openPath(dirPath);
+                        }
+                    }), resultComp.createObject(null, {
+                        name: Translation.tr("Copy path"),
+                        iconName: "content_copy",
+                        iconType: LauncherSearchResult.IconType.Material,
+                        execute: () => {
+                            Quickshell.clipboardText = path;
+                        }
+                    })]
+            });
+        });
+    }
+
     // ── Local file search (~ prefix) ─────────────────────────────────────
     // Uses plocate's system-wide index (falls back to mlocate/locate's
     // `locate`, then to a live `find` under $HOME if neither index exists
@@ -271,13 +331,15 @@ Singleton {
     // thread the way a synchronous call would.
     property list<string> fileResults: []
     property bool fileSearchRunning: false
+    // What filesProc should look for on the next tick. Set by whichever branch
+    // of results() wants files - the "~" prefix branch, or (when
+    // search.prefix.showFilesWithoutPrefix is on) the prefixless branch, which
+    // has no prefix to strip.
+    property string fileSearchTerm: ""
     Timer {
         id: fileResultsTimer
         interval: Config.options.search.nonAppResultDelay
-        onTriggered: {
-            const term = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.files).trim();
-            filesProc.search(term);
-        }
+        onTriggered: filesProc.search(root.fileSearchTerm.trim())
     }
     Process {
         id: filesProc
@@ -293,11 +355,32 @@ Singleton {
             // $0 is an unused label, $1 is the actual (unescaped, safe from
             // shell injection since it's a positional param, not interpolated
             // into the script text) search term.
-            filesProc.command = ["bash", "-c",
-                `plocate -i -l ${maxResults} -- "$1" 2>/dev/null` +
-                ` || locate -i -l ${maxResults} -- "$1" 2>/dev/null` +
-                ` || find "$HOME" -iname "*$1*" 2>/dev/null | head -n ${maxResults}`,
-                "file-search", term];
+            // Exit status 1 means "indexed, nothing matched"; only >1 is a
+            // real failure (no index built yet, unreadable db). The old
+            // `plocate || locate || find` chain couldn't tell those apart, so
+            // every search that simply had no hits fell all the way through to
+            // a live `find` over $HOME - slow, and it then presented that
+            // walk's results as if they were the index's.
+            // mark_dirs appends "/" to directory hits so the result list can
+            // show a folder icon and say "Folder" - neither plocate nor locate
+            // distinguishes them, and there is no cheap way to stat from QML.
+            // At most `maxResults` stats, in this subprocess, off the UI thread.
+            filesProc.command = ["bash", "-c", `
+                mark_dirs() {
+                  while IFS= read -r p; do
+                    if [ -d "$p" ]; then printf '%s/\n' "$p"; else printf '%s\n' "$p"; fi
+                  done
+                }
+                if command -v plocate >/dev/null 2>&1; then
+                  plocate -i -l ${maxResults} -- "$1" 2>/dev/null | mark_dirs
+                  [ \${PIPESTATUS[0]} -le 1 ] && exit 0
+                fi
+                if command -v locate >/dev/null 2>&1; then
+                  locate -i -l ${maxResults} -- "$1" 2>/dev/null | mark_dirs
+                  [ \${PIPESTATUS[0]} -le 1 ] && exit 0
+                fi
+                find "$HOME" -iname "*$1*" 2>/dev/null | head -n ${maxResults} | mark_dirs
+                `, "file-search", term];
             filesProc.running = true;
         }
         stdout: StdioCollector {
@@ -316,6 +399,9 @@ Singleton {
     FileView {
         id: sshConfigFile
         path: `${Directories.home}/.ssh/config`
+        // Not having an ~/.ssh/config is the normal case, not a fault worth a
+        // warning on every shell start - onLoadFailed already handles it.
+        printErrors: false
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root._parseSshConfig()
@@ -495,40 +581,11 @@ Singleton {
         } else if (root.query.startsWith(Config.options.search.prefix.files)) {
             if (!Config.options.search.extras.filesEnable) return [];
             // Local files (plocate/locate/find - see filesProc above)
-            fileResultsTimer.restart();
             const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.files).trim();
+            root.fileSearchTerm = searchString;
+            fileResultsTimer.restart();
             if (searchString.length === 0) return [];
-            return root.fileResults.map(path => {
-                const fileName = path.split("/").pop();
-                const dirPath = path.slice(0, path.length - fileName.length - 1) || "/";
-                return resultComp.createObject(null, {
-                    rawValue: path,
-                    name: fileName,
-                    comment: dirPath,
-                    iconName: "description",
-                    iconType: LauncherSearchResult.IconType.Material,
-                    verb: Translation.tr("Open"),
-                    type: Translation.tr("File"),
-                    execute: () => {
-                        Quickshell.execDetached(["xdg-open", path]);
-                    },
-                    actions: [resultComp.createObject(null, {
-                            name: Translation.tr("Open containing folder"),
-                            iconName: "folder_open",
-                            iconType: LauncherSearchResult.IconType.Material,
-                            execute: () => {
-                                Quickshell.execDetached(["xdg-open", dirPath]);
-                            }
-                        }), resultComp.createObject(null, {
-                            name: Translation.tr("Copy path"),
-                            iconName: "content_copy",
-                            iconType: LauncherSearchResult.IconType.Material,
-                            execute: () => {
-                                Quickshell.clipboardText = path;
-                            }
-                        })]
-                });
-            });
+            return root.makeFileResults();
         } else if (root.query.startsWith(Config.options.search.prefix.sshHosts)) {
             if (!Config.options.search.extras.sshHostsEnable) return [];
             // SSH quick-connect (~/.ssh/config Host entries - see sshConfigFile above)
@@ -608,7 +665,15 @@ Singleton {
                 Quickshell.clipboardText = root.mathResult;
             }
         });
-        const appResultObjects = AppSearch.fuzzyQuery(StringUtils.cleanPrefix(root.query, Config.options.search.prefix.app)).map(entry => {
+        // Capped before the .map(): every surviving entry becomes a real
+        // QObject here (plus one more per desktop action), synchronously, on
+        // every keystroke - and the fuzzy query returns *every* app when the
+        // term is short or empty. Building a thousand throwaway objects per
+        // typed character is one of the few things in this shell big enough to
+        // stall the single QML thread on its own. Results are relevance-sorted,
+        // so the tail past this cap is never what anyone was looking for.
+        const appLimit = Math.max(10, Config.options.search.maxAppResults ?? 100);
+        const appResultObjects = AppSearch.fuzzyQuery(StringUtils.cleanPrefix(root.query, Config.options.search.prefix.app)).slice(0, appLimit).map(entry => {
             return resultComp.createObject(null, {
                 type: Translation.tr("App"),
                 id: entry.id,
@@ -702,11 +767,18 @@ Singleton {
                 Qt.openUrlExternally(url);
             }
         });
+        const showActionsWithoutPrefix = Config.options.search.prefix.showActionsWithoutPrefix ?? false;
         const launcherActionObjects = root.allActions.map(action => {
             const actionString = `${Config.options.search.prefix.action}${action.action}`;
-            if (actionString.startsWith(root.query) || root.query.startsWith(actionString)) {
+            // Without the prefix an action is only reachable by typing "/" first,
+            // since every comparison below is against the prefixed string. When
+            // showActionsWithoutPrefix is on, the bare action name is matched too.
+            const bareMatch = showActionsWithoutPrefix
+                && settingsQuery.length > 0
+                && action.action.toLowerCase().includes(settingsQuery);
+            if (bareMatch || actionString.startsWith(root.query) || root.query.startsWith(actionString)) {
                 return resultComp.createObject(null, {
-                    name: root.query.startsWith(actionString) ? root.query : actionString,
+                    name: (!bareMatch && root.query.startsWith(actionString)) ? root.query : actionString,
                     verb: Translation.tr("Run"),
                     type: Translation.tr("Action"),
                     iconName: 'settings_suggest',
@@ -739,6 +811,25 @@ Singleton {
         result = result.concat(settingsResults);
         ////////// Launcher actions ////////////
         result = result.concat(launcherActionObjects);
+
+        /////////////// Files //////////////////
+        // Opt-in (search.prefix.showFilesWithoutPrefix): the same plocate-backed
+        // results the "~" prefix gives, without having to type it. Gated behind a
+        // minimum length because each distinct term is one more subprocess, and
+        // one/two-letter substrings match most of the filesystem anyway.
+        if (Config.options.search.prefix.showFilesWithoutPrefix
+                && Config.options.search.extras.filesEnable
+                && !startsWithMathPrefix && !startsWithShellCommandPrefix
+                && !startsWithWebSearchPrefix && !startsWithNumber) {
+            const fileTerm = root.query.trim();
+            if (fileTerm.length >= (Config.options.search.prefix.filesWithoutPrefixMinLength ?? 3)) {
+                root.fileSearchTerm = fileTerm;
+                fileResultsTimer.restart();
+                result = result.concat(root.makeFileResults());
+            } else if (root.fileResults.length > 0) {
+                root.fileResults = [];
+            }
+        }
 
         /// Math result, command, web search ///
         if (Config.options.search.prefix.showDefaultActionsWithoutPrefix) {

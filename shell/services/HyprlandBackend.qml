@@ -53,6 +53,33 @@ Scope {
         return HyprlandData.biggestWindowForWorkspace(wsId);
     }
 
+    // Per-monitor "is the desktop actually covered right now": true when the
+    // monitor's active workspace holds at least one mapped, non-floating (or
+    // fullscreen) window. Deliberately a property, not a function, so bindings
+    // that read it re-evaluate when the window list changes - and keyed by
+    // monitor so one screen going busy never affects what another screen shows.
+    readonly property var obscuredMonitors: computeObscuredMonitors()
+    function computeObscuredMonitors() {
+        const out = ({});
+        const windows = HyprlandData.windowList ?? [];
+        for (const m of (HyprlandData.monitors ?? [])) {
+            if (!m?.name) continue;
+            const wsId = m.activeWorkspace?.id;
+            if (wsId === undefined || wsId === null) {
+                out[m.name] = false;
+                continue;
+            }
+            out[m.name] = windows.some(w => w?.workspace?.id === wsId
+                && w.mapped !== false
+                && w.hidden !== true
+                // A floating window is one the user can see the desktop
+                // around/behind, so it doesn't count as covering it. A
+                // fullscreened one does even when it is also floating.
+                && (w.fullscreen ? true : !w.floating));
+        }
+        return out;
+    }
+
     function fullscreenOnMonitor(monitorName) {
         const wsList = Hyprland.workspaces.values.filter(ws => ws.monitor && ws.monitor.name === monitorName);
         return wsList.some(ws => ws.active && ws.toplevels.values.some(w => w.wayland?.fullscreen));

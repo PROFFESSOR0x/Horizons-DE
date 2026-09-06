@@ -146,7 +146,12 @@ horizons_update_apply() {
     case "$mode" in
         quick)  HORIZONS_REAPPLY=1 bash "$installer" --skip-deps --skip-backup --skip-sysupdate --launchers none --force ;;
         smart)  HORIZONS_REAPPLY=1 bash "$installer" --skip-deps --skip-sysupdate --launchers none --force ;;
-        full)   HORIZONS_REAPPLY=1 bash "$installer" --force ;;
+        # `full` is the only mode that also restores the base dotfiles.
+        # install_dots() lays those down once and then leaves them to the user,
+        # refreshing only the Hyprland config on quick/smart - so "full apply"
+        # has to say so explicitly or it would be indistinguishable from smart
+        # as far as the dots are concerned.
+        full)   HORIZONS_REAPPLY=1 bash "$installer" --reinstall-dots --force ;;
         *)      HORIZONS_REAPPLY=1 bash "$installer" --force ;;
     esac
 }

@@ -148,8 +148,53 @@ MouseArea {
     implicitHeight: mainLayout.implicitHeight
     implicitWidth: mainLayout.implicitWidth
 
+    // ── M3 island docking ─────────────────────────────────────────────────
+    // Set by WallpaperSelector.qml when the selector is attached to the island
+    // pill. islandLeft/islandWidth are in this item's own coordinates.
+    property bool dockedToIsland: false
+    property bool dockedAtBottom: false
+    property real islandLeft: 0
+    property real islandWidth: 0
+    readonly property real islandRight: islandLeft + islandWidth
+    // Size of the concave fillets at the pill/drawer joint. Handed down by
+    // WallpaperSelector.qml rather than derived here, because the window's own
+    // offset has to account for it before this item exists.
+    property real junctionCornerSize: 0
+
     StyledRectangularShadow {
         target: wallpaperGridBackground
+    }
+
+    // Concave fillets that carry the pill's silhouette into this surface,
+    // exactly like the island's own hug corners carry it into the screen edge
+    // (M3Island.qml). Without them a fully-rounded pill sits on a flat slab and
+    // the two shapes read as two panels that happen to touch.
+    //
+    // They are drawn in the band *outside* the surface, between it and the
+    // pill, which is why the surface is inset by junctionCornerSize on that
+    // side (see wallpaperGridBackground's anchors below) - RoundCorner fills
+    // the named corner of its own box, so the box has to straddle the joint.
+    component JunctionFillet: RoundCorner {
+        visible: root.dockedToIsland && root.islandWidth > 0
+        implicitSize: root.junctionCornerSize
+        color: wallpaperGridBackground.color
+        z: 2
+    }
+    JunctionFillet {
+        // Left of the pill: the joint is this box's bottom-right (drawer
+        // below the island) or top-right (drawer above it).
+        corner: root.dockedAtBottom ? RoundCorner.CornerEnum.TopRight : RoundCorner.CornerEnum.BottomRight
+        x: root.islandLeft - implicitSize
+        y: root.dockedAtBottom
+            ? (wallpaperGridBackground.y + wallpaperGridBackground.height)
+            : (wallpaperGridBackground.y - implicitSize)
+    }
+    JunctionFillet {
+        corner: root.dockedAtBottom ? RoundCorner.CornerEnum.TopLeft : RoundCorner.CornerEnum.BottomLeft
+        x: root.islandRight
+        y: root.dockedAtBottom
+            ? (wallpaperGridBackground.y + wallpaperGridBackground.height)
+            : (wallpaperGridBackground.y - implicitSize)
     }
 
     Rectangle {
@@ -157,12 +202,28 @@ MouseArea {
         anchors {
             fill: parent
             margins: Appearance.sizes.elevationMargin
+            // Docked, leave a fillet-sized band free on the island side so the
+            // JunctionFillets above have somewhere to draw. The window's own
+            // offset compensates (WallpaperSelector.qml), so the surface edge
+            // still lands exactly on the pill's edge.
+            topMargin: Appearance.sizes.elevationMargin
+                + ((root.dockedToIsland && !root.dockedAtBottom) ? root.junctionCornerSize : 0)
+            bottomMargin: Appearance.sizes.elevationMargin
+                + ((root.dockedToIsland && root.dockedAtBottom) ? root.junctionCornerSize : 0)
         }
         focus: true
         border.width: 1
         border.color: Appearance.colors.colLayer0Border
         color: Appearance.colors.colLayer0
         radius: Appearance.rounding.screenRounding + 5
+        // Docked, the edge facing the island is a straight line the pill sits
+        // on: rounding it there would leave two opposing curves pinching
+        // together where the two surfaces meet. The outer corners, far from the
+        // island, keep the normal rounding.
+        topLeftRadius: (root.dockedToIsland && !root.dockedAtBottom) ? 0 : radius
+        topRightRadius: (root.dockedToIsland && !root.dockedAtBottom) ? 0 : radius
+        bottomLeftRadius: (root.dockedToIsland && root.dockedAtBottom) ? 0 : radius
+        bottomRightRadius: (root.dockedToIsland && root.dockedAtBottom) ? 0 : radius
 
         implicitWidth: gridColumnLayout.implicitWidth
         implicitHeight: gridColumnLayout.implicitHeight

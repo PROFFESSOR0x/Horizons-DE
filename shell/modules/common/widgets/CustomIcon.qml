@@ -17,11 +17,17 @@ Item {
         id: iconImage
         anchors.fill: parent
         source: {
-            const fullPathWhenSourceIsIconName = iconFolder + "/" + root.source;
-            if (iconFolder && fullPathWhenSourceIsIconName) {
-                return fullPathWhenSourceIsIconName
-            }
-            return root.source
+            if (!root.source) return ""
+            // An absolute path/URL is used as-is.
+            if (root.source.startsWith("/") || root.source.includes("://")) return root.source
+            if (!root.iconFolder) return root.source
+            // Icon *names* are stored without an extension (IconPickerDialog
+            // strips ".svg", SystemInfo hands out e.g. "arch-symbolic"), but
+            // this used to concatenate the bare name straight onto the folder
+            // and hand IconImage an extensionless path it cannot open. Add the
+            // asset's extension unless the caller already supplied one.
+            const name = /\.[a-zA-Z0-9]+$/.test(root.source) ? root.source : root.source + ".svg"
+            return root.iconFolder + "/" + name
         }
         implicitSize: root.height
     }

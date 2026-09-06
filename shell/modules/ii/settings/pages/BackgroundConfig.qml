@@ -236,6 +236,9 @@ ContentPage {
                 }
 
                 ConfigSelectionArray {
+                    // Both split options only do anything while the blur wall
+                    // is on - showing them enabled otherwise reads as broken.
+                    visible: Config.options.background.showBlur
                     text: Translation.tr("Split blur amount")
                     icon: "split_scene"
                     currentValue: Config.options.background.splitRatio
@@ -250,6 +253,7 @@ ContentPage {
                 }
 
                 ConfigSelectionArray {
+                    visible: Config.options.background.showBlur
                     text: Translation.tr("Split blur side")
                     icon: "align_horizontal_left"
                     currentValue: Config.options.background.splitSide
@@ -1141,6 +1145,29 @@ ContentPage {
                                 color: Appearance.colors.colSubtext
                             }
                         }
+                    }
+                }
+            }
+            ContentSubsection {
+                title: Translation.tr("Visualizer")
+                visible: Config.options.background.widgets.visualizer.enable
+
+                GroupedList {
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "energy_savings_leaf"
+                        text: Translation.tr("Pause while a window covers the desktop")
+                        checked: Config.options.background.widgets.visualizer.hideWhenObscured
+                        onCheckedChanged: {
+                            Config.options.background.widgets.visualizer.hideWhenObscured = checked;
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("The visualizer redraws on every audio frame and keeps cava capturing, so it is the most expensive thing on the desktop. With this on, it is torn down completely on any screen whose active workspace holds a tiled or fullscreen window - and cava stops once no screen is showing one. Floating windows don't count, since the desktop stays visible around them. Each screen is judged on its own: a window on one monitor never stops the visualizer on another.")
                     }
                 }
             }

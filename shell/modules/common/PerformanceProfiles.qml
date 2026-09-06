@@ -11,7 +11,7 @@ import Quickshell
  *   - config:  Config.options.* paths (dot-separated) -> value. Applied by
  *              Config.applyPerformanceProfile(), which only ever touches
  *              Config.options (no compositor calls, so Config.qml never
- *              has to import HyprlandConfig.qml and risk a circular import).
+ *              has to import services/HyprlandConfig.qml and risk a circular import).
  *   - hypr:    literal "decoration:*"/"misc:*" Hyprland keys -> value,
  *              pushed live via HyprlandConfig.setMany() by whichever page
  *              applies the profile (same two-step shape InterfaceConfig.qml

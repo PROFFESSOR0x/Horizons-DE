@@ -21,10 +21,14 @@ Scope {
         id: panelWindow
         readonly property var monitor: WM.monitorFor(panelWindow.screen)
         property bool monitorIsFocused: WM.focusedMonitor?.name === monitor?.name
-        // Same reasoning as Overview.qml: m3Island has its own inline
-        // launcher/switcher surface built into the bar itself.
-        readonly property bool m3IslandActive: Config.options.bar.barMode === "m3Island"
-        visible: GlobalStates.windowSwitcherOpen && !panelWindow.m3IslandActive
+        // Deliberately NOT suppressed under m3Island, unlike Overview.qml.
+        // That suppression is correct there because m3Island genuinely does
+        // replace the overview: M3LauncherInline renders GlobalStates.overviewOpen
+        // inside the bar. Nothing renders GlobalStates.windowSwitcherOpen,
+        // though - the island has no switcher surface - so copying the same
+        // guard here meant Super+Tab flipped the state and then nothing at all
+        // appeared for anyone using the M3 Island bar.
+        visible: GlobalStates.windowSwitcherOpen
 
         color: "transparent"
 
@@ -46,13 +50,13 @@ Scope {
                 Binding {
                     target: panelWindow.WlrLayershell
                     property: "keyboardFocus"
-                    value: (GlobalStates.windowSwitcherOpen && !panelWindow.m3IslandActive) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+                    value: GlobalStates.windowSwitcherOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
                 }
             }
         }
 
         mask: Region {
-            item: (GlobalStates.windowSwitcherOpen && !panelWindow.m3IslandActive) ? content : null
+            item: GlobalStates.windowSwitcherOpen ? content : null
         }
 
         anchors {

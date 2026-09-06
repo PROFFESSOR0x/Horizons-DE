@@ -34,8 +34,25 @@ TabBar {
                 index: root.currentIndex
             }
             height: 3
-            x: Math.min(idxPair.idx1, idxPair.idx2) * baseWidth + root.indicatorPadding
-            width: ((Math.max(idxPair.idx1, idxPair.idx2) + 1) * baseWidth - root.indicatorPadding) - x
+            // Measured from the actual tab items rather than assuming every tab
+            // is root.width / root.count wide - tabs are sized by their own
+            // label now (see SecondaryTabButton's contentItem), so equal-width
+            // maths put the underline under the wrong place. baseWidth stays as
+            // the fallback for the frame before the items exist.
+            function tabX(i) {
+                root.count // dependency: re-measure once the tab items exist
+                const item = root.itemAt(Math.round(i))
+                return item ? item.x : Math.round(i) * baseWidth
+            }
+            function tabRight(i) {
+                root.count // dependency: re-measure once the tab items exist
+                const item = root.itemAt(Math.round(i))
+                return item ? item.x + item.width : (Math.round(i) + 1) * baseWidth
+            }
+            readonly property real spanLeft: Math.min(tabX(idxPair.idx1), tabX(idxPair.idx2))
+            readonly property real spanRight: Math.max(tabRight(idxPair.idx1), tabRight(idxPair.idx2))
+            x: spanLeft + root.indicatorPadding
+            width: Math.max(0, spanRight - root.indicatorPadding - x)
         }
 
         Rectangle { // Tabbar bottom border

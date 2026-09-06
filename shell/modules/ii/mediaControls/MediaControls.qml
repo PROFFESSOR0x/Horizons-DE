@@ -87,7 +87,11 @@ Scope {
             Config.options.bar.layouts.leftLayout.includes("visualizer") ||
             Config.options.bar.layouts.middleLayout.includes("visualizer") ||
             Config.options.bar.layouts.rightLayout.includes("visualizer") ||
-            Config.options.background.widgets.visualizer.enable)
+            // Not just "the desktop visualizer is enabled": if every monitor
+            // showing it is covered by a window right now, nobody can see the
+            // output, so there is no reason to keep capturing and FFT-ing
+            // audio for it. See services/DesktopVisualizer.qml.
+            DesktopVisualizer.visibleAnywhere)
             && (MprisController.activePlayer?.isPlaying ?? false)
         onRunningChanged: {
             if (!cavaProc.running) {

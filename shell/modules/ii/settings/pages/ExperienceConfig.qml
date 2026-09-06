@@ -48,8 +48,11 @@ ContentPage {
         const h = Config.options.hyprland.general
         h.colActiveBorder = hyprColor(Appearance.colors.colPrimary)
         h.colInactiveBorder = hyprColor(Appearance.colors.colOutlineVariant)
-        HyprlandConfig.set("general:col.active_border", h.colActiveBorder)
-        HyprlandConfig.set("general:col.inactive_border", h.colInactiveBorder)
+        // Batched: concurrent hyprconfigurator.py runs race on the same file.
+        HyprlandConfig.setMany({
+            "general:col.active_border": h.colActiveBorder,
+            "general:col.inactive_border": h.colInactiveBorder,
+        })
     }
 
     function restoreConfiguredBorders() {

@@ -38,6 +38,9 @@ Item {
 
             Image {
                 id: iconImg
+                // Decode off the UI thread - a synchronous load of an arbitrarily
+                // large user/theme image stalls the whole shell (one QML thread).
+                asynchronous: true
                 anchors.fill: parent
                 visible: false
                 sourceSize.width: parent.size

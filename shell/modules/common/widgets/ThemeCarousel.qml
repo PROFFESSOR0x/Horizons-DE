@@ -78,6 +78,8 @@ Item {
             Image {
                 anchors.fill: parent
                 source: model.image
+                // Decode off the UI thread (see StyledImage.qml).
+                asynchronous: true
                 fillMode: Image.PreserveAspectCrop
                 opacity: card.isActive ? 0.9 : 0.5
                 Behavior on opacity {

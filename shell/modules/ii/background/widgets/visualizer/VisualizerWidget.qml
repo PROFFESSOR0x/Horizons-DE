@@ -16,13 +16,31 @@ AbstractBackgroundWidget {
     readonly property bool isPlaying: activePlayer?.isPlaying ?? false
     readonly property list<real> points: GlobalStates.visualizerPoints
 
-    property real barWidth: 4
-    property real barSpacing: 8
+    // This widget is driven by cava's raw output (see MediaControls.qml's
+    // cavaProc), i.e. it is re-laid-out on every single frame cava emits.
+    // Everything below is sized around that fact:
+    //
+    //  - barCount is capped instead of being derived from the screen width
+    //    alone. At the old 4px bar / 8px gap it worked out to ~160 bars on a
+    //    1080p screen, all of them re-measured, re-coloured and (before this)
+    //    individually animated per frame - which is what made the desktop
+    //    visualizer stall the whole shell while music played, since QML runs
+    //    the UI on one thread and every other panel waits behind it.
+    //  - cava only produces `bars = 50` values anyway (scripts/cava/
+    //    raw_output_config.txt), so anything past that was interpolated
+    //    detail that isn't in the source data to begin with.
+    //  - bars are stretched, not multiplied, to keep covering the full width.
+    readonly property int maxBars: 64
+    readonly property int barCount: Math.max(1, Math.min(maxBars, Math.floor(screenWidth / 24)))
+    readonly property real barSpacing: 8
+    readonly property real barWidth: Math.max(4, (screenWidth - barSpacing * (barCount - 1)) / barCount * 0.55)
     property real maxBarHeight: 220
     property real maxVisualizerValue: 1000
-    property real smoothingDuration: 150
 
-    readonly property int barCount: Math.max(1, Math.floor(screenWidth / (barWidth + barSpacing)))
+    // Hoisted out of the per-bar colour binding: these are two singleton
+    // lookups per palette change instead of six per bar per frame.
+    readonly property color colLow: Appearance.colors.colPrimaryContainer
+    readonly property color colHigh: Appearance.colors.colPrimary
 
     readonly property var smoothedPoints: {
         let raw = points
@@ -80,6 +98,10 @@ AbstractBackgroundWidget {
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: root.barSpacing
         opacity: root.activityOpacity
+        // Nothing to draw between tracks: keeps the scene graph from
+        // rebuilding a full row of (flat, minimum-height) bars while the
+        // widget is faded out.
+        visible: root.activityOpacity > 0
 
         Behavior on opacity {
             NumberAnimation { duration: 400; easing.type: Easing.OutCubic }
@@ -94,6 +116,10 @@ AbstractBackgroundWidget {
                     const v = root.smoothedPoints[index] ?? 0
                     return Math.max(root.barWidth, (v / root.maxVisualizerValue) * root.maxBarHeight)
                 }
+                // No Behavior on height on purpose. cava already feeds
+                // interpolated values at its own framerate, so a per-bar
+                // NumberAnimation added `barCount` concurrently-running
+                // animations to every frame while buying no extra smoothness.
                 height: pointValue
                 topLeftRadius: root.barWidth / 2
                 topRightRadius: root.barWidth / 2
@@ -101,15 +127,11 @@ AbstractBackgroundWidget {
 
                 property real intensity: pointValue / root.maxBarHeight
                 color: Qt.rgba(
-                    Appearance.colors.colPrimary.r * intensity + Appearance.colors.colPrimaryContainer.r * (1 - intensity),
-                    Appearance.colors.colPrimary.g * intensity + Appearance.colors.colPrimaryContainer.g * (1 - intensity),
-                    Appearance.colors.colPrimary.b * intensity + Appearance.colors.colPrimaryContainer.b * (1 - intensity),
+                    root.colHigh.r * intensity + root.colLow.r * (1 - intensity),
+                    root.colHigh.g * intensity + root.colLow.g * (1 - intensity),
+                    root.colHigh.b * intensity + root.colLow.b * (1 - intensity),
                     1
                 )
-
-                Behavior on height {
-                    NumberAnimation { duration: root.smoothingDuration; easing.type: Easing.OutQuad }
-                }
             }
         }
     }
