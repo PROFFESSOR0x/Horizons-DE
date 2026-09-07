@@ -53,7 +53,7 @@ NestableObject {
     function getWorkspaceId(group, index) {
         const logicalNumber = group * root.shownCount + index + 1
         if (C.Config.options.workspaceLinking.unifiedMultiMonitor)
-            return GlobalStates.unifiedWorkspaceIdForSlot(logicalNumber, root.monitorName)
+            return GlobalStates.peekUnifiedWorkspaceIdForSlot(logicalNumber, root.monitorName)
         return logicalNumber
     }
     function getWorkspaceNumber(group, index) {

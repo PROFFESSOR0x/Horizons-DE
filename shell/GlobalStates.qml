@@ -500,6 +500,12 @@ Singleton {
             ?? Number(logicalNumber)
     }
 
+    function peekUnifiedWorkspaceIdForSlot(logicalNumber, monitorName) {
+        const members = root.unifiedSetMembers(logicalNumber, false)
+        return members.find(entry => entry.monitorName === monitorName)?.workspaceId
+            ?? Number(logicalNumber)
+    }
+
     function unifiedWorkspaceMembers(workspaceId, monitorName, includeDetached) {
         if (!Config.options.workspaceLinking.unifiedMultiMonitor
                 || !root.isRealWorkspaceId(workspaceId) || !monitorName)

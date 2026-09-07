@@ -672,9 +672,13 @@ ContentPage {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
+                            // Let the row shrink rather than pushing the Add button off-screen
+                            // (narrow window / large font / long displayName). Combo takes the flex space.
                             StyledComboBox {
                                 id: addLayoutCombo
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 120
+                                Layout.preferredWidth: 200
                                 model: [
                                     { displayName: "us — English (US)", value: "us" },
                                     { displayName: "ara — Arabic", value: "ara" },
@@ -698,12 +702,16 @@ ContentPage {
                                 onActivated: idx => { customLayoutField.text = model[idx].value }
                             }
                             Rectangle {
-                                Layout.preferredWidth: 140
+                                Layout.minimumWidth: 70
+                                Layout.preferredWidth: 110
+                                Layout.maximumWidth: 140
                                 Layout.preferredHeight: 36
+                                Layout.alignment: Qt.AlignVCenter
                                 radius: Appearance.rounding.small
                                 color: Appearance.colors.colLayer1
                                 border.width: customLayoutField.activeFocus ? 1 : 0
                                 border.color: Appearance.colors.colPrimary
+                                clip: true
                                 TextInput {
                                     id: customLayoutField
                                     anchors.fill: parent
@@ -713,6 +721,7 @@ ContentPage {
                                     color: Appearance.colors.colOnLayer1
                                     font.pixelSize: Appearance.font.pixelSize.small
                                     property string placeholderText: "ara"
+                                    clip: true
                                     onAccepted: addBtn.clicked()
                                 }
                                 StyledText {
@@ -720,6 +729,9 @@ ContentPage {
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.left: parent.left
                                     anchors.leftMargin: 8
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 8
+                                    elide: Text.ElideRight
                                     text: "ara"
                                     color: Appearance.colors.colSubtext
                                     font.pixelSize: Appearance.font.pixelSize.small
@@ -727,6 +739,9 @@ ContentPage {
                             }
                             RippleButtonWithIcon {
                                 id: addBtn
+                                Layout.alignment: Qt.AlignVCenter
+                                Layout.preferredWidth: implicitWidth
+                                Layout.minimumWidth: implicitWidth
                                 materialIcon: "add"
                                 mainText: Translation.tr("Add")
                                 onClicked: {
