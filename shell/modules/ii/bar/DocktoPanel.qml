@@ -334,8 +334,7 @@ Item {
                             IconImage {
                                 id: pinnedIcon
                                 anchors.centerIn: parent
-                                source: Quickshell.iconPath(
-                                    TaskbarApps.iconFor(slotItem.appId), "image-missing")
+                                source: TaskbarApps.iconSourceFor(slotItem.appId)
                                 implicitSize: root.iconSize
                             }
 
@@ -447,8 +446,7 @@ Item {
                             IconImage {
                                 id: activeIcon
                                 anchors.centerIn: parent
-                                source: Quickshell.iconPath(
-                                    TaskbarApps.iconFor(activeSlot.modelData.appId), "image-missing")
+                                source: TaskbarApps.iconSourceFor(activeSlot.modelData.appId)
                                 implicitSize: root.iconSize
                             }
 

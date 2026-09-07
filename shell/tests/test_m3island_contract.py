@@ -152,7 +152,8 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("scheduleUpdateAll()", hyprland_data)
         self.assertIn("property bool windowRefreshQueued", hyprland_data)
         self.assertIn("if (getClients.running)", hyprland_data)
-        self.assertIn("root.windowRefreshDebounce.restart()", hyprland_data)
+        self.assertIn("windowRefreshDebounce.restart()", hyprland_data)
+        self.assertNotIn("root.windowRefreshDebounce.restart()", hyprland_data)
         self.assertIn('"windowtitlev2"', hyprland_data)
 
     def test_hyprland_customization_never_writes_removed_options(self) -> None:
@@ -195,6 +196,9 @@ class M3IslandContractTests(unittest.TestCase):
 
         self.assertIn("triggerListChange()", notifications[start:end])
         self.assertIn("Ignoring invalid notification storage", notifications)
+        self.assertIn("function persistentImage(image)", notifications)
+        self.assertIn('value.startsWith("image://qsimage/")', notifications)
+        self.assertIn("image = \"\"", notifications)
 
     def test_sidebar_uses_the_service_filtered_player_list(self) -> None:
         sidebar = source("modules/ii/sidebarRight/SidebarRightContent.qml")
@@ -302,7 +306,11 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("switchWorkspace(workspaceId)", bar)
         self.assertIn("onClicked: mouse", bar)
         self.assertIn("workspaceIdForMouse", bar)
-        self.assertIn("activeWorkspaceForMonitor", states)
+        self.assertIn("function unifiedSetMembers", states)
+        self.assertIn("function initializeUnifiedWorkspaceSets", states)
+        self.assertIn("function unifiedWorkspaceIdForSlot", states)
+        self.assertIn("nextUnusedWorkspaceId", states)
+        self.assertIn("unifiedSets", config)
         self.assertIn("HyprlandData.monitors.find", source("services/HyprlandBackend.qml"))
         self.assertIn('Quickshell.execDetached(["hyprctl", "eval"', source("services/HyprlandBackend.qml"))
         self.assertIn("hl.dsp.workspace.move", source("services/HyprlandBackend.qml"))
@@ -388,6 +396,9 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertNotIn("component TaskbarAppEntry", taskbar)
         self.assertIn("DesktopEntries.byId(appId)", taskbar)
         self.assertNotIn("DesktopEntries.heuristicLookup", taskbar)
+        self.assertIn("function iconSourceFor(appId, fallbackIcon)", taskbar)
+        self.assertIn('"kittiy-ar": "/home/professorx/.local/opt/kittiy-ar', taskbar)
+        self.assertIn('"chatgpt": "/usr/share/pixmaps/chatgpt.png"', taskbar)
 
     def test_lock_preview_and_full_monitor_visualizer_keep_their_own_state(self) -> None:
         states = source("GlobalStates.qml")

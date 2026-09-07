@@ -97,7 +97,7 @@ DockButton {
                 }
                 active: !root.isSeparator
                 sourceComponent: IconImage {
-                    source: Quickshell.iconPath(TaskbarApps.iconFor(appToplevel.appId), "image-missing")
+                    source: TaskbarApps.iconSourceFor(appToplevel.appId)
                     implicitSize: root.iconSize
                 }
             }

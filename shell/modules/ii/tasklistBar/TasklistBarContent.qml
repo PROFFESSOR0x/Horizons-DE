@@ -191,7 +191,7 @@ Item {
                 // App icon
                 IconImage {
                     id: iconImg
-                    source: Quickshell.iconPath(TaskbarApps.iconFor(taskBtn.appId), "image-missing")
+                    source: TaskbarApps.iconSourceFor(taskBtn.appId)
                     implicitSize: Appearance.font.pixelSize.larger
                     opacity: taskBtn.isPinned && !taskBtn.hasWindows ? 0.45 : 1.0
                     Behavior on opacity {

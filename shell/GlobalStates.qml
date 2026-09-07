@@ -369,80 +369,150 @@ Singleton {
         return group
     }
 
-    // A unified workspace set is based on the active real workspaces, but
-    // its peers move by the same numeric delta. On two monitors with 1 + 2
-    // as the current set, selecting 3 on the first monitor selects 4 on the
-    // second; no fake duplicate workspace is ever created by the compositor.
+    // A logical workspace has one *distinct* real compositor workspace per
+    // output.  Do not derive peers by adding a delta to the currently active
+    // ids: on two monitors that produced 1+2 then 2+3, which re-assigned the
+    // real workspace 2 from one output to the other on the next switch.
+    // `unifiedSets` is the stable mapping used by the bar and the switcher.
+    function unifiedSets() {
+        return (Config.options.workspaceLinking.unifiedSets ?? [])
+            .map(root.normalizedWorkspaceGroup)
+    }
+
+    function workspaceIdsInUse() {
+        const used = new Set()
+        for (const workspace of (WM.workspaces ?? [])) {
+            const id = Number(workspace?.id)
+            if (root.isRealWorkspaceId(id)) used.add(id)
+        }
+        for (const set of root.unifiedSets()) {
+            for (const entry of set) used.add(entry.workspaceId)
+        }
+        return used
+    }
+
+    function nextUnusedWorkspaceId(used) {
+        let id = 1
+        while (used.has(id)) ++id
+        used.add(id)
+        return id
+    }
+
+    function persistUnifiedSets(sets) {
+        Config.options.workspaceLinking.unifiedSets = sets
+            .filter(set => set.length > 0)
+            .map(set => set.map(entry => entry.key))
+    }
+
+    // Build a safe initial mapping from the workspaces that already exist on
+    // each screen.  Existing windows therefore stay on their own monitor;
+    // missing peers receive a fresh id which Hyprland creates only when the
+    // user enters that logical workspace.
+    function initializeUnifiedWorkspaceSets() {
+        const monitorNames = root.connectedMonitorNames()
+        if (monitorNames.length < 2) return []
+
+        const existing = root.unifiedSets()
+        if (existing.some(set => root.groupCoversConnectedMonitors(set))) return existing
+
+        // At startup HyprlandData has not necessarily finished its first
+        // IPC snapshot.  Waiting for it avoids reserving ids that are already
+        // occupied by a real workspace which simply has not been reported yet.
+        if ((WM.workspaces ?? []).length === 0) return []
+
+        const byMonitor = ({})
+        for (const name of monitorNames) byMonitor[name] = []
+        for (const workspace of (WM.workspaces ?? [])) {
+            const id = Number(workspace?.id)
+            const monitor = String(workspace?.monitor ?? workspace?.output ?? "")
+            if (root.isRealWorkspaceId(id) && byMonitor[monitor] !== undefined)
+                byMonitor[monitor].push(id)
+        }
+        for (const name of monitorNames)
+            byMonitor[name].sort((a, b) => a - b)
+
+        const count = Math.max(1, ...monitorNames.map(name => byMonitor[name].length))
+        const used = root.workspaceIdsInUse()
+        const sets = []
+        for (let index = 0; index < count; ++index) {
+            const set = []
+            for (const name of monitorNames) {
+                const id = byMonitor[name][index] ?? root.nextUnusedWorkspaceId(used)
+                set.push({ key: root.workspaceKey(id, name), workspaceId: id, monitorName: name })
+            }
+            sets.push(set)
+        }
+        root.persistUnifiedSets(sets)
+        console.log("[Workspaces] initialized unified sets="
+            + sets.map(set => root.workspaceGroupSignature(set)).join(" / "))
+        return sets
+    }
+
+    // Return the real workspace members for a logical slot.  Slots are
+    // created lazily, with globally unused ids, so the visible bar can grow
+    // without allocating compositor workspaces or colliding with windows.
+    function unifiedSetMembers(logicalNumber, createIfMissing) {
+        if (!Config.options.workspaceLinking.unifiedMultiMonitor
+                || !Number.isInteger(Number(logicalNumber)) || Number(logicalNumber) < 1)
+            return []
+        const monitorNames = root.connectedMonitorNames()
+        if (monitorNames.length < 2) return []
+
+        const sets = root.unifiedSets()
+        if (sets.length === 0) root.initializeUnifiedWorkspaceSets()
+        const current = root.unifiedSets()
+        const setIndex = Number(logicalNumber) - 1
+        let members = (current[setIndex] ?? []).slice()
+        if (!createIfMissing && !root.groupCoversConnectedMonitors(members)) return []
+
+        const used = root.workspaceIdsInUse()
+        const changed = []
+        for (const name of monitorNames) {
+            const matches = members.filter(entry => entry.monitorName === name)
+            if (matches.length === 1) {
+                changed.push(matches[0])
+                continue
+            }
+            const id = root.nextUnusedWorkspaceId(used)
+            changed.push({ key: root.workspaceKey(id, name), workspaceId: id, monitorName: name })
+        }
+        const needsSave = !root.groupCoversConnectedMonitors(members)
+            || root.workspaceGroupSignature(members) !== root.workspaceGroupSignature(changed)
+        if (needsSave && createIfMissing) {
+            const next = current.slice()
+            next[setIndex] = changed
+            root.persistUnifiedSets(next)
+        }
+        return changed
+    }
+
+    function logicalWorkspaceNumber(workspaceId, monitorName) {
+        if (!Config.options.workspaceLinking.unifiedMultiMonitor) return Number(workspaceId)
+        const key = root.workspaceKey(workspaceId, monitorName)
+        const sets = root.unifiedSets()
+        const index = sets.findIndex(set => set.some(entry => entry.key === key))
+        return index >= 0 ? index + 1 : Number(workspaceId)
+    }
+
+    function unifiedWorkspaceIdForSlot(logicalNumber, monitorName) {
+        const members = root.unifiedSetMembers(logicalNumber, true)
+        return members.find(entry => entry.monitorName === monitorName)?.workspaceId
+            ?? Number(logicalNumber)
+    }
+
     function unifiedWorkspaceMembers(workspaceId, monitorName, includeDetached) {
         if (!Config.options.workspaceLinking.unifiedMultiMonitor
                 || !root.isRealWorkspaceId(workspaceId) || !monitorName)
             return []
 
-        // The active workspace on each output is the authoritative template.
-        // Saved groups can outlive monitor reconnects and workspace changes;
-        // treating one as current made the unified mode jump to stale ids.
-        const active = []
-        for (const name of root.connectedMonitorNames()) {
-            const workspace = WM.activeWorkspaceForMonitor(name)
-            if (root.isRealWorkspaceId(workspace?.id)) {
-                active.push({
-                    key: root.workspaceKey(workspace.id, name),
-                    workspaceId: Number(workspace.id),
-                    monitorName: name,
-                })
-            }
-        }
-        const activeSource = active.find(entry => entry.monitorName === monitorName)
-        if (root.groupCoversConnectedMonitors(active) && activeSource) {
-            const delta = Number(workspaceId) - activeSource.workspaceId
-            const generated = active.map(entry => ({
-                key: root.workspaceKey(entry.workspaceId + delta, entry.monitorName),
-                workspaceId: entry.workspaceId + delta,
-                monitorName: entry.monitorName,
-            }))
-            if (generated.every(entry => root.isRealWorkspaceId(entry.workspaceId))
-                    && (includeDetached || !root.isDetachedUnifiedGroup(generated)))
-                return generated
-        }
-
-        const current = root.linkedWorkspaceMembers(workspaceId, monitorName)
-        if (root.groupCoversConnectedMonitors(current))
-            return (includeDetached || !root.isDetachedUnifiedGroup(current)) ? current : []
-
-        const templates = (Config.options.workspaceLinking.groups ?? [])
-            .map(root.normalizedWorkspaceGroup)
-            .filter(root.groupCoversConnectedMonitors)
-        const template = templates.find(entries => entries.some(entry => entry.monitorName === monitorName))
-        if (!template) return []
-
-        const source = template.find(entry => entry.monitorName === monitorName)
-        const delta = Number(workspaceId) - source.workspaceId
-        const generated = template.map(entry => ({
-            key: root.workspaceKey(entry.workspaceId + delta, entry.monitorName),
-            workspaceId: entry.workspaceId + delta,
-            monitorName: entry.monitorName,
-        }))
-        if (!generated.every(entry => root.isRealWorkspaceId(entry.workspaceId))) return []
-        if (!includeDetached && root.isDetachedUnifiedGroup(generated)) return []
-        return generated
+        const key = root.workspaceKey(workspaceId, monitorName)
+        const members = root.unifiedSets().find(set => set.some(entry => entry.key === key)) ?? []
+        if (!root.groupCoversConnectedMonitors(members)) return []
+        return includeDetached || !root.isDetachedUnifiedGroup(members) ? members : []
     }
 
     function ensureUnifiedWorkspaceGroup(workspaceId, monitorName) {
         const members = root.unifiedWorkspaceMembers(workspaceId, monitorName, false)
-        if (!root.groupCoversConnectedMonitors(members)) return []
-        const signature = root.workspaceGroupSignature(members)
-        const groups = (Config.options.workspaceLinking.groups ?? [])
-            .map(root.normalizedWorkspaceGroup)
-            .filter(group => group.length > 1)
-        if (!groups.some(group => root.workspaceGroupSignature(group) === signature)) {
-            const memberKeys = members.map(entry => entry.key)
-            // A workspace belongs to one logical set only. Replacing an
-            // overlapping stale group keeps selection and Alt-Tab scope
-            // deterministic after monitors are connected or disconnected.
-            const kept = groups.filter(group => !group.some(entry => memberKeys.indexOf(entry.key) !== -1))
-            kept.push(members)
-            Config.options.workspaceLinking.groups = kept.map(group => group.map(entry => entry.key))
-        }
         return members
     }
 
@@ -491,27 +561,18 @@ Singleton {
     function setUnifiedMultiMonitorWorkspaces(enabled) {
         Config.options.workspaceLinking.unifiedMultiMonitor = enabled
         if (!enabled) return
+        root.initializeUnifiedWorkspaceSets()
+    }
 
-        // Build one logical group from the workspaces currently visible on
-        // every real output. This does not invent compositor workspaces: it
-        // links exactly the ones the compositor reports, so mixed DPI and
-        // hot-plugged monitor layouts remain safe.
-        const active = []
-        for (const monitor of root.connectedMonitorNames()) {
-            const workspace = WM.activeWorkspaceForMonitor(monitor)
-            if (!root.isRealWorkspaceId(workspace?.id)) continue
-            active.push(root.workspaceKey(workspace.id, monitor))
-        }
-        if (active.length > 1) {
-            const activeEntries = root.normalizedWorkspaceGroup(active)
-            const kept = (Config.options.workspaceLinking.groups ?? [])
-                .map(root.normalizedWorkspaceGroup)
-                .filter(group => !group.some(entry => active.indexOf(entry.key) !== -1))
-                .filter(group => group.length > 1)
-                .map(group => group.map(entry => entry.key))
-            kept.push(active)
-            Config.options.workspaceLinking.groups = kept
-            root.clearDetachedUnifiedGroup(activeEntries)
+    // The first Hyprland IPC snapshot arrives asynchronously after the shell
+    // loads.  If the user already enabled this mode, seed its mapping only
+    // once that snapshot is available instead of guessing ids during startup.
+    Connections {
+        target: WM
+        function onWorkspacesChanged() {
+            if (Config.options.workspaceLinking.unifiedMultiMonitor
+                    && root.unifiedSets().length === 0)
+                root.initializeUnifiedWorkspaceSets()
         }
     }
 

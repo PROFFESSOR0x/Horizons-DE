@@ -52,12 +52,24 @@ Singleton {
             "org.xfce.thunar": "org.xfce.thunar",
             "thunar": "org.xfce.thunar",
             "org.gnome.nautilus": "org.gnome.Nautilus",
-            "nautilus": "org.gnome.Nautilus"
+            "nautilus": "org.gnome.Nautilus",
+            "code-oss": "com.visualstudio.code.oss",
+            // These two desktop files deliberately use icons outside the
+            // current icon-theme lookup paths, so keep their verified image
+            // files explicit instead of falling back to an invisible icon.
+            "kittiy-ar": "/home/professorx/.local/opt/kittiy-ar/share/icons/hicolor/256x256/apps/kitty.png",
+            "chatgpt": "/usr/share/pixmaps/chatgpt.png"
         }
         const icon = knownIcons[key]
             ?? (raw.includes(".") ? raw.split(".").pop() : raw)
         root.iconCache[key] = icon
         return icon
+    }
+
+    function iconSourceFor(appId, fallbackIcon) {
+        const icon = root.iconFor(appId)
+        return icon.startsWith("/") ? "file://" + icon
+            : Quickshell.iconPath(icon, fallbackIcon ?? "image-missing")
     }
 
     property list<var> apps: {

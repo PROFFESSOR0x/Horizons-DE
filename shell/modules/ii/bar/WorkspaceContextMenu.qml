@@ -90,7 +90,7 @@ PopupWindow {
                 // multi-monitor workspace mode; manual groups stay linked
                 // until explicitly changed through their own selection.
                 visible: Config.options.workspaceLinking.unifiedMultiMonitor
-                    && GlobalStates.linkedWorkspaceMembers(root.workspaceId, root.monitorName).length > 1
+                    && GlobalStates.unifiedWorkspaceMembers(root.workspaceId, root.monitorName, true).length > 1
                 symbolName: "link_off"
                 menuLabel: Translation.tr("Separate this workspace from the group")
                 onTriggered: GlobalStates.detachWorkspace(root.workspaceId, root.monitorName)

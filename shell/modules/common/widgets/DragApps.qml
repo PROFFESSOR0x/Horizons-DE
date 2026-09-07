@@ -114,9 +114,8 @@ Item {
                 IconImage {
                     id: ghostIcon
                     anchors.centerIn: parent
-                    source: Quickshell.iconPath(
-                        TaskbarApps.iconFor(root._workOrder[root.activeDragVisualIndex] ?? ""),
-                        "image-missing")
+                    source: TaskbarApps.iconSourceFor(
+                        root._workOrder[root.activeDragVisualIndex] ?? "")
                     implicitSize: root.btnSize * 0.65
                     opacity: 0.85
 
@@ -184,9 +183,7 @@ Item {
                     IconImage {
                         id: appIcon
                         anchors.centerIn: parent
-                        source: Quickshell.iconPath(
-                            TaskbarApps.iconFor(slotItem.appId),
-                            "image-missing")
+                        source: TaskbarApps.iconSourceFor(slotItem.appId)
                         implicitSize: 33
                     }
 

@@ -294,7 +294,7 @@ ButtonMouseArea {
                 delegate: WorkspaceItem {
                     id: wsApp
                     property var biggestWindow: wsModel.biggestWindow[index]
-                    property var mainAppIconSource: Quickshell.iconPath(TaskbarApps.iconFor(biggestWindow?.class), "image-missing")
+                    property var mainAppIconSource: TaskbarApps.iconSourceFor(biggestWindow?.class)
 
                     AppIcon {
                         id: appIcon
@@ -540,7 +540,8 @@ ButtonMouseArea {
                     family: root.workspaceOptions.useNerdFont ? Appearance.font.family.iconNerd : defaultFont
                 }
                 color: wsNum.contentColor
-                text: root.workspaceOptions.numberMap[wsNum.wsId - 1] || wsNum.wsId
+                readonly property int logicalNumber: wsModel.getWorkspaceNumberAt(wsNum.index)
+                text: root.workspaceOptions.numberMap[logicalNumber - 1] || logicalNumber
             }
         }
     }

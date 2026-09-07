@@ -222,7 +222,7 @@ Singleton {
         onExited: (exitCode, exitStatus) => {
             if (!root.windowRefreshQueued) return
             root.windowRefreshQueued = false
-            root.windowRefreshDebounce.restart()
+            windowRefreshDebounce.restart()
         }
     }
 

@@ -120,6 +120,7 @@ Singleton {
                 unifiedMultiMonitor: false,
                 groups: [],
                 detachedGroups: [],
+                unifiedSets: [],
             };
         } else {
             if (opts.workspaceLinking.unifiedMultiMonitor === undefined)
@@ -128,6 +129,8 @@ Singleton {
                 opts.workspaceLinking.groups = [];
             if (opts.workspaceLinking.detachedGroups === undefined)
                 opts.workspaceLinking.detachedGroups = [];
+            if (opts.workspaceLinking.unifiedSets === undefined)
+                opts.workspaceLinking.unifiedSets = [];
         }
 
         // Workspace ids around INT_MAX are compositor-internal temporary
@@ -169,6 +172,7 @@ Singleton {
         };
         opts.workspaceLinking.detachedGroups = cleanDetachedWorkspaceGroups(
             opts.workspaceLinking.detachedGroups);
+        opts.workspaceLinking.unifiedSets = cleanWorkspaceGroups(opts.workspaceLinking.unifiedSets);
         if (opts.appLaunch === undefined)
             opts.appLaunch = { showIndicator: true, timeout: 10000 };
         else if (opts.appLaunch.aboveWindows === undefined)
@@ -1483,6 +1487,10 @@ Singleton {
                 // Canonical group signatures explicitly separated by the
                 // user while the all-screens mode is enabled.
                 property list<string> detachedGroups: []
+                // Each item is one logical workspace.  Its members have
+                // distinct real Hyprland ids, one per output, so changing a
+                // logical workspace never steals another output's workspace.
+                property list<var> unifiedSets: []
             }
 
             property JsonObject interactions: JsonObject {

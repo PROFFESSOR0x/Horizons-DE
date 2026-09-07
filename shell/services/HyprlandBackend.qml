@@ -87,6 +87,13 @@ Scope {
         }
         if (statements.length === 1) return
         statements.push("hl.dispatch(hl.dsp.cursor.move({ x = p.x, y = p.y }))")
+        // Restore focus to the screen that initiated the action. The previous
+        // implementation ignored focusMonitor, leaving focus on whichever
+        // monitor happened to be processed last.
+        const focusEntry = entries.find(entry => entry?.monitorName === focusMonitor)
+            ?? entries[entries.length - 1]
+        if (focusEntry?.workspaceId)
+            statements.push("hl.dispatch(hl.dsp.focus({ workspace = " + Number(focusEntry.workspaceId) + " }))")
         const code = statements.join("; ")
         console.log("[Workspaces] Hyprland multi-monitor eval=" + code)
         Quickshell.execDetached(["hyprctl", "eval", code])

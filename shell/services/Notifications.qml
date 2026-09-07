@@ -37,9 +37,22 @@ Singleton {
 
         onNotificationChanged: {
             if (notification === null) {
+                // `image://qsimage/...` is a live handle owned by the
+                // notification server. It becomes invalid as soon as the
+                // sender withdraws the notification, while a fading delegate
+                // may still try to paint it for one frame.
+                image = ""
+                popup = false
                 root.discardNotification(notificationId);
             }
         }
+    }
+
+    function persistentImage(image) {
+        const value = String(image ?? "")
+        // These handles are valid only for the current notification-server
+        // lifetime, never for persisted notification history.
+        return value.startsWith("image://qsimage/") ? "" : value
     }
 
     function notifToJSON(notif) {
@@ -49,7 +62,7 @@ Singleton {
             "appIcon": notif.appIcon,
             "appName": notif.appName,
             "body": notif.body,
-            "image": notif.image,
+            "image": root.persistentImage(notif.image),
             "summary": notif.summary,
             "time": notif.time,
             "urgency": notif.urgency,
@@ -324,7 +337,7 @@ Singleton {
                     "appIcon": notif.appIcon,
                     "appName": notif.appName,
                     "body": notif.body,
-                    "image": notif.image,
+                    "image": root.persistentImage(notif.image),
                     "summary": notif.summary,
                     "time": notif.time,
                     "urgency": notif.urgency,

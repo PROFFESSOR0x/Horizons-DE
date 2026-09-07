@@ -28,7 +28,9 @@ Item {
     readonly property var linkedWorkspaceScope: {
         const active = WM.activeWorkspaceForMonitor(root.monitorName)
         if (!active) return []
-        return GlobalStates.linkedWorkspaceMembers(active.id, root.monitorName)
+        const unified = GlobalStates.unifiedWorkspaceMembers(active.id, root.monitorName, false)
+        return unified.length > 1 ? unified
+            : GlobalStates.linkedWorkspaceMembers(active.id, root.monitorName)
     }
     readonly property real tileMaxWidth: 300
     readonly property real tileMaxHeight: 175
