@@ -26,6 +26,7 @@ ContentPage {
         { name: "images", label: Translation.tr("Images"), icon: "image" },
         { name: "visualizer", label: Translation.tr("Audio visualizer"), icon: "graphic_eq" },
         { name: "visualizerMirror", label: Translation.tr("Mirrored visualizer"), icon: "vertical_align_center" },
+        { name: "fullMonitorVisualizer", label: Translation.tr("Full monitor visualizer"), icon: "fullscreen" },
         { name: "customImage", label: Translation.tr("Custom image"), icon: "photo" },
         { name: "resources", label: Translation.tr("System resources"), icon: "monitoring" },
         { name: "networkInfo", label: Translation.tr("Network info"), icon: "wifi" },

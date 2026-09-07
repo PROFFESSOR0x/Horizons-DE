@@ -1075,6 +1075,12 @@ ContentPage {
                             enabled: Config.options.background.widgets.visualizerMirror.enable
                         },
                         {
+                            id: "fullMonitorVisualizer",
+                            icon: "fullscreen",
+                            name: Translation.tr("Full monitor visualizer"),
+                            enabled: Config.options.background.widgets.fullMonitorVisualizer.enable
+                        },
+                        {
                             id: "calendar",
                             icon: "calendar_month",
                             name: Translation.tr("Calendar"),
@@ -1169,6 +1175,8 @@ ContentPage {
                                             Config.options.background.widgets.visualizer.enable = checked
                                         else if (modelData.icon === "vertical_align_center")
                                             Config.options.background.widgets.visualizerMirror.enable = checked
+                                        else if (modelData.icon === "fullscreen")
+                                            Config.options.background.widgets.fullMonitorVisualizer.enable = checked
                                         else if (modelData.icon === "calendar_month")
                                             Config.options.background.widgets.calendar.enable = checked
                                         else if (modelData.icon === "public")
@@ -1295,6 +1303,54 @@ ContentPage {
                         color: Appearance.colors.colSubtext
                         font.pixelSize: Appearance.font.pixelSize.small
                         text: Translation.tr("The visualizer redraws on every audio frame and keeps cava capturing, so it is the most expensive thing on the desktop. With this on, it is torn down completely on any screen whose active workspace holds a tiled or fullscreen window - and cava stops once no screen is showing one. Floating windows don't count, since the desktop stays visible around them. Each screen is judged on its own: a window on one monitor never stops the visualizer on another.")
+                    }
+                }
+            }
+            ContentSubsection {
+                title: Translation.tr("Full monitor visualizer")
+                visible: Config.options.background.widgets.fullMonitorVisualizer.enable
+
+                GroupedList {
+                    ConfigSwitch {
+                        buttonIcon: "energy_savings_leaf"
+                        text: Translation.tr("Pause while a window covers the desktop")
+                        checked: Config.options.background.widgets.fullMonitorVisualizer.hideWhenObscured
+                        onCheckedChanged: Config.options.background.widgets.fullMonitorVisualizer.hideWhenObscured = checked
+                    }
+                    ConfigSpinBox {
+                        icon: "height"
+                        text: Translation.tr("Maximum height")
+                        value: Config.options.background.widgets.fullMonitorVisualizer.height
+                        from: 40; to: 800; stepSize: 10
+                        onValueChanged: Config.options.background.widgets.fullMonitorVisualizer.height = value
+                    }
+                    ConfigSpinBox {
+                        icon: "width"
+                        text: Translation.tr("Bar width")
+                        value: Config.options.background.widgets.fullMonitorVisualizer.barWidth
+                        from: 2; to: 16; stepSize: 1
+                        onValueChanged: Config.options.background.widgets.fullMonitorVisualizer.barWidth = value
+                    }
+                    ConfigSpinBox {
+                        icon: "space_bar"
+                        text: Translation.tr("Bar spacing")
+                        value: Config.options.background.widgets.fullMonitorVisualizer.spacing
+                        from: 0; to: 24; stepSize: 1
+                        onValueChanged: Config.options.background.widgets.fullMonitorVisualizer.spacing = value
+                    }
+                    ConfigSpinBox {
+                        icon: "animation"
+                        text: Translation.tr("Smoothing duration")
+                        value: Config.options.background.widgets.fullMonitorVisualizer.smoothingDuration
+                        from: 0; to: 500; stepSize: 10
+                        onValueChanged: Config.options.background.widgets.fullMonitorVisualizer.smoothingDuration = value
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("The classic full-width end4 spectrum. It is attached to the bottom of every eligible monitor and is not a draggable canvas widget.")
                     }
                 }
             }

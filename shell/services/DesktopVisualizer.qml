@@ -26,8 +26,14 @@ Singleton {
 
     readonly property bool primaryEnabled: Config.options.background.widgets.visualizer.enable
     readonly property bool mirroredEnabled: Config.options.background.widgets.visualizerMirror.enable
-    readonly property bool enabled: primaryEnabled || mirroredEnabled
+    readonly property bool fullMonitorEnabled: Config.options.background.widgets.fullMonitorVisualizer.enable
+    readonly property bool enabled: primaryEnabled || mirroredEnabled || fullMonitorEnabled
     readonly property var screenList: Config.options.background.screenList ?? []
+    // Unlocking widgets is the desktop layout-editing mode. The lock preview
+    // is the other editor surface. Neither should run CAVA just to draw a
+    // preview: widgets use their own lightweight travelling pulse instead.
+    readonly property bool editingPreviewActive: GlobalStates.lockPreviewOpen
+        || (!GlobalStates.screenLocked && !Config.options.background.widgetsLocked)
 
     // An empty screenList means "every screen", matching Background.qml.
     function allowedOnScreen(screenName) {
@@ -39,6 +45,7 @@ Singleton {
     // property read, captured by the binding that calls it.
     function shownOnScreen(screenName, visualizerConfig) {
         if (!visualizerConfig?.enable || !root.allowedOnScreen(screenName)) return false;
+        if (root.editingPreviewActive) return true;
         if ((visualizerConfig.hideWhenObscured ?? true) && WM.obscuredMonitors[screenName]) return false;
         return true;
     }
@@ -48,11 +55,13 @@ Singleton {
     // visible on another.
     readonly property bool visibleAnywhere: {
         if (!root.enabled) return false;
+        if (root.editingPreviewActive) return false;
         const screens = Quickshell.screens;
         for (let i = 0; i < screens.length; i++) {
             const screenName = screens[i].name;
             if (root.shownOnScreen(screenName, Config.options.background.widgets.visualizer)
-                || root.shownOnScreen(screenName, Config.options.background.widgets.visualizerMirror)) return true;
+                || root.shownOnScreen(screenName, Config.options.background.widgets.visualizerMirror)
+                || root.shownOnScreen(screenName, Config.options.background.widgets.fullMonitorVisualizer)) return true;
         }
         return false;
     }

@@ -624,6 +624,17 @@ Variants {
                     }
                 }
                 FadeLoader {
+                    shown: DesktopVisualizer.shownOnScreen(
+                        bgRoot.screen.name, Config.options.background.widgets.fullMonitorVisualizer)
+                    sourceComponent: FullMonitorVisualizerWidget {
+                        screenWidth: bgRoot.screen.width
+                        screenHeight: bgRoot.screen.height
+                        scaledScreenWidth: bgRoot.screen.width
+                        scaledScreenHeight: bgRoot.screen.height
+                        wallpaperScale: 1
+                    }
+                }
+                FadeLoader {
                     shown: Config.options.background.widgets.customImage.enable
                         && (Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
@@ -1322,10 +1333,14 @@ Variants {
                         onClicked: GlobalStates.resetLockWidgetLayout()
                     }
                     IconAndTextToolbarButton {
-                        visible: Config.options.lock.perScreenLayout
+                        // Always show the action when another real output is
+                        // available. Pressing it upgrades a shared layout to
+                        // independent layouts without losing the design.
+                        visible: lockPreviewToolbar.otherOutputs.length > 0
                         iconText: "content_copy"
                         text: Translation.tr("Apply other screen")
                         onClicked: {
+                            GlobalStates.ensurePerScreenLockLayout(bgRoot.screen.name)
                             if (lockPreviewToolbar.otherOutputs.length === 1) {
                                 GlobalStates.applyLockDesignToOutput(
                                     bgRoot.screen.name, lockPreviewToolbar.otherOutputs[0])

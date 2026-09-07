@@ -52,6 +52,11 @@ Scope {
         actionProc.command = ["niri", "msg", "action", "focus-workspace", String(id)];
         actionProc.running = true;
     }
+    function switchWorkspaceOnMonitor(id, monitorName) { root.switchWorkspace(id) }
+    function nextWorkspaceId() {
+        const ids = root.workspaces.map(workspace => Number(workspace?.id)).filter(Number.isInteger)
+        return ids.length > 0 ? Math.max(...ids) + 1 : 1
+    }
     function moveWindowToWorkspace(id, wsId) {
         actionProc.command = ["niri", "msg", "action", "move-window-to-workspace", "--window-id", id, String(wsId)];
         actionProc.running = true;

@@ -177,7 +177,7 @@ Scope {
                                 id: activeAppsArea
                                 Layout.fillHeight: true
                                 Layout.topMargin: 0
-                                property bool requestDockShow: false
+                                property bool requestDockShow: appListBridge.openContextMenu !== null
 
                                 property var activeUnpinned: {
                                     return TaskbarApps.apps.filter(
@@ -229,6 +229,7 @@ Scope {
                                     id: appListBridge
                                     property Item lastHoveredButton: null
                                     property bool buttonHovered: false
+                                    property var openContextMenu: null
                                 }
                             }
 

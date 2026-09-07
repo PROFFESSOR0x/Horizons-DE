@@ -119,13 +119,56 @@ Singleton {
             opts.workspaceLinking = {
                 unifiedMultiMonitor: false,
                 groups: [],
+                detachedGroups: [],
             };
         } else {
             if (opts.workspaceLinking.unifiedMultiMonitor === undefined)
                 opts.workspaceLinking.unifiedMultiMonitor = false;
             if (opts.workspaceLinking.groups === undefined)
                 opts.workspaceLinking.groups = [];
+            if (opts.workspaceLinking.detachedGroups === undefined)
+                opts.workspaceLinking.detachedGroups = [];
         }
+
+        // Workspace ids around INT_MAX are compositor-internal temporary
+        // workspaces. They can briefly be reported while QuickShell is
+        // restarting, but must never be persisted as a user workspace link.
+        // Clean old data here as well, so existing configurations recover on
+        // their next load without requiring a manual reset.
+        const cleanWorkspaceGroups = (rawGroups) => {
+            const groups = [];
+            for (const rawGroup of (rawGroups ?? [])) {
+                const seen = new Set();
+                const group = [];
+                for (const rawKey of (rawGroup ?? [])) {
+                    const key = String(rawKey ?? "");
+                    const separator = key.lastIndexOf("::");
+                    const workspaceId = Number(key.slice(separator + 2));
+                    const monitorName = key.slice(0, separator);
+                    if (separator <= 0 || !Number.isInteger(workspaceId)
+                            || workspaceId < 1 || workspaceId >= 2147483000
+                            || seen.has(key))
+                        continue;
+                    seen.add(key);
+                    group.push(key);
+                }
+                if (group.length > 1) groups.push(group);
+            }
+            return groups;
+        };
+        opts.workspaceLinking.groups = cleanWorkspaceGroups(opts.workspaceLinking.groups);
+        const cleanDetachedWorkspaceGroups = (rawSignatures) => {
+            const signatures = [];
+            for (const rawSignature of (rawSignatures ?? [])) {
+                const cleaned = cleanWorkspaceGroups([String(rawSignature ?? "").split("|")])[0];
+                if (!cleaned) continue;
+                const signature = cleaned.slice().sort().join("|");
+                if (signatures.indexOf(signature) === -1) signatures.push(signature);
+            }
+            return signatures;
+        };
+        opts.workspaceLinking.detachedGroups = cleanDetachedWorkspaceGroups(
+            opts.workspaceLinking.detachedGroups);
         if (opts.lock.autoHideControls === undefined)
             opts.lock.autoHideControls = true;
         if (opts.lock.controlsIdleSeconds === undefined)
@@ -158,6 +201,13 @@ Singleton {
                 enable: false, placementStrategy: "free", x: 520, y: 360,
                 width: 720, height: 260, barCount: 44, spacing: 6,
                 noiseFloor: 1.5, attack: 0.68, release: 0.24,
+                hideWhenObscured: true,
+            };
+        }
+        if (widgets?.fullMonitorVisualizer === undefined) {
+            widgets.fullMonitorVisualizer = {
+                enable: false, placementStrategy: "free", x: 0, y: 0,
+                height: 220, barWidth: 4, spacing: 8, smoothingDuration: 150,
                 hideWhenObscured: true,
             };
         }
@@ -903,6 +953,18 @@ Singleton {
                         property bool hideWhenObscured: true
                     }
 
+                    property JsonObject fullMonitorVisualizer: JsonObject {
+                        property bool enable: false
+                        property string placementStrategy: "free"
+                        property real x: 0
+                        property real y: 0
+                        property real height: 220
+                        property real barWidth: 4
+                        property real spacing: 8
+                        property real smoothingDuration: 150
+                        property bool hideWhenObscured: true
+                    }
+
                     property JsonObject customImage: JsonObject {
                         property bool enable: false
                         property string placementStrategy: "free"
@@ -1415,6 +1477,9 @@ Singleton {
                 property bool unifiedMultiMonitor: false
                 // Each item is an array of "monitorName::workspaceId" keys.
                 property list<var> groups: []
+                // Canonical group signatures explicitly separated by the
+                // user while the all-screens mode is enabled.
+                property list<string> detachedGroups: []
             }
 
             property JsonObject interactions: JsonObject {

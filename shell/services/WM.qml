@@ -130,6 +130,11 @@ Singleton {
         else backend?.closeWindow(id)
     }
     function switchWorkspace(id) { backend?.switchWorkspace(id) }
+    function switchWorkspaceOnMonitor(id, monitorName) {
+        if (backend?.switchWorkspaceOnMonitor) backend.switchWorkspaceOnMonitor(id, monitorName)
+        else backend?.switchWorkspace(id)
+    }
+    function nextWorkspaceId() { return backend?.nextWorkspaceId?.() ?? -1 }
     function switchWorkspacesOnMonitors(entries, focusMonitor) {
         if (backend?.switchWorkspacesOnMonitors) backend.switchWorkspacesOnMonitors(entries, focusMonitor)
         else if (entries.length > 0) backend?.switchWorkspace(entries.find(entry => entry.monitorName === focusMonitor)?.workspaceId ?? entries[0].workspaceId)

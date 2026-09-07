@@ -1,5 +1,6 @@
 import QtQuick
 import qs
+import qs.services
 import qs.modules.common
 import qs.modules.ii.background.widgets
 
@@ -20,6 +21,7 @@ AbstractBackgroundWidget {
         width: parent.width
         height: parent.height
         points: GlobalStates.visualizerPoints
+        simulate: DesktopVisualizer.editingPreviewActive
         mirrored: true
         barCount: Math.max(8, Math.min(64, root.visualizerConfig.barCount))
         barSpacing: Math.max(0, root.visualizerConfig.spacing)

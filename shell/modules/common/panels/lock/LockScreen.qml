@@ -18,6 +18,7 @@ Scope {
         id: sessionLockSurface
         color: "transparent"
         Loader {
+            id: lockSurfaceLoader
             active: GlobalStates.screenLocked
             anchors.fill: parent
             opacity: active ? 1 : 0
@@ -25,6 +26,22 @@ Scope {
                 animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
             }
             sourceComponent: root.lockSurface
+
+            // A Loader is not itself a window, so asking its item for a
+            // screen is race-prone. Pass WlSessionLockSurface's output down
+            // explicitly and update it on hot-plug/reconfiguration.
+            function assignLockSurfaceScreen() {
+                if (item)
+                    item.lockSurfaceScreen = sessionLockSurface.screen ?? null
+            }
+            onLoaded: assignLockSurfaceScreen()
+        }
+
+        Connections {
+            target: sessionLockSurface
+            function onScreenChanged() {
+                lockSurfaceLoader.assignLockSurfaceScreen()
+            }
         }
     }
 

@@ -81,9 +81,11 @@ AbstractWidget {
             sourceWidth: outputWidth,
             sourceHeight: outputHeight,
         }
+        const base = Object.assign({}, lockPosition)
+        delete base.byScreen
         const overrides = Object.assign({}, lockPosition.byScreen ?? {})
         if (Config.options.lock.perScreenLayout && outputName !== "") overrides[outputName] = normalized
-        positions[configEntryName] = Object.assign({}, lockPosition, normalized, { byScreen: overrides })
+        positions[configEntryName] = Object.assign({}, base, normalized, { byScreen: overrides })
         Config.options.lock.widgetPositions = positions
     }
     property real targetX: Math.max(0, Math.min(savedX, scaledScreenWidth - width))
@@ -133,12 +135,14 @@ AbstractWidget {
                 sourceHeight: root.outputHeight,
             }
             const existing = positions[configEntryName] ?? ({})
+            const existingBase = Object.assign({}, existing)
+            delete existingBase.byScreen
             const overrides = Object.assign({}, existing.byScreen ?? {})
             if (Config.options.lock.perScreenLayout && root.outputName !== "") overrides[root.outputName] = normalized
             // The first saved normalized position remains the fallback for a
             // new display. Moving one known display no longer moves the rest.
-            const fallback = Config.options.lock.perScreenLayout && existing.relativeCenterX !== undefined
-                ? existing : normalized
+            const fallback = Config.options.lock.perScreenLayout && existingBase.relativeCenterX !== undefined
+                ? existingBase : normalized
             positions[configEntryName] = Object.assign({}, fallback, { byScreen: overrides })
             Config.options.lock.widgetPositions = positions
         } else {

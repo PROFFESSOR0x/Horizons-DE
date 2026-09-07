@@ -63,6 +63,18 @@ Scope {
         else root.closeWindow(id)
     }
     function switchWorkspace(id) { runI3("workspace \"" + String(id).replace(/\\"/g, "\\\\\"") + "\"") }
+    function switchWorkspaceOnMonitor(id, monitorName) {
+        const workspace = "workspace \"" + String(id).replace(/\\"/g, "\\\\\"") + "\""
+        if (!monitorName) {
+            runI3(workspace)
+            return
+        }
+        runI3("focus output \"" + String(monitorName).replace(/\\"/g, "\\\\\"") + "\"; " + workspace)
+    }
+    function nextWorkspaceId() {
+        const ids = root.workspaces.map(workspace => Number(workspace?.id)).filter(Number.isInteger)
+        return ids.length > 0 ? Math.max(...ids) + 1 : 1
+    }
     function moveWindowToWorkspace(id, wsId) {
         runI3("[con_id=" + id + "] move container to workspace \"" + String(wsId).replace(/\\"/g, "\\\\\"") + "\"")
     }

@@ -25,7 +25,8 @@ Item {
     property real windowControlsHeight: 30
     property Item lastHoveredButton: null
     property bool buttonHovered: false
-    property bool requestDockShow: previewPopup.show
+    property var openContextMenu: null
+    property bool requestDockShow: previewPopup.show || openContextMenu !== null
     signal orderChanged(var newOrder)
     property var  _workOrder: pinnedApps.slice()
     property int  activeDragVisualIndex: -1
@@ -71,10 +72,11 @@ Item {
             required property int index
 
             property string appId:     root._workOrder[index] ?? ""
-            property var    appEntry:  TaskbarApps.apps.find(a => a.appId === appId) ?? null
-            property var    deskEntry: appEntry ? DesktopEntries.heuristicLookup(appId) : null
+            property var    appEntry:  TaskbarApps.apps.find(a => a.appId.toLowerCase() === appId.toLowerCase()) ?? null
+            property var    deskEntry: DesktopEntries.heuristicLookup(appId)
             property bool   appActive: appEntry?.toplevels?.find(t => t.activated) !== undefined
             property int    _lastFocused: -1
+            property var    dockContextHold: root
 
             width:  root.btnSize
             height: root.implicitHeight
@@ -170,8 +172,11 @@ Item {
                 DockAppContextMenu {
                     id: pinnedContextMenu
                     hostWindow: root.QsWindow.window
+                    hostItem: dockBtn
                     appEntry: slotItem.appEntry
                     desktopEntry: slotItem.deskEntry
+                    applicationId: slotItem.appId
+                    dockHold: slotItem.dockContextHold
                 }
 
                 contentItem: Item {

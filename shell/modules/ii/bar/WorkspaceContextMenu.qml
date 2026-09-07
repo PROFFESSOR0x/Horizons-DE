@@ -13,6 +13,7 @@ import Quickshell
 PopupWindow {
     id: root
     property var hostWindow: null
+    property var hostItem: null
     property int workspaceId: -1
     property string monitorName: ""
     property real menuX: 0
@@ -21,8 +22,9 @@ PopupWindow {
     function showAt(workspace, monitor, x, y) {
         workspaceId = workspace
         monitorName = monitor ?? ""
-        menuX = x
-        menuY = y
+        const point = root.hostItem?.mapToItem(root.hostWindow?.contentItem ?? null, x, y)
+        menuX = point?.x ?? x
+        menuY = point?.y ?? y
         visible = true
     }
     function close() { visible = false }
@@ -30,78 +32,82 @@ PopupWindow {
     function closeSelected(force) {
         GlobalStates.closeWorkspaceWindows(selected(), force)
         GlobalStates.workspaceSelection = []
+        GlobalStates.workspaceSelectionAnchor = null
     }
 
     visible: false
+    grabFocus: true
     color: "transparent"
     anchor {
         window: root.hostWindow
-        edges: Edges.Top | Edges.Left
+        // The anchor point is mapped from the exact right-click position to
+        // the bar window. Do not set `item` here: PopupAnchor intentionally
+        // clears `window` when item is set, leaving the popup unanchored.
+        rect.x: root.menuX
+        rect.y: root.menuY
+        rect.width: 1
+        rect.height: 1
+        edges: Edges.Bottom | Edges.Left
         gravity: Edges.Top | Edges.Left
-        adjustment: PopupAdjustment.None
+        adjustment: PopupAdjustment.All
     }
-    implicitWidth: root.hostWindow?.width ?? 1
-    implicitHeight: root.hostWindow?.height ?? 1
+    implicitWidth: menuColumn.implicitWidth + 12
+    implicitHeight: menuColumn.implicitHeight + 10
 
-    MouseArea {
+    Rectangle {
+        id: menuBackground
         anchors.fill: parent
-        onClicked: root.close()
-
         StyledRectangularShadow { target: menuBackground; visible: root.visible }
-        Rectangle {
-            id: menuBackground
-            x: Math.max(4, Math.min(root.menuX, root.width - width - 4))
-            y: Math.max(4, Math.min(root.menuY, root.height - height - 4))
-            implicitWidth: menuColumn.implicitWidth + 12
-            implicitHeight: menuColumn.implicitHeight + 10
-            radius: Appearance.rounding.normal
-            color: Appearance.colors.colLayer0
-            border.width: 1
-            border.color: Appearance.colors.colLayer0Border
+        radius: Appearance.rounding.normal
+        color: Appearance.colors.colLayer0
+        border.width: 1
+        border.color: Appearance.colors.colLayer0Border
 
-            MouseArea { anchors.fill: parent; onClicked: mouse => mouse.accepted = true }
-            ColumnLayout {
-                id: menuColumn
-                anchors.fill: parent
-                anchors.margins: 5
-                spacing: 1
+        ColumnLayout {
+            id: menuColumn
+            anchors.fill: parent
+            anchors.margins: 5
+            spacing: 1
 
-                WorkspaceMenuAction {
-                    symbolName: GlobalStates.workspaceSelectionContains(root.workspaceId, root.monitorName)
-                        ? "deselect" : "select"
-                    menuLabel: GlobalStates.workspaceSelectionContains(root.workspaceId, root.monitorName)
-                        ? Translation.tr("Deselect workspace") : Translation.tr("Select workspace")
-                    onTriggered: GlobalStates.toggleWorkspaceSelection(root.workspaceId, root.monitorName)
-                }
-                WorkspaceMenuAction {
-                    visible: root.selected().length > 1
-                    symbolName: "link"
-                    menuLabel: Translation.tr("Link selected workspaces")
-                    onTriggered: GlobalStates.linkSelectedWorkspaces(root.workspaceId, root.monitorName)
-                }
-                WorkspaceMenuAction {
-                    visible: GlobalStates.linkedWorkspaceMembers(root.workspaceId, root.monitorName).length > 1
-                    symbolName: "link_off"
-                    menuLabel: Translation.tr("Separate this workspace from the group")
-                    onTriggered: GlobalStates.detachWorkspace(root.workspaceId, root.monitorName)
-                }
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 3
-                    Layout.bottomMargin: 3
-                    implicitHeight: 1
-                    color: Appearance.colors.colLayer0Border
-                }
-                WorkspaceMenuAction {
-                    symbolName: "close"
-                    menuLabel: Translation.tr("Close all windows")
-                    onTriggered: root.closeSelected(false)
-                }
-                WorkspaceMenuAction {
-                    symbolName: "dangerous"
-                    menuLabel: Translation.tr("End task for all windows")
-                    onTriggered: root.closeSelected(true)
-                }
+            WorkspaceMenuAction {
+                symbolName: GlobalStates.workspaceSelectionContains(root.workspaceId, root.monitorName)
+                    ? "deselect" : "select"
+                menuLabel: GlobalStates.workspaceSelectionContains(root.workspaceId, root.monitorName)
+                    ? Translation.tr("Deselect workspace") : Translation.tr("Select workspace")
+                onTriggered: GlobalStates.toggleWorkspaceSelection(root.workspaceId, root.monitorName)
+            }
+            WorkspaceMenuAction {
+                visible: root.selected().length > 1
+                symbolName: "link"
+                menuLabel: Translation.tr("Link selected workspaces")
+                onTriggered: GlobalStates.linkSelectedWorkspaces(root.workspaceId, root.monitorName)
+            }
+            WorkspaceMenuAction {
+                // Detaching is the companion action for the global
+                // multi-monitor workspace mode; manual groups stay linked
+                // until explicitly changed through their own selection.
+                visible: Config.options.workspaceLinking.unifiedMultiMonitor
+                    && GlobalStates.linkedWorkspaceMembers(root.workspaceId, root.monitorName).length > 1
+                symbolName: "link_off"
+                menuLabel: Translation.tr("Separate this workspace from the group")
+                onTriggered: GlobalStates.detachWorkspace(root.workspaceId, root.monitorName)
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 3
+                Layout.bottomMargin: 3
+                implicitHeight: 1
+                color: Appearance.colors.colLayer0Border
+            }
+            WorkspaceMenuAction {
+                symbolName: "close"
+                menuLabel: Translation.tr("Close all windows")
+                onTriggered: root.closeSelected(false)
+            }
+            WorkspaceMenuAction {
+                symbolName: "dangerous"
+                menuLabel: Translation.tr("End task for all windows")
+                onTriggered: root.closeSelected(true)
             }
         }
     }
@@ -117,7 +123,9 @@ PopupWindow {
         opacity: enabled ? 1 : 0.45
         onClicked: {
             triggered()
-            root.close()
+            // Inline component ids are not lexically visible in QML. The
+            // action is parented by actions -> menuBackground -> PopupWindow.
+            parent.parent.parent.close()
         }
         contentItem: RowLayout {
             id: row
@@ -126,7 +134,13 @@ PopupWindow {
             anchors.rightMargin: 12
             spacing: 10
             MaterialSymbol { text: parent.parent.symbolName; iconSize: 18; color: Appearance.colors.colOnLayer0 }
-            StyledText { text: parent.parent.menuLabel; color: Appearance.colors.colOnLayer0; font.pixelSize: Appearance.font.pixelSize.small }
+            StyledText {
+                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                text: parent.parent.menuLabel
+                horizontalAlignment: Text.AlignLeft
+                color: Appearance.colors.colOnLayer0
+                font.pixelSize: Appearance.font.pixelSize.small
+            }
         }
     }
 }

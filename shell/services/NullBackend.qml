@@ -18,6 +18,8 @@ Scope {
     function closeWindow(id) {}
     function forceCloseWindow(id, pid) {}
     function switchWorkspace(id) {}
+    function switchWorkspaceOnMonitor(id, monitorName) {}
+    function nextWorkspaceId() { return -1 }
     function moveWindowToWorkspace(id, wsId) {}
     function monitorFor(screen) { return null }
     function activeWorkspaceForMonitor(monitorName) { return null }

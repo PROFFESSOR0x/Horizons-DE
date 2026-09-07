@@ -16,10 +16,17 @@ import Quickshell.Services.SystemTray
 MouseArea {
     id: root
     required property LockContext context
+    // WlSessionLockSurface owns the actual output.  Do not infer it only from
+    // the Loader tree: on some compositors that tree is attached after the
+    // first layout pass, which made both lock surfaces look "unknown" and
+    // consequently showed the primary-only unlock controls everywhere.
+    property var lockSurfaceScreen: null
     property bool active: false
     property bool showInputField: active || context.currentText.length > 0
     property bool controlsVisible: true
     function resolveSurfaceScreenName() {
+        const assignedScreen = root.lockSurfaceScreen?.name
+        if (assignedScreen) return assignedScreen
         const directScreen = root.QsWindow.window?.screen?.name
         if (directScreen) return directScreen
         let item = root
@@ -32,12 +39,12 @@ MouseArea {
     readonly property string surfaceScreenName: resolveSurfaceScreenName()
     readonly property bool isInteractionScreen: surfaceScreenName !== ""
         && GlobalStates.lockInteractionScreenName === surfaceScreenName
-    // WlSessionLockSurface is created before its window/screen attachment on
-    // some compositors.  Treat that short-lived unknown state as interactive:
-    // hiding credentials there made every control disappear permanently when
-    // the binding did not get another screen-name notification.
+    // An unknown output must never be treated as the primary output. The
+    // explicit assignment above resolves it immediately after construction;
+    // until then it is safer to briefly hide credentials than leak them on a
+    // secondary display when the user chose primary-only controls.
     readonly property bool isPrimaryControlsScreen: !Config.options.lock.unlockBoxPrimaryMonitorOnly
-        || surfaceScreenName === "" || surfaceScreenName === GlobalStates.primaryLockOutputName()
+        || (surfaceScreenName !== "" && surfaceScreenName === GlobalStates.primaryLockOutputName())
     readonly property bool controlsShown: controlsVisible && isPrimaryControlsScreen
         && (surfaceScreenName === "" || GlobalStates.lockInteractionScreenName === "" || isInteractionScreen)
     property real controlsVisibility: controlsShown ? 1 : 0

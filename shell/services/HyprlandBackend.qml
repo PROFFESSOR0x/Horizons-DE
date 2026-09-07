@@ -49,6 +49,22 @@ Scope {
     function switchWorkspace(id) {
         Hyprland.dispatch(`hl.dsp.focus({ workspace = ${id} })`);
     }
+    function switchWorkspaceOnMonitor(id, monitorName) {
+        if (monitorName)
+            Hyprland.dispatch(`hl.dsp.focus({ monitor = "${monitorName}" })`)
+        root.switchWorkspace(id)
+    }
+    function nextWorkspaceId() {
+        const used = new Set()
+        for (const workspace of Hyprland.workspaces.values) {
+            const id = Number(workspace?.id)
+            if (Number.isInteger(id) && id > 0 && id < 2147483000)
+                used.add(id)
+        }
+        let candidate = 1
+        while (used.has(candidate)) ++candidate
+        return candidate
+    }
     function switchWorkspacesOnMonitors(entries, focusMonitor) {
         for (const entry of entries) {
             if (!entry?.monitorName) continue

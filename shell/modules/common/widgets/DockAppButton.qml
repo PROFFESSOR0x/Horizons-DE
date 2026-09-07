@@ -16,6 +16,7 @@ DockButton {
     property real iconSize: 33
     property real countDotWidth: 10
     property real countDotHeight: 4
+    property var dockContextHold: appListRoot
     property bool appIsActive: appToplevel.toplevels.find(t => (t.activated == true)) !== undefined
 
     readonly property bool isSeparator: appToplevel.appId === "SEPARATOR"
@@ -84,8 +85,11 @@ DockButton {
     DockAppContextMenu {
         id: dockContextMenu
         hostWindow: root.QsWindow.window
+        hostItem: root
         appEntry: root.appToplevel
         desktopEntry: root.desktopEntry
+        applicationId: root.appToplevel?.appId ?? ""
+        dockHold: root.dockContextHold
     }
 
     contentItem: Loader {

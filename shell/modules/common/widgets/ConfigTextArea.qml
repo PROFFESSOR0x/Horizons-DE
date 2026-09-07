@@ -72,7 +72,11 @@ RowLayout {
 
     Rectangle {
         id: fieldBg
-        Layout.preferredWidth: Math.min(root.fieldWidth, Math.max(160, root.width * 0.42))
+        // Do not derive a child Layout width from its owning RowLayout's
+        // width: that creates a self-measuring loop whenever the settings
+        // page is constructed or resized. The fixed preferred column still
+        // shrinks through Layout.minimum/maximumWidth when necessary.
+        Layout.preferredWidth: root.fieldWidth
         Layout.minimumWidth: 160
         Layout.maximumWidth: root.fieldWidth
         Layout.preferredHeight: root.fieldHeight

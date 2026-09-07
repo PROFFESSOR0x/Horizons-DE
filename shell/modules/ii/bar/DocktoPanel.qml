@@ -222,7 +222,7 @@ Item {
                     required property int index
 
                     property string appId:        root._workOrder[index] ?? ""
-                    property var    appEntry:     TaskbarApps.apps.find(a => a.appId === appId) ?? null
+                    property var    appEntry:     TaskbarApps.apps.find(a => a.appId.toLowerCase() === appId.toLowerCase()) ?? null
                     property var    deskEntry:    DesktopEntries.heuristicLookup(appId)
                     property bool   appActive:    appEntry?.toplevels?.find(t => t.activated) !== undefined
                     property int    _lastFocused: -1
@@ -308,6 +308,7 @@ Item {
                     }
 
                     RippleButton {
+                        id: dockButton
                         anchors.fill: parent
                         buttonRadius: Appearance.rounding.small
                         hoverEnabled: true
@@ -329,8 +330,10 @@ Item {
                         DockAppContextMenu {
                             id: pinnedContextMenu
                             hostWindow: root.QsWindow.window
+                            hostItem: dockButton
                             appEntry: slotItem.appEntry
                             desktopEntry: slotItem.deskEntry
+                            applicationId: slotItem.appId
                         }
 
                         contentItem: Item {
@@ -421,6 +424,7 @@ Item {
                     height: root.btnSize
 
                     RippleButton {
+                        id: activeDockButton
                         anchors.fill: parent
                         buttonRadius: Appearance.rounding.small
                         hoverEnabled: true
@@ -439,8 +443,10 @@ Item {
                         DockAppContextMenu {
                             id: activeContextMenu
                             hostWindow: root.QsWindow.window
+                            hostItem: activeDockButton
                             appEntry: activeSlot.modelData
                             desktopEntry: DesktopEntries.heuristicLookup(activeSlot.modelData.appId)
+                            applicationId: activeSlot.modelData.appId
                         }
 
                         contentItem: Item {

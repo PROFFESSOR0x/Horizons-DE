@@ -42,6 +42,10 @@ Singleton {
     property string lockInteractionScreenName: ""
     property bool lockPreviewRestoreBarOpen: true
     property var lockPreviewInitialWidgetPositions: ({})
+    property var lockPreviewInitialLayout: ({})
+    property var lockPreviewInitialLayoutByScreen: ({})
+    property bool lockPreviewInitialPerScreenLayout: false
+    property bool lockPreviewInitialCenterClock: true
     property bool screenLockContainsCharacters: false
     property bool screenUnlockFailed: false
 
@@ -49,9 +53,32 @@ Singleton {
         return JSON.parse(JSON.stringify(Config.options.lock.widgetPositions ?? {}))
     }
 
+    function lockPositionWithoutOverrides(record) {
+        const value = JSON.parse(JSON.stringify(record ?? {}))
+        delete value.byScreen
+        return value
+    }
+
+    function applyLockLayout(layoutData) {
+        const source = layoutData ?? ({})
+        const target = Config.options.lock.layout
+        target.passwordPlacement = source.passwordPlacement ?? "bottom"
+        target.bottomMargin = source.bottomMargin ?? 20
+        for (const name of ["password", "leftToolbar", "rightToolbar"]) {
+            const value = source[name] ?? ({})
+            target[name].offsetX = value.offsetX ?? 0
+            target[name].offsetY = value.offsetY ?? 0
+            target[name].scale = value.scale ?? 1.0
+        }
+    }
+
     function beginLockPreview() {
         if (root.lockPreviewOpen) return
         root.lockPreviewInitialWidgetPositions = root.copyLockWidgetPositions()
+        root.lockPreviewInitialLayout = JSON.parse(JSON.stringify(Config.options.lock.layout ?? {}))
+        root.lockPreviewInitialLayoutByScreen = JSON.parse(JSON.stringify(Config.options.lock.layoutByScreen ?? {}))
+        root.lockPreviewInitialPerScreenLayout = Config.options.lock.perScreenLayout
+        root.lockPreviewInitialCenterClock = Config.options.lock.centerClock
         root.lockPreviewRestoreBarOpen = root.barOpen
         root.lockPreviewOpen = true
         root.barOpen = false
@@ -69,11 +96,25 @@ Singleton {
 
     function cancelLockPreview() {
         Config.options.lock.widgetPositions = root.lockPreviewInitialWidgetPositions
+        root.applyLockLayout(root.lockPreviewInitialLayout)
+        Config.options.lock.layoutByScreen = root.lockPreviewInitialLayoutByScreen
+        Config.options.lock.perScreenLayout = root.lockPreviewInitialPerScreenLayout
+        Config.options.lock.centerClock = root.lockPreviewInitialCenterClock
         root.saveLockPreview()
     }
 
     function resetLockWidgetLayout() {
         Config.options.lock.widgetPositions = ({})
+        Config.options.lock.layoutByScreen = ({})
+        Config.options.lock.perScreenLayout = false
+        Config.options.lock.centerClock = true
+        root.applyLockLayout({
+            passwordPlacement: "bottom",
+            bottomMargin: 20,
+            password: { offsetX: 0, offsetY: 0, scale: 1.0 },
+            leftToolbar: { offsetX: 0, offsetY: 0, scale: 1.0 },
+            rightToolbar: { offsetX: 0, offsetY: 0, scale: 1.0 },
+        })
     }
 
     function lockOutputNames() {
@@ -105,18 +146,40 @@ Singleton {
         Config.options.lock.layoutByScreen = layouts
     }
 
+    // Switching from the shared layout to a per-output layout is a migration,
+    // not a reset. Seed the current output with the exact visual state so
+    // "Apply other screen" can safely make independent copies from it.
+    function ensurePerScreenLockLayout(sourceOutput) {
+        if (Config.options.lock.perScreenLayout) return
+        const source = sourceOutput || root.primaryLockOutputName()
+        const positions = JSON.parse(JSON.stringify(Config.options.lock.widgetPositions ?? {}))
+        for (const name of Object.keys(positions)) {
+            const record = positions[name]
+            const overrides = Object.assign({}, record.byScreen ?? {})
+            const base = root.lockPositionWithoutOverrides(record)
+            overrides[source] = JSON.parse(JSON.stringify(base))
+            positions[name] = Object.assign({}, base, { byScreen: overrides })
+        }
+        const layouts = JSON.parse(JSON.stringify(Config.options.lock.layoutByScreen ?? {}))
+        layouts[source] = JSON.parse(JSON.stringify(Config.options.lock.layout ?? {}))
+        Config.options.lock.widgetPositions = positions
+        Config.options.lock.layoutByScreen = layouts
+        Config.options.lock.perScreenLayout = true
+    }
+
     // Copy the complete live-editor design: all widget overrides and all three
     // lower control-bar offsets/scales. This is deliberately explicit rather
     // than assigning a shared object, so later edits remain independent.
     function applyLockDesignToOutput(sourceOutput, targetOutput) {
         if (!sourceOutput || !targetOutput || sourceOutput === targetOutput) return
+        root.ensurePerScreenLockLayout(sourceOutput)
         const positions = JSON.parse(JSON.stringify(Config.options.lock.widgetPositions ?? {}))
         for (const name of Object.keys(positions)) {
             const record = positions[name]
-            const source = record.byScreen?.[sourceOutput] ?? record
+            const source = root.lockPositionWithoutOverrides(record.byScreen?.[sourceOutput] ?? record)
             const overrides = Object.assign({}, record.byScreen ?? {})
             overrides[targetOutput] = JSON.parse(JSON.stringify(source))
-            positions[name] = Object.assign({}, record, { byScreen: overrides })
+            positions[name] = Object.assign({}, root.lockPositionWithoutOverrides(record), { byScreen: overrides })
         }
         Config.options.lock.widgetPositions = positions
 
@@ -154,9 +217,75 @@ Singleton {
     // Multi-selection is deliberately global so a workspace can be selected
     // from each monitor's bar before opening the contextual action menu.
     property list<var> workspaceSelection: []
+    property var workspaceSelectionAnchor: null
 
     function workspaceKey(workspaceId, monitorName) {
         return String(monitorName ?? "") + "::" + String(workspaceId)
+    }
+
+    // Hyprland uses ids close to INT_MAX for internal/special workspaces.
+    // They are never selectable through the workspace strip and must not be
+    // allowed into a persistent cross-monitor relationship.
+    function isRealWorkspaceId(workspaceId) {
+        const id = Number(workspaceId)
+        return Number.isInteger(id) && id > 0 && id < 2147483000
+    }
+
+    function workspaceEntryFromKey(rawKey) {
+        const key = String(rawKey ?? "")
+        const separator = key.lastIndexOf("::")
+        if (separator <= 0) return null
+        const monitorName = key.slice(0, separator)
+        const workspaceId = Number(key.slice(separator + 2))
+        if (!monitorName || !root.isRealWorkspaceId(workspaceId)) return null
+        return {
+            key: root.workspaceKey(workspaceId, monitorName),
+            workspaceId: workspaceId,
+            monitorName: monitorName,
+        }
+    }
+
+    function normalizedWorkspaceGroup(rawGroup) {
+        const entries = []
+        const seen = new Set()
+        for (const rawKey of (rawGroup ?? [])) {
+            const entry = root.workspaceEntryFromKey(rawKey)
+            if (entry && !seen.has(entry.key)) {
+                seen.add(entry.key)
+                entries.push(entry)
+            }
+        }
+        return entries
+    }
+
+    function workspaceGroupSignature(entries) {
+        return entries.map(entry => entry.key).slice().sort().join("|")
+    }
+
+    function isDetachedUnifiedGroup(entries) {
+        const signature = root.workspaceGroupSignature(entries)
+        return (Config.options.workspaceLinking.detachedGroups ?? []).indexOf(signature) !== -1
+    }
+
+    function clearDetachedUnifiedGroup(entries) {
+        const signature = root.workspaceGroupSignature(entries)
+        Config.options.workspaceLinking.detachedGroups = (Config.options.workspaceLinking.detachedGroups ?? [])
+            .filter(item => item !== signature)
+    }
+
+    function connectedMonitorNames() {
+        const names = []
+        for (const monitor of (WM.monitors ?? [])) {
+            if (monitor?.name && names.indexOf(monitor.name) === -1)
+                names.push(monitor.name)
+        }
+        return names
+    }
+
+    function groupCoversConnectedMonitors(entries) {
+        const monitorNames = root.connectedMonitorNames()
+        if (monitorNames.length < 2 || entries.length < monitorNames.length) return false
+        return monitorNames.every(name => entries.filter(entry => entry.monitorName === name).length === 1)
     }
 
     function workspaceSelectionContains(workspaceId, monitorName) {
@@ -171,12 +300,43 @@ Singleton {
         if (index >= 0) copy.splice(index, 1)
         else copy.push({ key: key, workspaceId: workspaceId, monitorName: monitorName })
         root.workspaceSelection = copy
+        root.workspaceSelectionAnchor = {
+            key: key,
+            workspaceId: workspaceId,
+            monitorName: monitorName,
+        }
     }
 
     function selectWorkspace(workspaceId, monitorName, additive) {
-        if (!additive) root.workspaceSelection = []
-        if (!root.workspaceSelectionContains(workspaceId, monitorName))
-            root.toggleWorkspaceSelection(workspaceId, monitorName)
+        const entry = {
+            key: root.workspaceKey(workspaceId, monitorName),
+            workspaceId: workspaceId,
+            monitorName: monitorName,
+        }
+        if (!additive) root.workspaceSelection = [entry]
+        else if (!root.workspaceSelectionContains(workspaceId, monitorName))
+            root.workspaceSelection = root.workspaceSelection.concat([entry])
+        root.workspaceSelectionAnchor = entry
+    }
+
+    // Shift extends an explicit same-monitor selection range. Ctrl+Shift
+    // keeps selections on other monitors too; a plain Shift replaces the
+    // current range, matching normal desktop selection behavior.
+    function selectWorkspaceRange(workspaceId, monitorName, additive) {
+        const anchor = root.workspaceSelectionAnchor
+        if (!anchor || anchor.monitorName !== monitorName) {
+            root.selectWorkspace(workspaceId, monitorName, additive)
+            return
+        }
+        const selected = additive ? root.workspaceSelection.slice() : []
+        const first = Math.min(Number(anchor.workspaceId), Number(workspaceId))
+        const last = Math.max(Number(anchor.workspaceId), Number(workspaceId))
+        for (let id = first; id <= last; ++id) {
+            const key = root.workspaceKey(id, monitorName)
+            if (!selected.some(item => item.key === key))
+                selected.push({ key: key, workspaceId: id, monitorName: monitorName })
+        }
+        root.workspaceSelection = selected
     }
 
     function selectedWorkspaces(fallbackWorkspaceId, fallbackMonitorName) {
@@ -187,37 +347,129 @@ Singleton {
     function linkedWorkspaceMembers(workspaceId, monitorName) {
         const key = root.workspaceKey(workspaceId, monitorName)
         const groups = Config.options.workspaceLinking.groups ?? []
-        const group = groups.find(entry => entry.indexOf(key) !== -1)
+        const group = groups.map(root.normalizedWorkspaceGroup)
+            .find(entries => entries.some(entry => entry.key === key))
         if (!group) return []
-        return group.map(linkKey => {
-            const separator = linkKey.lastIndexOf("::")
-            return {
-                key: linkKey,
-                monitorName: linkKey.slice(0, separator),
-                workspaceId: Number(linkKey.slice(separator + 2))
+        return group
+    }
+
+    // A unified workspace set is based on the active real workspaces, but
+    // its peers move by the same numeric delta. On two monitors with 1 + 2
+    // as the current set, selecting 3 on the first monitor selects 4 on the
+    // second; no fake duplicate workspace is ever created by the compositor.
+    function unifiedWorkspaceMembers(workspaceId, monitorName, includeDetached) {
+        if (!Config.options.workspaceLinking.unifiedMultiMonitor
+                || !root.isRealWorkspaceId(workspaceId) || !monitorName)
+            return []
+
+        // The active workspace on each output is the authoritative template.
+        // Saved groups can outlive monitor reconnects and workspace changes;
+        // treating one as current made the unified mode jump to stale ids.
+        const active = []
+        for (const name of root.connectedMonitorNames()) {
+            const workspace = WM.activeWorkspaceForMonitor(name)
+            if (root.isRealWorkspaceId(workspace?.id)) {
+                active.push({
+                    key: root.workspaceKey(workspace.id, name),
+                    workspaceId: Number(workspace.id),
+                    monitorName: name,
+                })
             }
-        })
+        }
+        const activeSource = active.find(entry => entry.monitorName === monitorName)
+        if (root.groupCoversConnectedMonitors(active) && activeSource) {
+            const delta = Number(workspaceId) - activeSource.workspaceId
+            const generated = active.map(entry => ({
+                key: root.workspaceKey(entry.workspaceId + delta, entry.monitorName),
+                workspaceId: entry.workspaceId + delta,
+                monitorName: entry.monitorName,
+            }))
+            if (generated.every(entry => root.isRealWorkspaceId(entry.workspaceId))
+                    && (includeDetached || !root.isDetachedUnifiedGroup(generated)))
+                return generated
+        }
+
+        const current = root.linkedWorkspaceMembers(workspaceId, monitorName)
+        if (root.groupCoversConnectedMonitors(current))
+            return (includeDetached || !root.isDetachedUnifiedGroup(current)) ? current : []
+
+        const templates = (Config.options.workspaceLinking.groups ?? [])
+            .map(root.normalizedWorkspaceGroup)
+            .filter(root.groupCoversConnectedMonitors)
+        const template = templates.find(entries => entries.some(entry => entry.monitorName === monitorName))
+        if (!template) return []
+
+        const source = template.find(entry => entry.monitorName === monitorName)
+        const delta = Number(workspaceId) - source.workspaceId
+        const generated = template.map(entry => ({
+            key: root.workspaceKey(entry.workspaceId + delta, entry.monitorName),
+            workspaceId: entry.workspaceId + delta,
+            monitorName: entry.monitorName,
+        }))
+        if (!generated.every(entry => root.isRealWorkspaceId(entry.workspaceId))) return []
+        if (!includeDetached && root.isDetachedUnifiedGroup(generated)) return []
+        return generated
+    }
+
+    function ensureUnifiedWorkspaceGroup(workspaceId, monitorName) {
+        const members = root.unifiedWorkspaceMembers(workspaceId, monitorName, false)
+        if (!root.groupCoversConnectedMonitors(members)) return []
+        const signature = root.workspaceGroupSignature(members)
+        const groups = (Config.options.workspaceLinking.groups ?? [])
+            .map(root.normalizedWorkspaceGroup)
+            .filter(group => group.length > 1)
+        if (!groups.some(group => root.workspaceGroupSignature(group) === signature)) {
+            const memberKeys = members.map(entry => entry.key)
+            // A workspace belongs to one logical set only. Replacing an
+            // overlapping stale group keeps selection and Alt-Tab scope
+            // deterministic after monitors are connected or disconnected.
+            const kept = groups.filter(group => !group.some(entry => memberKeys.indexOf(entry.key) !== -1))
+            kept.push(members)
+            Config.options.workspaceLinking.groups = kept.map(group => group.map(entry => entry.key))
+        }
+        return members
     }
 
     function linkSelectedWorkspaces(fallbackWorkspaceId, fallbackMonitorName) {
         const selected = root.selectedWorkspaces(fallbackWorkspaceId, fallbackMonitorName)
         if (selected.length < 2) return
-        const keys = selected.map(item => item.key)
-        const retained = (Config.options.workspaceLinking.groups ?? []).filter(group => !group.some(key => keys.indexOf(key) !== -1))
-        retained.push(keys)
+        // Preserve members of any already-linked selection and merge the
+        // groups, rather than silently unlinking their other workspaces.
+        const linkedKeys = new Set(selected.map(item => item.key))
+        const retained = []
+        for (const group of (Config.options.workspaceLinking.groups ?? []).map(root.normalizedWorkspaceGroup)) {
+            if (group.some(entry => linkedKeys.has(entry.key))) {
+                for (const entry of group) linkedKeys.add(entry.key)
+            } else {
+                retained.push(group.map(entry => entry.key))
+            }
+        }
+        const linkedGroup = Array.from(linkedKeys)
+        retained.push(linkedGroup)
         Config.options.workspaceLinking.groups = retained
+        root.clearDetachedUnifiedGroup(root.normalizedWorkspaceGroup(linkedGroup))
         root.workspaceSelection = []
+        root.workspaceSelectionAnchor = null
     }
 
     function detachWorkspace(workspaceId, monitorName) {
         const key = root.workspaceKey(workspaceId, monitorName)
+        const unifiedMembers = root.unifiedWorkspaceMembers(workspaceId, monitorName, true)
+        if (root.groupCoversConnectedMonitors(unifiedMembers)) {
+            const signature = root.workspaceGroupSignature(unifiedMembers)
+            const detached = Config.options.workspaceLinking.detachedGroups ?? []
+            if (detached.indexOf(signature) === -1)
+                Config.options.workspaceLinking.detachedGroups = detached.concat([signature])
+        }
         const next = []
-        for (const group of (Config.options.workspaceLinking.groups ?? [])) {
-            const remaining = group.filter(entry => entry !== key)
-            if (remaining.length > 1) next.push(remaining)
+        for (const group of (Config.options.workspaceLinking.groups ?? []).map(root.normalizedWorkspaceGroup)) {
+            const remaining = group.filter(entry => entry.key !== key)
+            if (remaining.length > 1) next.push(remaining.map(entry => entry.key))
         }
         Config.options.workspaceLinking.groups = next
         root.workspaceSelection = root.workspaceSelection.filter(item => item.key !== key)
+        if (root.workspaceSelectionAnchor?.key === key)
+            root.workspaceSelectionAnchor = root.workspaceSelection[0] ?? null
     }
 
     function setUnifiedMultiMonitorWorkspaces(enabled) {
@@ -229,24 +481,33 @@ Singleton {
         // links exactly the ones the compositor reports, so mixed DPI and
         // hot-plugged monitor layouts remain safe.
         const active = []
-        for (const monitor of WM.monitors) {
-            if (!monitor?.name) continue
-            const workspace = WM.activeWorkspaceForMonitor(monitor.name)
-            if (workspace?.id === undefined || workspace?.id === null) continue
-            active.push(root.workspaceKey(workspace.id, monitor.name))
+        for (const monitor of root.connectedMonitorNames()) {
+            const workspace = WM.activeWorkspaceForMonitor(monitor)
+            if (!root.isRealWorkspaceId(workspace?.id)) continue
+            active.push(root.workspaceKey(workspace.id, monitor))
         }
         if (active.length > 1) {
+            const activeEntries = root.normalizedWorkspaceGroup(active)
             const kept = (Config.options.workspaceLinking.groups ?? [])
-                .filter(group => !group.some(key => active.indexOf(key) !== -1))
+                .map(root.normalizedWorkspaceGroup)
+                .filter(group => !group.some(entry => active.indexOf(entry.key) !== -1))
+                .filter(group => group.length > 1)
+                .map(group => group.map(entry => entry.key))
             kept.push(active)
             Config.options.workspaceLinking.groups = kept
+            root.clearDetachedUnifiedGroup(activeEntries)
         }
     }
 
     function activateWorkspace(workspaceId, monitorName) {
+        const unified = root.ensureUnifiedWorkspaceGroup(workspaceId, monitorName)
+        if (unified.length > 1) {
+            WM.switchWorkspacesOnMonitors(unified, monitorName)
+            return
+        }
         const linked = root.linkedWorkspaceMembers(workspaceId, monitorName)
         if (linked.length > 1) WM.switchWorkspacesOnMonitors(linked, monitorName)
-        else WM.switchWorkspace(workspaceId)
+        else WM.switchWorkspaceOnMonitor(workspaceId, monitorName)
     }
 
     function closeWorkspaceWindows(entries, force) {

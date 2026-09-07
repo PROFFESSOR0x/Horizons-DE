@@ -403,6 +403,7 @@ Item {
         active: Config.options.m3Island.rightClickMenu
         sourceComponent: M3ContextMenu {
             hostWindow: root.panelWindow
+            hostItem: clickArea
             entries: root.contextMenuEntries
         }
     }
@@ -554,8 +555,7 @@ Item {
         onClicked: mouse => {
             if (mouse.button === Qt.RightButton) {
                 if (!Config.options.m3Island.rightClickMenu || !contextMenuLoader.item) return
-                const pt = clickArea.mapToItem(null, mouse.x, mouse.y)
-                contextMenuLoader.item.showAt(pt.x, pt.y)
+                contextMenuLoader.item.showAt(mouse.x, mouse.y)
                 return
             }
             if (root.isLauncher || root.isWallpaperSelector) return

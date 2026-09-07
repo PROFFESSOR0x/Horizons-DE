@@ -59,6 +59,12 @@ ButtonMouseArea {
     // Interactions
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     hoverEnabled: true
+    // Cache the modifiers at press time as well as at release time. Certain
+    // layer-shell/compositor combinations update one of those two events
+    // late; OR-ing both values preserves Ctrl/Shift without ever treating a
+    // modifier click as a normal workspace activation.
+    property int pressModifiers: Qt.NoModifier
+    property bool selectionHandledOnPress: false
     property int hoverIndex: {
         const position = root.vertical ? mouseY : mouseX;
         return Math.floor(position / root.workspaceButtonWidth);
@@ -67,15 +73,63 @@ ButtonMouseArea {
     function switchWorkspaceToHovered() {
         GlobalStates.activateWorkspace(wsModel.getWorkspaceIdAt(hoverIndex), wsModel.monitorName);
     }
+    function workspaceIdForMouse(mouse) {
+        const index = Math.max(0, Math.floor((root.vertical ? mouse.y : mouse.x)
+            / root.workspaceButtonWidth))
+        return wsModel.getWorkspaceIdAt(index)
+    }
+    // Ctrl toggles individual spaces and Shift selects an inclusive range
+    // from the last selected space. These modifiers deliberately work with
+    // the normal left click as well as right click: users can build a
+    // selection first, then open the action menu on any selected indicator.
+    function applyModifiedWorkspaceSelection(workspaceId, modifiers) {
+        const ctrlHeld = (modifiers & Qt.ControlModifier) !== 0
+        const shiftHeld = (modifiers & Qt.ShiftModifier) !== 0
+        if (shiftHeld)
+            GlobalStates.selectWorkspaceRange(workspaceId, wsModel.monitorName, ctrlHeld)
+        else if (ctrlHeld)
+            GlobalStates.toggleWorkspaceSelection(workspaceId, wsModel.monitorName)
+        else
+            return false
+        return true
+    }
     onPressed: mouse => {
-        if (mouse.button == Qt.LeftButton)
-            switchWorkspaceToHovered();
+        root.selectionHandledOnPress = false
+        root.pressModifiers = mouse.modifiers
+        // Select on press while modifier state is guaranteed to be present.
+        // Some layer-shell builds clear it before MouseArea's clicked event.
+        const workspaceId = root.workspaceIdForMouse(mouse)
+        if (workspaceId >= 0 && root.applyModifiedWorkspaceSelection(workspaceId, mouse.modifiers)) {
+            root.selectionHandledOnPress = true
+            mouse.accepted = true
+        }
+    }
+    onClicked: mouse => {
+        const workspaceId = root.workspaceIdForMouse(mouse)
+        const modifiers = mouse.modifiers | root.pressModifiers
+        const selecting = root.selectionHandledOnPress
+            || (modifiers & (Qt.ControlModifier | Qt.ShiftModifier)) !== 0
+        console.log("[Workspaces] click workspace=" + workspaceId
+            + " monitor=" + wsModel.monitorName
+            + " modifiers=" + modifiers
+            + " selecting=" + selecting)
+        root.pressModifiers = Qt.NoModifier
+        if (mouse.button == Qt.LeftButton) {
+            if (!root.selectionHandledOnPress
+                    && !root.applyModifiedWorkspaceSelection(workspaceId, modifiers))
+                switchWorkspaceToHovered()
+        }
         else if (mouse.button == Qt.RightButton) {
-            const workspaceId = wsModel.getWorkspaceIdAt(hoverIndex)
-            GlobalStates.selectWorkspace(workspaceId, wsModel.monitorName,
-                (mouse.modifiers & Qt.ControlModifier) !== 0)
+            const modified = root.selectionHandledOnPress
+                || root.applyModifiedWorkspaceSelection(workspaceId, modifiers)
+            // Right-clicking an item already in the multi-selection must not
+            // collapse it. Right-clicking an unselected item follows normal
+            // desktop behaviour and starts a new selection for that item.
+            if (!modified && !GlobalStates.workspaceSelectionContains(workspaceId, wsModel.monitorName))
+                GlobalStates.selectWorkspace(workspaceId, wsModel.monitorName, false)
             workspaceContextMenu.showAt(workspaceId, wsModel.monitorName, mouse.x, mouse.y)
         }
+        root.selectionHandledOnPress = false
     }
     onWheel: event => {
         if (event.angleDelta.y < 0)
@@ -87,6 +141,7 @@ ButtonMouseArea {
     WorkspaceContextMenu {
         id: workspaceContextMenu
         hostWindow: root.QsWindow.window
+        hostItem: root
     }
 
     // Indications

@@ -19,6 +19,7 @@ AbstractBackgroundWidget {
         width: parent.width
         height: parent.height
         points: GlobalStates.visualizerPoints
+        simulate: DesktopVisualizer.editingPreviewActive
         barCount: Math.max(8, Math.min(64, root.visualizerConfig.barCount))
         barSpacing: Math.max(0, root.visualizerConfig.spacing)
         maximumBarHeight: parent.height

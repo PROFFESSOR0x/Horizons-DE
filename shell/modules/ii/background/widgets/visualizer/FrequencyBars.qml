@@ -19,6 +19,12 @@ Item {
     property real release: 0.24
     property bool mirrored: false
     property real centerGap: 4
+    // Editing must make the spectrum's footprint understandable even while
+    // no media is playing. This is a deliberately simple travelling pulse,
+    // not fake audio; it only runs in a layout editor and stops immediately
+    // when that editor closes.
+    property bool simulate: false
+    property real simulationPhase: 0
 
     readonly property real rawMaximum: 1000
     readonly property real floorValue: Math.max(0, Math.min(95, noiseFloorPercent)) / 100 * rawMaximum
@@ -34,6 +40,14 @@ Item {
     }
 
     function targetAt(index) {
+        if (simulate) {
+            const position = index / Math.max(1, barCount - 1)
+            const distance = Math.abs(position - simulationPhase)
+            // A narrow crest moves cleanly from the first column to the last
+            // and then starts again. A small tail makes its shape readable
+            // without looking like real audio activity.
+            return Math.max(0, 1 - distance * 8) * 0.82
+        }
         if (!points || points.length === 0) return 0
         // Present the spectrum symmetrically from the centre outwards. CAVA's
         // left-to-right data is still the source of truth, but duplicating it
@@ -67,15 +81,32 @@ Item {
 
     onPointsChanged: updateDisplayPoints()
     onBarCountChanged: updateDisplayPoints()
+    onSimulateChanged: updateDisplayPoints()
     Component.onCompleted: updateDisplayPoints()
 
-    // CAVA is deliberately stopped as soon as playback stops. Give the last
-    // visible frame a normal release tail instead of leaving frozen bars on
-    // the desktop after GlobalStates.visualizerPoints becomes an empty list.
     Timer {
         interval: 34
         repeat: true
-        running: (!root.points || root.points.length === 0)
+        running: root.simulate
+        onTriggered: {
+            root.simulationPhase += 0.025
+            if (root.simulationPhase > 1) root.simulationPhase = 0
+            root.updateDisplayPoints()
+        }
+    }
+
+    function hasAudibleInput() {
+        if (!points || points.length === 0) return false
+        return points.some(point => (Number(point) || 0) > floorValue + 1)
+    }
+
+    // CAVA may stop with either an empty array or a final all-zero frame. In
+    // both cases, keep ticking the release tail until every bar is actually
+    // gone; otherwise the last spectrum frame remains as dead bounds.
+    Timer {
+        interval: 34
+        repeat: true
+        running: !root.simulate && !root.hasAudibleInput()
             && root.displayPoints.some(point => point > 0.002)
         onTriggered: root.updateDisplayPoints()
     }
