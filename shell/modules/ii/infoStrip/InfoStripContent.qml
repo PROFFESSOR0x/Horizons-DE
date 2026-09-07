@@ -64,7 +64,7 @@ Item {
                     source: {
                         const id = ToplevelManager.activeToplevel?.appId ?? ""
                         if (!id) return ""
-                        return Quickshell.iconPath(AppSearch.guessIcon(id), "image-missing")
+                        return Quickshell.iconPath(TaskbarApps.iconFor(id), "image-missing")
                     }
                     implicitSize: 14
                     visible: source !== ""

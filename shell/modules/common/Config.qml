@@ -169,6 +169,10 @@ Singleton {
         };
         opts.workspaceLinking.detachedGroups = cleanDetachedWorkspaceGroups(
             opts.workspaceLinking.detachedGroups);
+        if (opts.appLaunch === undefined)
+            opts.appLaunch = { showIndicator: true, timeout: 10000 };
+        else if (opts.appLaunch.aboveWindows === undefined)
+            opts.appLaunch.aboveWindows = true;
         if (opts.lock.autoHideControls === undefined)
             opts.lock.autoHideControls = true;
         if (opts.lock.controlsIdleSeconds === undefined)
@@ -344,7 +348,6 @@ Singleton {
                 writeAdapter();
             }
         }
-
         JsonAdapter {
             id: configOptionsJsonAdapter
 
@@ -1656,6 +1659,12 @@ Singleton {
                     property string imageSource: "https://media.tenor.com/H5U5bJzj3oAAAAAi/kukuru.gif"
                     property real scale: 0.5
                 }
+            }
+
+            property JsonObject appLaunch: JsonObject {
+                property bool showIndicator: true
+                property bool aboveWindows: true
+                property int timeout: 10000
             }
 
             property JsonObject overview: JsonObject {

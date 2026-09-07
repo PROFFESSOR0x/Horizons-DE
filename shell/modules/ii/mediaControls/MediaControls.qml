@@ -15,6 +15,7 @@ import Quickshell.Hyprland
 Scope {
     id: root
     property bool visible: false
+    property var pendingVisualizerPoints: null
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
     readonly property var realPlayers: MprisController.players
     readonly property var meaningfulPlayers: {
@@ -102,10 +103,19 @@ Scope {
         }
         command: ["cava", "-p", `${FileUtils.trimFileProtocol(Directories.scriptPath)}/cava/raw_output_config.txt`]
         stdout: SplitParser {
-            onRead: data => {
-                let points = data.split(";").map(p => parseFloat(p.trim())).filter(p => !isNaN(p));
-                GlobalStates.visualizerPoints = points;
-            }
+            onRead: data => root.pendingVisualizerPoints = data.split(";")
+                .map(p => parseFloat(p.trim())).filter(p => !isNaN(p))
+        }
+    }
+
+    Timer {
+        interval: 34
+        repeat: true
+        running: root.pendingVisualizerPoints !== null
+        onTriggered: {
+            if (root.pendingVisualizerPoints === null) return
+            GlobalStates.visualizerPoints = root.pendingVisualizerPoints
+            root.pendingVisualizerPoints = null
         }
     }
 

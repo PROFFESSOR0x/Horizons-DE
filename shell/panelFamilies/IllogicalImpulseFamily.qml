@@ -60,6 +60,7 @@ Scope {
     PanelLoader { component: OnScreenDisplay {} }
     PanelLoader { component: OnScreenKeyboard {} }
     PanelLoader { component: Overlay {} }
+    PanelLoader { component: AppLaunchIndicator {} }
     PanelLoader { component: Overview {} }
     PanelLoader { component: WindowSwitcher {} }
     PanelLoader { component: Polkit {} }

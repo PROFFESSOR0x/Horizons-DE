@@ -223,7 +223,6 @@ Item {
 
                     property string appId:        root._workOrder[index] ?? ""
                     property var    appEntry:     TaskbarApps.apps.find(a => a.appId.toLowerCase() === appId.toLowerCase()) ?? null
-                    property var    deskEntry:    DesktopEntries.heuristicLookup(appId)
                     property bool   appActive:    appEntry?.toplevels?.find(t => t.activated) !== undefined
                     property int    _lastFocused: -1
 
@@ -274,13 +273,6 @@ Item {
                     width:  root.btnSize
                     height: root.btnSize
 
-                    Connections {
-                        target: DesktopEntries
-                        function onApplicationsChanged() {
-                            slotItem.deskEntry = DesktopEntries.heuristicLookup(slotItem.appId)
-                        }
-                    }
-
                     DragHandler {
                         id: dragHandler
                         target: null
@@ -317,14 +309,14 @@ Item {
                             if (root.dragging) return
                             const entry = slotItem.appEntry
                             if (!entry || entry.toplevels.length === 0) {
-                                slotItem.deskEntry?.execute()
+                                TaskbarApps.launch(slotItem.appId, null)
                                 return
                             }
                             const next = (slotItem._lastFocused + 1) % entry.toplevels.length
                             slotItem._lastFocused = next
                             entry.toplevels[next].activate()
                         }
-                        middleClickAction: () => { slotItem.deskEntry?.execute() }
+                        middleClickAction: () => { TaskbarApps.launch(slotItem.appId, null) }
                         altAction: event => pinnedContextMenu.showAt(event.x, event.y)
 
                         DockAppContextMenu {
@@ -332,7 +324,7 @@ Item {
                             hostWindow: root.QsWindow.window
                             hostItem: dockButton
                             appEntry: slotItem.appEntry
-                            desktopEntry: slotItem.deskEntry
+                            desktopEntry: null
                             applicationId: slotItem.appId
                         }
 
@@ -343,7 +335,7 @@ Item {
                                 id: pinnedIcon
                                 anchors.centerIn: parent
                                 source: Quickshell.iconPath(
-                                    AppSearch.guessIcon(slotItem.appId), "image-missing")
+                                    TaskbarApps.iconFor(slotItem.appId), "image-missing")
                                 implicitSize: root.iconSize
                             }
 
@@ -436,7 +428,7 @@ Item {
                             activeSlot.modelData.toplevels[next].activate()
                         }
                         middleClickAction: () => {
-                            DesktopEntries.heuristicLookup(activeSlot.modelData.appId)?.execute()
+                            TaskbarApps.launch(activeSlot.modelData.appId, null)
                         }
                         altAction: event => activeContextMenu.showAt(event.x, event.y)
 
@@ -445,7 +437,7 @@ Item {
                             hostWindow: root.QsWindow.window
                             hostItem: activeDockButton
                             appEntry: activeSlot.modelData
-                            desktopEntry: DesktopEntries.heuristicLookup(activeSlot.modelData.appId)
+                            desktopEntry: null
                             applicationId: activeSlot.modelData.appId
                         }
 
@@ -456,7 +448,7 @@ Item {
                                 id: activeIcon
                                 anchors.centerIn: parent
                                 source: Quickshell.iconPath(
-                                    AppSearch.guessIcon(activeSlot.modelData.appId), "image-missing")
+                                    TaskbarApps.iconFor(activeSlot.modelData.appId), "image-missing")
                                 implicitSize: root.iconSize
                             }
 

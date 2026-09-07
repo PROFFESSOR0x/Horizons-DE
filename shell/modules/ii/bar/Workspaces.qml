@@ -59,77 +59,64 @@ ButtonMouseArea {
     // Interactions
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     hoverEnabled: true
-    // Cache the modifiers at press time as well as at release time. Certain
-    // layer-shell/compositor combinations update one of those two events
-    // late; OR-ing both values preserves Ctrl/Shift without ever treating a
-    // modifier click as a normal workspace activation.
-    property int pressModifiers: Qt.NoModifier
-    property bool selectionHandledOnPress: false
+    // Right-click owns workspace selection. A click adds one item and a
+    // right-button drag adds each item crossed by the pointer. This avoids
+    // modifier delivery differences in layer-shell and works identically on
+    // the classic bar and its vertical form.
+    property bool rightSelectionDrag: false
+    property int rightSelectionLastWorkspace: -1
     property int hoverIndex: {
         const position = root.vertical ? mouseY : mouseX;
         return Math.floor(position / root.workspaceButtonWidth);
     }
 
-    function switchWorkspaceToHovered() {
-        GlobalStates.activateWorkspace(wsModel.getWorkspaceIdAt(hoverIndex), wsModel.monitorName);
+    function switchWorkspace(workspaceId) {
+        if (workspaceId >= 0)
+            GlobalStates.activateWorkspace(workspaceId, wsModel.monitorName)
     }
     function workspaceIdForMouse(mouse) {
         const index = Math.max(0, Math.floor((root.vertical ? mouse.y : mouse.x)
             / root.workspaceButtonWidth))
         return wsModel.getWorkspaceIdAt(index)
     }
-    // Ctrl toggles individual spaces and Shift selects an inclusive range
-    // from the last selected space. These modifiers deliberately work with
-    // the normal left click as well as right click: users can build a
-    // selection first, then open the action menu on any selected indicator.
-    function applyModifiedWorkspaceSelection(workspaceId, modifiers) {
-        const ctrlHeld = (modifiers & Qt.ControlModifier) !== 0
-        const shiftHeld = (modifiers & Qt.ShiftModifier) !== 0
-        if (shiftHeld)
-            GlobalStates.selectWorkspaceRange(workspaceId, wsModel.monitorName, ctrlHeld)
-        else if (ctrlHeld)
-            GlobalStates.toggleWorkspaceSelection(workspaceId, wsModel.monitorName)
-        else
-            return false
-        return true
-    }
     onPressed: mouse => {
-        root.selectionHandledOnPress = false
-        root.pressModifiers = mouse.modifiers
-        // Select on press while modifier state is guaranteed to be present.
-        // Some layer-shell builds clear it before MouseArea's clicked event.
-        const workspaceId = root.workspaceIdForMouse(mouse)
-        if (workspaceId >= 0 && root.applyModifiedWorkspaceSelection(workspaceId, mouse.modifiers)) {
-            root.selectionHandledOnPress = true
+        if (mouse.button === Qt.RightButton) {
+            const workspaceId = root.workspaceIdForMouse(mouse)
+            root.rightSelectionDrag = false
+            root.rightSelectionLastWorkspace = workspaceId
+            GlobalStates.addWorkspaceSelection(workspaceId, wsModel.monitorName)
             mouse.accepted = true
         }
     }
+    onPositionChanged: mouse => {
+        if (!pressed || (mouse.buttons & Qt.RightButton) === 0) return
+        const workspaceId = root.workspaceIdForMouse(mouse)
+        if (workspaceId < 0 || workspaceId === root.rightSelectionLastWorkspace) return
+        root.rightSelectionDrag = true
+        root.rightSelectionLastWorkspace = workspaceId
+        GlobalStates.addWorkspaceSelection(workspaceId, wsModel.monitorName)
+    }
     onClicked: mouse => {
         const workspaceId = root.workspaceIdForMouse(mouse)
-        const modifiers = mouse.modifiers | root.pressModifiers
-        const selecting = root.selectionHandledOnPress
-            || (modifiers & (Qt.ControlModifier | Qt.ShiftModifier)) !== 0
         console.log("[Workspaces] click workspace=" + workspaceId
             + " monitor=" + wsModel.monitorName
-            + " modifiers=" + modifiers
-            + " selecting=" + selecting)
-        root.pressModifiers = Qt.NoModifier
+            + " rightDrag=" + root.rightSelectionDrag)
         if (mouse.button == Qt.LeftButton) {
-            if (!root.selectionHandledOnPress
-                    && !root.applyModifiedWorkspaceSelection(workspaceId, modifiers))
-                switchWorkspaceToHovered()
+            // A normal workspace activation starts a fresh navigation action;
+            // the contextual multi-selection is intentionally retained only
+            // while the user continues right-click selecting.
+            GlobalStates.workspaceSelection = []
+            GlobalStates.workspaceSelectionAnchor = null
+            switchWorkspace(workspaceId)
         }
         else if (mouse.button == Qt.RightButton) {
-            const modified = root.selectionHandledOnPress
-                || root.applyModifiedWorkspaceSelection(workspaceId, modifiers)
-            // Right-clicking an item already in the multi-selection must not
-            // collapse it. Right-clicking an unselected item follows normal
-            // desktop behaviour and starts a new selection for that item.
-            if (!modified && !GlobalStates.workspaceSelectionContains(workspaceId, wsModel.monitorName))
-                GlobalStates.selectWorkspace(workspaceId, wsModel.monitorName, false)
-            workspaceContextMenu.showAt(workspaceId, wsModel.monitorName, mouse.x, mouse.y)
+            // Do not open a menu at the end of a selection drag. A simple
+            // right click still exposes actions for the cumulative selection.
+            if (!root.rightSelectionDrag)
+                workspaceContextMenu.showAt(workspaceId, wsModel.monitorName, mouse.x, mouse.y)
+            root.rightSelectionLastWorkspace = -1
+            root.rightSelectionDrag = false
         }
-        root.selectionHandledOnPress = false
     }
     onWheel: event => {
         if (event.angleDelta.y < 0)
@@ -307,7 +294,7 @@ ButtonMouseArea {
                 delegate: WorkspaceItem {
                     id: wsApp
                     property var biggestWindow: wsModel.biggestWindow[index]
-                    property var mainAppIconSource: Quickshell.iconPath(AppSearch.guessIcon(biggestWindow?.class), "image-missing")
+                    property var mainAppIconSource: Quickshell.iconPath(TaskbarApps.iconFor(biggestWindow?.class), "image-missing")
 
                     AppIcon {
                         id: appIcon

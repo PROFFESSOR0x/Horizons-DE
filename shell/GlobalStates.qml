@@ -319,6 +319,22 @@ Singleton {
         root.workspaceSelectionAnchor = entry
     }
 
+    // Right-click selection is additive by design. It is shared by the
+    // workspace strip's click and drag paths so a drag never replaces an
+    // earlier selection made on another screen.
+    function addWorkspaceSelection(workspaceId, monitorName) {
+        if (!root.isRealWorkspaceId(workspaceId) || !monitorName) return
+        const entry = {
+            key: root.workspaceKey(workspaceId, monitorName),
+            workspaceId: workspaceId,
+            monitorName: monitorName,
+        }
+        if (!root.workspaceSelectionContains(workspaceId, monitorName))
+            root.workspaceSelection = root.workspaceSelection.concat([entry])
+        root.workspaceSelectionAnchor = entry
+        console.log("[Workspaces] selection=" + root.workspaceSelection.map(item => item.key).join(","))
+    }
+
     // Shift extends an explicit same-monitor selection range. Ctrl+Shift
     // keeps selections on other monitors too; a plain Shift replaces the
     // current range, matching normal desktop selection behavior.
@@ -502,11 +518,17 @@ Singleton {
     function activateWorkspace(workspaceId, monitorName) {
         const unified = root.ensureUnifiedWorkspaceGroup(workspaceId, monitorName)
         if (unified.length > 1) {
+            console.log("[Workspaces] unified target=" + workspaceId + " source=" + monitorName
+                + " members=" + unified.map(item => item.key).join(","))
             WM.switchWorkspacesOnMonitors(unified, monitorName)
             return
         }
         const linked = root.linkedWorkspaceMembers(workspaceId, monitorName)
-        if (linked.length > 1) WM.switchWorkspacesOnMonitors(linked, monitorName)
+        if (linked.length > 1) {
+            console.log("[Workspaces] linked target=" + workspaceId + " source=" + monitorName
+                + " members=" + linked.map(item => item.key).join(","))
+            WM.switchWorkspacesOnMonitors(linked, monitorName)
+        }
         else WM.switchWorkspaceOnMonitor(workspaceId, monitorName)
     }
 

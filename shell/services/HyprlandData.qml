@@ -22,6 +22,11 @@ Singleton {
     property var activeWorkspace: null
     property var monitors: []
     property var layers: ({})
+    // A mapped window commonly emits open, focus, title, and geometry events
+    // in one burst. Never restart `hyprctl clients -j` while its previous
+    // response is still being parsed on the QML thread; perform one trailing
+    // refresh instead.
+    property bool windowRefreshQueued: false
 
     // decoration:blur:variant (hyprwm/Hyprland PR #15661, merged
     // 2026-08-22) isn't in any tagged Hyprland release yet, only in a
@@ -90,6 +95,10 @@ Singleton {
 
     function updateWindowList() {
         if (WM.compositor !== "hyprland") return;
+        if (getClients.running) {
+            root.windowRefreshQueued = true
+            return
+        }
         getClients.running = true;
     }
 
@@ -117,6 +126,16 @@ Singleton {
         updateWorkspaces();
     }
 
+    function scheduleWindowListUpdate() {
+        if (WM.compositor !== "hyprland") return;
+        windowRefreshDebounce.restart();
+    }
+
+    function scheduleWorkspaceUpdate() {
+        if (WM.compositor !== "hyprland") return;
+        workspaceRefreshDebounce.restart();
+    }
+
     // A single user action can produce a burst of raw events. Coalescing them
     // keeps the shell responsive instead of starting four hyprctl calls per event.
     function scheduleUpdateAll() {
@@ -129,6 +148,23 @@ Singleton {
         interval: 80
         repeat: false
         onTriggered: root.updateAll()
+    }
+
+    Timer {
+        id: windowRefreshDebounce
+        interval: 35
+        repeat: false
+        onTriggered: root.updateWindowList()
+    }
+
+    Timer {
+        id: workspaceRefreshDebounce
+        interval: 35
+        repeat: false
+        onTriggered: {
+            root.updateMonitors()
+            root.updateWorkspaces()
+        }
     }
 
     function biggestWindowForWorkspace(workspaceId) {
@@ -151,6 +187,17 @@ Singleton {
 
         function onRawEvent(event) {
             if (["openlayer", "closelayer", "screencast"].includes(event.name)) return;
+            if (["openwindow", "closewindow", "activewindow", "activewindowv2",
+                 "movewindow", "windowtitle", "windowtitlev2", "changefloatingmode",
+                 "fullscreen", "pin", "urgent"].includes(event.name)) {
+                root.scheduleWindowListUpdate()
+                return
+            }
+            if (["workspace", "workspacev2", "focusedmon", "focusedmonv2",
+                 "moveworkspace", "moveworkspacev2", "renameworkspace"].includes(event.name)) {
+                root.scheduleWorkspaceUpdate()
+                return
+            }
             scheduleUpdateAll()
         }
     }
@@ -171,6 +218,11 @@ Singleton {
                 root.windowByAddress = tempWinByAddress;
                 root.addresses = root.windowList.map(win => win.address);
             }
+        }
+        onExited: (exitCode, exitStatus) => {
+            if (!root.windowRefreshQueued) return
+            root.windowRefreshQueued = false
+            root.windowRefreshDebounce.restart()
         }
     }
 

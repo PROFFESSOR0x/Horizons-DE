@@ -75,15 +75,8 @@ PopupWindow {
         else window.close?.()
     }
     function launch() {
-        if (root.launchEntry) {
-            root.launchEntry.execute()
-            return
-        }
-        // `pinnedApps` stores desktop-entry ids. gtk-launch accepts that id
-        // and gives us a reliable fallback while Quickshell is still indexing
-        // entries, which is exactly when a closed dock item used to be gray.
-        if (root.applicationId !== "")
-            Quickshell.execDetached(["gtk-launch", root.applicationId])
+        AppLaunchService.launchDesktopEntry(root.applicationId, root.launchEntry,
+            TaskbarApps.iconFor(root.applicationId), root.applicationId)
     }
     function openInNewWorkspace() {
         const monitorName = WM.monitorFor(root.hostWindow?.screen)?.name ?? ""
@@ -131,8 +124,8 @@ PopupWindow {
         gravity: Edges.Bottom | Edges.Left
         adjustment: PopupAdjustment.All
     }
-    width: actions.implicitWidth + 12
-    height: actions.implicitHeight + 10
+    implicitWidth: actions.implicitWidth + 12
+    implicitHeight: actions.implicitHeight + 10
 
     Rectangle {
         id: menuBackground
@@ -150,6 +143,7 @@ PopupWindow {
             spacing: 1
 
             DockMenuAction {
+                dismissAction: () => root.close()
                 // Keep launch choices present for every item. Some desktop
                 // entries arrive shortly after their taskbar counterpart;
                 // a disabled action is clearer than a jumping menu layout.
@@ -159,18 +153,21 @@ PopupWindow {
                 onTriggered: root.launch()
             }
             DockMenuAction {
+                dismissAction: () => root.close()
                 enabled: root.canLaunch
                 symbolName: "add_to_queue"
                 menuLabel: Translation.tr("Open in new workspace")
                 onTriggered: root.openInNewWorkspace()
             }
             DockMenuAction {
+                dismissAction: () => root.close()
                 visible: root.hasWindows
                 symbolName: "close"
                 menuLabel: Translation.tr("Close window")
                 onTriggered: root.closeActive()
             }
             DockMenuAction {
+                dismissAction: () => root.close()
                 visible: root.hasWindows
                 symbolName: "dangerous"
                 menuLabel: Translation.tr("End task")
@@ -184,12 +181,14 @@ PopupWindow {
                 color: Appearance.colors.colLayer0Border
             }
             DockMenuAction {
+                dismissAction: () => root.close()
                 visible: root.applicationId !== "" && !root.pinned
                 symbolName: "keep"
                 menuLabel: Translation.tr("Keep on dock")
                 onTriggered: TaskbarApps.togglePin(root.applicationId)
             }
             DockMenuAction {
+                dismissAction: () => root.close()
                 visible: root.applicationId !== "" && root.pinned
                 symbolName: "remove_circle"
                 menuLabel: Translation.tr("Remove from dock")
@@ -201,6 +200,7 @@ PopupWindow {
     component DockMenuAction: RippleButton {
         required property string symbolName
         required property string menuLabel
+        property var dismissAction: null
         signal triggered()
         Layout.fillWidth: true
         implicitWidth: row.implicitWidth + 24
@@ -208,9 +208,7 @@ PopupWindow {
         buttonRadius: Appearance.rounding.small
         onClicked: {
             triggered()
-            // Inline component ids are not lexically visible in QML. The
-            // action is parented by actions -> menuBackground -> PopupWindow.
-            parent.parent.parent.close()
+            dismissAction?.()
         }
         contentItem: RowLayout {
             id: row

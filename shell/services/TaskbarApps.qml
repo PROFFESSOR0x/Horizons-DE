@@ -23,11 +23,41 @@ Singleton {
     }
 
     function launch(appId, desktopEntry) {
-        if (desktopEntry) {
-            desktopEntry.execute()
-            return
+        // `byId` is a direct lookup in Quickshell's already-loaded index. It
+        // preserves each application's native launch command without the
+        // extra gtk-launch process, while deliberately avoiding the fuzzy
+        // heuristic lookup that caused the post-open UI stalls.
+        const entry = desktopEntry ?? DesktopEntries.byId(appId)
+        AppLaunchService.launchDesktopEntry(appId, entry,
+            root.iconFor(appId), appId)
+    }
+
+    // A taskbar update happens for every opened, closed, or focused window.
+    // Do not fuzzy-search the desktop-entry index from every dock delegate in
+    // that hot path: indexing the full applications list can block QML just
+    // after a file manager maps a new window. The icon provider resolves this
+    // short, stable name lazily when the image is actually drawn.
+    property var iconCache: ({})
+    function iconFor(appId) {
+        const raw = String(appId ?? "").trim()
+        const key = raw.toLowerCase()
+        if (key === "") return "application-x-executable"
+        if (root.iconCache[key] !== undefined) return root.iconCache[key]
+
+        const knownIcons = {
+            "code-url-handler": "visual-studio-code",
+            "code": "visual-studio-code",
+            "org.kde.dolphin": "org.kde.dolphin",
+            "dolphin": "org.kde.dolphin",
+            "org.xfce.thunar": "org.xfce.thunar",
+            "thunar": "org.xfce.thunar",
+            "org.gnome.nautilus": "org.gnome.Nautilus",
+            "nautilus": "org.gnome.Nautilus"
         }
-        if (appId !== "") Quickshell.execDetached(["gtk-launch", appId])
+        const icon = knownIcons[key]
+            ?? (raw.includes(".") ? raw.split(".").pop() : raw)
+        root.iconCache[key] = icon
+        return icon
     }
 
     property list<var> apps: {
@@ -63,20 +93,14 @@ Singleton {
         var values = [];
 
         for (const [key, value] of map) {
-            values.push(appEntryComp.createObject(null, { appId: key, toplevels: value.toplevels, pinned: value.pinned }));
+            // `apps` is a derived value and is rebuilt whenever the toplevel
+            // model changes. Creating an unparented QtObject here leaked one
+            // object per entry per update, then made the QML GC work hard
+            // whenever a file opener added a window. Consumers only need data,
+            // so keep these short-lived entries as plain JavaScript objects.
+            values.push({ appId: key, toplevels: value.toplevels, pinned: value.pinned });
         }
 
         return values;
-    }
-
-    component TaskbarAppEntry: QtObject {
-        id: wrapper
-        required property string appId
-        required property list<var> toplevels
-        required property bool pinned
-    }
-    Component {
-        id: appEntryComp
-        TaskbarAppEntry {}
     }
 }

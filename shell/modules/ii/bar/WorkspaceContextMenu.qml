@@ -70,6 +70,7 @@ PopupWindow {
             spacing: 1
 
             WorkspaceMenuAction {
+                dismissAction: () => root.close()
                 symbolName: GlobalStates.workspaceSelectionContains(root.workspaceId, root.monitorName)
                     ? "deselect" : "select"
                 menuLabel: GlobalStates.workspaceSelectionContains(root.workspaceId, root.monitorName)
@@ -77,12 +78,14 @@ PopupWindow {
                 onTriggered: GlobalStates.toggleWorkspaceSelection(root.workspaceId, root.monitorName)
             }
             WorkspaceMenuAction {
+                dismissAction: () => root.close()
                 visible: root.selected().length > 1
                 symbolName: "link"
                 menuLabel: Translation.tr("Link selected workspaces")
                 onTriggered: GlobalStates.linkSelectedWorkspaces(root.workspaceId, root.monitorName)
             }
             WorkspaceMenuAction {
+                dismissAction: () => root.close()
                 // Detaching is the companion action for the global
                 // multi-monitor workspace mode; manual groups stay linked
                 // until explicitly changed through their own selection.
@@ -100,11 +103,13 @@ PopupWindow {
                 color: Appearance.colors.colLayer0Border
             }
             WorkspaceMenuAction {
+                dismissAction: () => root.close()
                 symbolName: "close"
                 menuLabel: Translation.tr("Close all windows")
                 onTriggered: root.closeSelected(false)
             }
             WorkspaceMenuAction {
+                dismissAction: () => root.close()
                 symbolName: "dangerous"
                 menuLabel: Translation.tr("End task for all windows")
                 onTriggered: root.closeSelected(true)
@@ -115,6 +120,7 @@ PopupWindow {
     component WorkspaceMenuAction: RippleButton {
         required property string symbolName
         required property string menuLabel
+        property var dismissAction: null
         signal triggered()
         Layout.fillWidth: true
         implicitWidth: row.implicitWidth + 24
@@ -123,9 +129,7 @@ PopupWindow {
         opacity: enabled ? 1 : 0.45
         onClicked: {
             triggered()
-            // Inline component ids are not lexically visible in QML. The
-            // action is parented by actions -> menuBackground -> PopupWindow.
-            parent.parent.parent.close()
+            dismissAction?.()
         }
         contentItem: RowLayout {
             id: row

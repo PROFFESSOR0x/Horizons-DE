@@ -150,6 +150,10 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("id: refreshDebounce", hyprland_data)
         self.assertIn("function scheduleUpdateAll", hyprland_data)
         self.assertIn("scheduleUpdateAll()", hyprland_data)
+        self.assertIn("property bool windowRefreshQueued", hyprland_data)
+        self.assertIn("if (getClients.running)", hyprland_data)
+        self.assertIn("root.windowRefreshDebounce.restart()", hyprland_data)
+        self.assertIn('"windowtitlev2"', hyprland_data)
 
     def test_hyprland_customization_never_writes_removed_options(self) -> None:
         config = source("modules/common/Config.qml")
@@ -222,6 +226,43 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("color: Appearance.colors.colLayer0", view)
         self.assertIn("StyledRectangularShadow { target: root }", view)
 
+    def test_taskbar_refresh_does_not_index_desktop_entries_or_fuzzy_search(self) -> None:
+        """Opening a window must leave the QML event loop's hot path cheap.
+
+        The taskbar model is rebuilt after every toplevel update.  Dock
+        delegates used to call DesktopEntries.heuristicLookup and
+        AppSearch.guessIcon while that rebuild was propagating, which can
+        synchronously scan the desktop-entry index after a file opener maps a
+        window.  Context-menu lookup is deliberately retained, but only when
+        the user requests it.
+        """
+        taskbar = source("services/TaskbarApps.qml")
+        dock_button = source("modules/common/widgets/DockAppButton.qml")
+        drag_apps = source("modules/common/widgets/DragApps.qml")
+        dock_to_panel = source("modules/ii/bar/DocktoPanel.qml")
+        tasklist = source("modules/ii/tasklistBar/TasklistBarContent.qml")
+        active_window = source("modules/ii/bar/ActiveWindow.qml")
+        workspaces = source("modules/ii/bar/Workspaces.qml")
+        info_strip = source("modules/ii/infoStrip/InfoStripContent.qml")
+        menu = source("modules/common/widgets/DockAppContextMenu.qml")
+
+        self.assertIn("function iconFor(appId)", taskbar)
+        self.assertIn("property var iconCache", taskbar)
+        self.assertNotIn("AppSearch.guessIcon", taskbar)
+        self.assertNotIn("DesktopEntries.heuristicLookup", dock_button)
+        self.assertNotIn("DesktopEntries.heuristicLookup", drag_apps)
+        self.assertNotIn("DesktopEntries.heuristicLookup", dock_to_panel)
+        self.assertNotIn("AppSearch.guessIcon", dock_button)
+        self.assertNotIn("AppSearch.guessIcon", drag_apps)
+        self.assertNotIn("AppSearch.guessIcon", dock_to_panel)
+        self.assertNotIn("AppSearch.guessIcon", tasklist)
+        self.assertNotIn("DesktopEntries.heuristicLookup", tasklist)
+        self.assertNotIn("AppSearch.guessIcon", active_window)
+        self.assertNotIn("AppSearch.guessIcon", workspaces)
+        self.assertNotIn("AppSearch.guessIcon", info_strip)
+        self.assertIn("function showAt(x, y)", menu)
+        self.assertIn("DesktopEntries.heuristicLookup(root.applicationId)", menu)
+
     def test_window_switcher_tab_key_toggles_its_two_views(self) -> None:
         view = source("modules/ii/overview/WindowSwitcherView.qml")
 
@@ -245,7 +286,7 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("function linkSelectedWorkspaces", states)
         self.assertIn("function detachWorkspace", states)
         self.assertIn("function closeWorkspaceWindows", states)
-        self.assertIn("function selectWorkspaceRange", states)
+        self.assertIn("function addWorkspaceSelection", states)
         self.assertIn("workspaceSelectionAnchor", states)
         self.assertIn("function ensureUnifiedWorkspaceGroup", states)
         self.assertIn("function unifiedWorkspaceMembers", states)
@@ -253,16 +294,19 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("detachedGroups", config)
         self.assertIn("cleanDetachedWorkspaceGroups", config)
         self.assertIn("GlobalStates.activateWorkspace", bar)
-        self.assertIn("Qt.ControlModifier", bar)
-        self.assertIn("Qt.ShiftModifier", bar)
-        self.assertIn("applyModifiedWorkspaceSelection", bar)
-        self.assertIn("!GlobalStates.workspaceSelectionContains", bar)
+        self.assertIn("rightSelectionDrag", bar)
+        self.assertIn("rightSelectionLastWorkspace", bar)
+        self.assertIn("GlobalStates.addWorkspaceSelection", bar)
+        self.assertIn("onPositionChanged: mouse", bar)
+        self.assertIn("mouse.buttons & Qt.RightButton", bar)
+        self.assertIn("switchWorkspace(workspaceId)", bar)
         self.assertIn("onClicked: mouse", bar)
-        self.assertIn("property int pressModifiers", bar)
-        self.assertIn("mouse.modifiers | root.pressModifiers", bar)
-        self.assertIn("selectionHandledOnPress", bar)
         self.assertIn("workspaceIdForMouse", bar)
         self.assertIn("activeWorkspaceForMonitor", states)
+        self.assertIn("HyprlandData.monitors.find", source("services/HyprlandBackend.qml"))
+        self.assertIn('Quickshell.execDetached(["hyprctl", "eval"', source("services/HyprlandBackend.qml"))
+        self.assertIn("hl.dsp.workspace.move", source("services/HyprlandBackend.qml"))
+        self.assertIn("hl.dsp.cursor.move", source("services/HyprlandBackend.qml"))
         self.assertIn("WorkspaceContextMenu", bar)
         self.assertIn("Link selected workspaces", menu)
         self.assertIn("Close all windows", menu)
@@ -270,7 +314,8 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("Separate this workspace from the group", menu)
         self.assertIn("rect.x: root.menuX", menu)
         self.assertIn("grabFocus: true", menu)
-        self.assertIn("parent.parent.parent.close()", menu)
+        self.assertIn("property var dismissAction", menu)
+        self.assertIn("dismissAction?.()", menu)
         self.assertIn("linkedWorkspaceScope", grid)
         self.assertIn("Use one workspace set across all screens", settings)
 
@@ -294,7 +339,7 @@ class M3IslandContractTests(unittest.TestCase):
         # to gtk-launch instead of being disabled.
         self.assertIn("readonly property bool canLaunch", menu)
         self.assertIn("enabled: root.canLaunch", menu)
-        self.assertIn('Quickshell.execDetached(["gtk-launch", root.applicationId])', menu)
+        self.assertIn("AppLaunchService.launchDesktopEntry", menu)
         self.assertIn("onTriggered: root.launch()", menu)
         self.assertIn("DesktopEntries.heuristicLookup(root.applicationId)", menu)
         self.assertIn("Keep on dock", menu)
@@ -307,6 +352,42 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("openContextMenu", drag_apps)
         self.assertIn("function forceCloseWindow", wm)
         self.assertIn("function forceCloseWindow", hyprland)
+
+    def test_app_launch_indicator_never_delays_launch_and_finishes_on_mapped_window(self) -> None:
+        launcher = source("services/AppLaunchService.qml")
+        indicator = source("modules/ii/overlay/AppLaunchIndicator.qml")
+
+        self.assertIn("property bool externalLaunch", launcher)
+        self.assertIn("root.begin(appIdValue, iconValue, nameValue, \"\", false)", launcher)
+        self.assertIn("launcher()", launcher)
+        self.assertNotIn("pendingLauncher", launcher)
+        self.assertNotIn("launchTimer", launcher)
+        self.assertIn("previousWindowAddresses", launcher)
+        self.assertIn("window?.mapped !== false", launcher)
+        self.assertIn("id: readyTimer", launcher)
+        self.assertIn("root.canonicalAppId(id)", launcher)
+        self.assertIn("function screenNameForWindow", launcher)
+        self.assertIn("HyprlandData.monitors.find", launcher)
+        # An externally-opened file must not synchronously walk the desktop
+        # entry index on the UI thread; that was the launch-freeze regression.
+        self.assertNotIn("DesktopEntries.", launcher)
+        self.assertIn('"org.kde.dolphin": "org.kde.dolphin"', launcher)
+        self.assertIn('"org.xfce.thunar": "org.xfce.thunar"', launcher)
+        self.assertIn("root.startExternal(fields[2], fields[0], fields[3] || fields[2])", launcher)
+        self.assertNotIn("root.startExternal(fields[1], fields[0], fields[2])", launcher)
+        self.assertIn("interval: root.externalLaunch ? 520 : 140", launcher)
+        self.assertIn("onTriggered: root.finish()", launcher)
+        self.assertIn("Qt.callLater(root.checkForWindow)", launcher)
+        self.assertIn("indicatorWindow.targetRect", indicator)
+
+    def test_taskbar_rebuild_does_not_allocate_unparented_qt_objects(self) -> None:
+        taskbar = source("services/TaskbarApps.qml")
+
+        self.assertIn("values.push({ appId: key, toplevels: value.toplevels, pinned: value.pinned })", taskbar)
+        self.assertNotIn("appEntryComp.createObject(null", taskbar)
+        self.assertNotIn("component TaskbarAppEntry", taskbar)
+        self.assertIn("DesktopEntries.byId(appId)", taskbar)
+        self.assertNotIn("DesktopEntries.heuristicLookup", taskbar)
 
     def test_lock_preview_and_full_monitor_visualizer_keep_their_own_state(self) -> None:
         states = source("GlobalStates.qml")

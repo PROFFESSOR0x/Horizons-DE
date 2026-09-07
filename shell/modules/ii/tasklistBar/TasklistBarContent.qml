@@ -191,7 +191,7 @@ Item {
                 // App icon
                 IconImage {
                     id: iconImg
-                    source: Quickshell.iconPath(AppSearch.guessIcon(taskBtn.appId), "image-missing")
+                    source: Quickshell.iconPath(TaskbarApps.iconFor(taskBtn.appId), "image-missing")
                     implicitSize: Appearance.font.pixelSize.larger
                     opacity: taskBtn.isPinned && !taskBtn.hasWindows ? 0.45 : 1.0
                     Behavior on opacity {
@@ -241,9 +241,7 @@ Item {
             onClicked: mouse => {
                 if (mouse.button === Qt.LeftButton) {
                     if (!taskBtn.hasWindows) {
-                        // Launch via desktop entry
-                        const entry = DesktopEntries.heuristicLookup(taskBtn.appId)
-                        if (entry) entry.execute()
+                        TaskbarApps.launch(taskBtn.appId, null)
                     } else {
                         // Cycle through windows
                         const next = taskBtn._lastFocused % taskBtn.toplevels.length

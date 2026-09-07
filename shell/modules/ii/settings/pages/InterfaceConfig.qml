@@ -1460,6 +1460,25 @@ ContentPage {
 
             GroupedList {
                 ConfigSwitch {
+                    buttonIcon: "hourglass_top"
+                    text: Translation.tr("Show app launch indicator")
+                    checked: Config.options.appLaunch.showIndicator
+                    onCheckedChanged: { Config.options.appLaunch.showIndicator = checked }
+                }
+                ConfigSwitch {
+                    buttonIcon: "layers"
+                    text: Translation.tr("Keep indicator above windows")
+                    checked: Config.options.appLaunch.aboveWindows
+                    onCheckedChanged: { Config.options.appLaunch.aboveWindows = checked }
+                }
+                ConfigSpinBox {
+                    icon: "timer"
+                    text: Translation.tr("Launch indicator timeout (ms)")
+                    value: Config.options.appLaunch.timeout
+                    from: 1000; to: 30000; stepSize: 500
+                    onValueChanged: { Config.options.appLaunch.timeout = value }
+                }
+                ConfigSwitch {
                     buttonIcon: "high_density"
                     text: Translation.tr("Enable opening zoom animation")
                     checked: Config.options.overlay.openingZoomAnimation

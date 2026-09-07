@@ -30,6 +30,7 @@ Item {
     readonly property real floorValue: Math.max(0, Math.min(95, noiseFloorPercent)) / 100 * rawMaximum
     readonly property real columnWidth: Math.max(2, (width - barSpacing * (barCount - 1)) / Math.max(1, barCount))
     property var displayPoints: []
+    property real pointsAverage: 0
 
     function normalized(rawValue) {
         const raw = Math.max(0, Math.min(rawMaximum, Number(rawValue) || 0))
@@ -56,13 +57,10 @@ Item {
         const fromCenter = Math.abs((index + 0.5) / Math.max(1, barCount) - 0.5) * 2
         const rawIndex = Math.min(points.length - 1,
             Math.floor(fromCenter * (points.length - 1)))
-        let average = 0
-        for (let i = 0; i < points.length; i++) average += Number(points[i]) || 0
-        average /= Math.max(1, points.length)
         // Preserve the band shape while sharing a small amount of total
         // energy. Every area then reacts to the track without becoming a
         // uniform, fake-looking block.
-        return normalized((Number(points[rawIndex]) || 0) * 0.82 + average * 0.18)
+        return normalized((Number(points[rawIndex]) || 0) * 0.82 + pointsAverage * 0.18)
     }
 
     function updateDisplayPoints() {
@@ -79,7 +77,20 @@ Item {
         root.displayPoints = next
     }
 
-    onPointsChanged: updateDisplayPoints()
+    function updatePointsAverage() {
+        if (!points || points.length === 0) {
+            root.pointsAverage = 0
+            return
+        }
+        let total = 0
+        for (let i = 0; i < points.length; i++) total += Number(points[i]) || 0
+        root.pointsAverage = total / points.length
+    }
+
+    onPointsChanged: {
+        updatePointsAverage()
+        updateDisplayPoints()
+    }
     onBarCountChanged: updateDisplayPoints()
     onSimulateChanged: updateDisplayPoints()
     Component.onCompleted: updateDisplayPoints()

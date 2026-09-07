@@ -73,7 +73,6 @@ Item {
 
             property string appId:     root._workOrder[index] ?? ""
             property var    appEntry:  TaskbarApps.apps.find(a => a.appId.toLowerCase() === appId.toLowerCase()) ?? null
-            property var    deskEntry: DesktopEntries.heuristicLookup(appId)
             property bool   appActive: appEntry?.toplevels?.find(t => t.activated) !== undefined
             property int    _lastFocused: -1
             property var    dockContextHold: root
@@ -116,7 +115,7 @@ Item {
                     id: ghostIcon
                     anchors.centerIn: parent
                     source: Quickshell.iconPath(
-                        AppSearch.guessIcon(root._workOrder[root.activeDragVisualIndex] ?? ""),
+                        TaskbarApps.iconFor(root._workOrder[root.activeDragVisualIndex] ?? ""),
                         "image-missing")
                     implicitSize: root.btnSize * 0.65
                     opacity: 0.85
@@ -158,7 +157,7 @@ Item {
                 onClicked: {
                     const entry = slotItem.appEntry
                     if (!entry || entry.toplevels.length === 0) {
-                        TaskbarApps.launch(slotItem.appId, slotItem.deskEntry)
+                        TaskbarApps.launch(slotItem.appId, null)
                         return
                     }
                     const next = (slotItem._lastFocused + 1) % entry.toplevels.length
@@ -166,7 +165,7 @@ Item {
                     entry.toplevels[next].activate()
                 }
 
-                middleClickAction: () => { TaskbarApps.launch(slotItem.appId, slotItem.deskEntry) }
+                middleClickAction: () => { TaskbarApps.launch(slotItem.appId, null) }
                 altAction: event => pinnedContextMenu.showAt(event.x, event.y)
 
                 DockAppContextMenu {
@@ -174,7 +173,7 @@ Item {
                     hostWindow: root.QsWindow.window
                     hostItem: dockBtn
                     appEntry: slotItem.appEntry
-                    desktopEntry: slotItem.deskEntry
+                    desktopEntry: null
                     applicationId: slotItem.appId
                     dockHold: slotItem.dockContextHold
                 }
@@ -186,7 +185,7 @@ Item {
                         id: appIcon
                         anchors.centerIn: parent
                         source: Quickshell.iconPath(
-                            AppSearch.guessIcon(slotItem.appId),
+                            TaskbarApps.iconFor(slotItem.appId),
                             "image-missing")
                         implicitSize: 33
                     }

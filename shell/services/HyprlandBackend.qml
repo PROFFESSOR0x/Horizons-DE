@@ -66,13 +66,30 @@ Scope {
         return candidate
     }
     function switchWorkspacesOnMonitors(entries, focusMonitor) {
+        // Hyprland 0.55+ uses Lua dispatchers. `focus({ monitor })` alone is
+        // not enough here: focus-follows-mouse can immediately return focus to
+        // the pointer's output before the next workspace command executes.
+        // Drive the cursor to each target output inside one Lua evaluation,
+        // focus/create the requested workspace there, then restore the cursor
+        // in the same compositor transaction. If a target already exists on a
+        // different screen, move it first so every logical member remains on
+        // its assigned output.
+        const statements = ["local p = hl.get_cursor_pos()"]
         for (const entry of entries) {
-            if (!entry?.monitorName) continue
-            Hyprland.dispatch(`hl.dsp.focus({ monitor = "${entry.monitorName}" })`)
-            Hyprland.dispatch(`hl.dsp.focus({ workspace = ${entry.workspaceId} })`)
+            if (!entry?.monitorName || !Number.isInteger(Number(entry.workspaceId))) continue
+            const monitor = JSON.stringify(String(entry.monitorName))
+            const workspace = Number(entry.workspaceId)
+            statements.push("do local m = hl.get_monitor(" + monitor + "); if m then "
+                + "local ws = hl.get_workspace(" + workspace + "); "
+                + "if ws then hl.dispatch(hl.dsp.workspace.move({ workspace = ws, monitor = m })) end; "
+                + "hl.dispatch(hl.dsp.cursor.move({ x = m.position.x + 1, y = m.position.y + 1 })); "
+                + "hl.dispatch(hl.dsp.focus({ workspace = " + workspace + " })) end end")
         }
-        if (focusMonitor)
-            Hyprland.dispatch(`hl.dsp.focus({ monitor = "${focusMonitor}" })`)
+        if (statements.length === 1) return
+        statements.push("hl.dispatch(hl.dsp.cursor.move({ x = p.x, y = p.y }))")
+        const code = statements.join("; ")
+        console.log("[Workspaces] Hyprland multi-monitor eval=" + code)
+        Quickshell.execDetached(["hyprctl", "eval", code])
     }
     function moveWindowToWorkspace(id, wsId) {
         Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${wsId}, follow = false, window = "address:${id}" })`);
@@ -83,7 +100,12 @@ Scope {
     }
 
     function activeWorkspaceForMonitor(monitorName) {
-        const m = Hyprland.monitors.values.find(mm => mm.name === monitorName);
+        // HyprlandData is the same direct `hyprctl monitors -j` snapshot used
+        // for the rest of the shell. Quickshell's monitor wrapper can lag one
+        // compositor event, which previously made group generation use stale
+        // workspace ids immediately after a switch.
+        const m = HyprlandData.monitors.find(mm => mm.name === monitorName)
+            ?? Hyprland.monitors.values.find(mm => mm.name === monitorName);
         return m?.activeWorkspace ? { id: m.activeWorkspace.id } : null;
     }
 

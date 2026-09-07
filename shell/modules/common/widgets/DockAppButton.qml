@@ -20,17 +20,8 @@ DockButton {
     property bool appIsActive: appToplevel.toplevels.find(t => (t.activated == true)) !== undefined
 
     readonly property bool isSeparator: appToplevel.appId === "SEPARATOR"
-    property var desktopEntry: DesktopEntries.heuristicLookup(appToplevel.appId)
     enabled: !isSeparator
     implicitWidth: isSeparator ? 1 : implicitHeight - topInset - bottomInset
-
-    Connections {
-        target: DesktopEntries
-
-        function onApplicationsChanged() {
-            root.desktopEntry = DesktopEntries.heuristicLookup(appToplevel.appId);
-        }
-    }
 
     Loader {
         active: isSeparator
@@ -65,7 +56,7 @@ DockButton {
 
     onClicked: {
         if (appToplevel.toplevels.length === 0) {
-            TaskbarApps.launch(appToplevel.appId, root.desktopEntry)
+            TaskbarApps.launch(appToplevel.appId, null)
             return;
         }
         lastFocused = (lastFocused + 1) % appToplevel.toplevels.length
@@ -73,7 +64,7 @@ DockButton {
     }
 
     middleClickAction: () => {
-        TaskbarApps.launch(appToplevel.appId, root.desktopEntry)
+        TaskbarApps.launch(appToplevel.appId, null)
     }
 
     // Right click is a contextual action menu. Pinning is still available
@@ -87,7 +78,7 @@ DockButton {
         hostWindow: root.QsWindow.window
         hostItem: root
         appEntry: root.appToplevel
-        desktopEntry: root.desktopEntry
+        desktopEntry: null
         applicationId: root.appToplevel?.appId ?? ""
         dockHold: root.dockContextHold
     }
@@ -106,7 +97,7 @@ DockButton {
                 }
                 active: !root.isSeparator
                 sourceComponent: IconImage {
-                    source: Quickshell.iconPath(AppSearch.guessIcon(appToplevel.appId), "image-missing")
+                    source: Quickshell.iconPath(TaskbarApps.iconFor(appToplevel.appId), "image-missing")
                     implicitSize: root.iconSize
                 }
             }
