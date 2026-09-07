@@ -65,14 +65,16 @@ Scope {
         while (used.has(candidate)) ++candidate
         return candidate
     }
-    function switchWorkspacesOnMonitors(entries, focusMonitor) {
+    function switchWorkspacesOnMonitors(entries, focusMonitor, windowToFocus) {
         // Hyprland 0.55+ uses Lua dispatchers. `focus({ monitor })` alone is
         // not enough here: focus-follows-mouse can immediately return focus to
         // the pointer's output before the next workspace command executes.
-        // Drive the cursor to each target output inside one Lua evaluation,
-        // focus/create the requested workspace there, then restore the cursor
-        // in the same compositor transaction. If a target already exists on a
-        // different screen, move it first so every logical member remains on
+        // Drive the cursor to the *centre* of each target output inside one Lua
+        // evaluation, focus/create the requested workspace there, then restore
+        // it in the same compositor transaction. Never use x/y + 1 here:
+        // those are screen-corner hover zones and made Ctrl+Super+Arrow open a
+        // sidebar as an unintended side effect. If a target already exists on
+        // a different screen, move it first so every logical member remains on
         // its assigned output.
         const statements = ["local p = hl.get_cursor_pos()"]
         for (const entry of entries) {
@@ -82,7 +84,7 @@ Scope {
             statements.push("do local m = hl.get_monitor(" + monitor + "); if m then "
                 + "local ws = hl.get_workspace(" + workspace + "); "
                 + "if ws then hl.dispatch(hl.dsp.workspace.move({ workspace = ws, monitor = m })) end; "
-                + "hl.dispatch(hl.dsp.cursor.move({ x = m.position.x + 1, y = m.position.y + 1 })); "
+                + "hl.dispatch(hl.dsp.cursor.move({ x = m.position.x + math.floor(m.width / 2), y = m.position.y + math.floor(m.height / 2) })); "
                 + "hl.dispatch(hl.dsp.focus({ workspace = " + workspace + " })) end end")
         }
         if (statements.length === 1) return
@@ -94,6 +96,13 @@ Scope {
             ?? entries[entries.length - 1]
         if (focusEntry?.workspaceId)
             statements.push("hl.dispatch(hl.dsp.focus({ workspace = " + Number(focusEntry.workspaceId) + " }))")
+        // A dock/tray activation may point at a window in a currently hidden
+        // member of the set. Focus it only after all monitors have reached
+        // their mapped workspaces, otherwise Hyprland performs its normal
+        // single-monitor workspace jump first.
+        if (typeof windowToFocus === "string" && windowToFocus.length > 0)
+            statements.push("hl.dispatch(hl.dsp.focus({ window = "
+                + JSON.stringify("address:" + windowToFocus) + " }))")
         const code = statements.join("; ")
         console.log("[Workspaces] Hyprland multi-monitor eval=" + code)
         Quickshell.execDetached(["hyprctl", "eval", code])

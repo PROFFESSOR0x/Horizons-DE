@@ -12,6 +12,7 @@ import Quickshell.Io
 import Quickshell
 import Quickshell.Widgets
 import Quickshell.Wayland
+import "../../../" as RootShell
 
 Item {
     id: root
@@ -161,7 +162,8 @@ Item {
                     }
                     const next = (slotItem._lastFocused + 1) % entry.toplevels.length
                     slotItem._lastFocused = next
-                    entry.toplevels[next].activate()
+                    const address = HyprlandData.clientForToplevel(entry.toplevels[next])?.address ?? ""
+                    if (address) RootShell.GlobalStates.focusWindowInUnifiedSet(address)
                 }
 
                 middleClickAction: () => { TaskbarApps.launch(slotItem.appId, null) }
@@ -394,7 +396,10 @@ Item {
                             padding: 0
 
                             middleClickAction: () => { windowButton.modelData?.close() }
-                            onClicked: { windowButton.modelData?.activate() }
+                            onClicked: {
+                                const address = HyprlandData.clientForToplevel(windowButton.modelData)?.address ?? ""
+                                if (address) RootShell.GlobalStates.focusWindowInUnifiedSet(address)
+                            }
 
                             contentItem: ColumnLayout {
                                 implicitWidth:  screencopyView.implicitWidth

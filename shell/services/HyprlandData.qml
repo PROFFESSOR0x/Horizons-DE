@@ -75,11 +75,32 @@ Singleton {
     }
 
     function clientForToplevel(toplevel) {
-        if (!toplevel || !toplevel.HyprlandToplevel) {
-            return null;
+        if (!toplevel) return null
+
+        // ToplevelManager exposes Wayland Toplevel handles. On current
+        // Quickshell the Hyprland address is an *attached* property, not a
+        // JavaScript field on that handle; treating it as
+        // `toplevel.HyprlandToplevel.address` therefore produced
+        // "0xundefined" and made dock buttons inert. Match the compositor's
+        // authoritative client snapshot by its stable app id and title. The
+        // address path remains for older QuickShell builds that expose it.
+        const rawAddress = toplevel?.HyprlandToplevel?.address ?? ""
+        if (rawAddress) {
+            const address = String(rawAddress).startsWith("0x")
+                ? String(rawAddress) : "0x" + String(rawAddress)
+            if (root.windowByAddress[address]) return root.windowByAddress[address]
         }
-        const address = `0x${toplevel?.HyprlandToplevel?.address}`;
-        return root.windowByAddress[address];
+        const appId = String(toplevel.appId ?? "").toLowerCase()
+        const title = String(toplevel.title ?? "")
+        const candidates = root.windowList.filter(window => {
+            const windowAppId = String(window?.class ?? "").toLowerCase()
+            return (appId && windowAppId === appId) || (title && window?.title === title)
+        })
+        return candidates.find(window => String(window?.class ?? "").toLowerCase() === appId
+                && window?.title === title)
+            ?? candidates.find(window => String(window?.class ?? "").toLowerCase() === appId)
+            ?? candidates[0]
+            ?? null
     }
 
     // Internals

@@ -7,6 +7,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Widgets
+import "../../../" as RootShell
 
 DockButton {
     id: root
@@ -60,7 +61,8 @@ DockButton {
             return;
         }
         lastFocused = (lastFocused + 1) % appToplevel.toplevels.length
-        appToplevel.toplevels[lastFocused].activate()
+        const address = HyprlandData.clientForToplevel(appToplevel.toplevels[lastFocused])?.address ?? ""
+        if (address) RootShell.GlobalStates.focusWindowInUnifiedSet(address)
     }
 
     middleClickAction: () => {

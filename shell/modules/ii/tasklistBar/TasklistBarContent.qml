@@ -11,6 +11,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import "../../../" as RootShell
 
 Item {
     id: root
@@ -246,7 +247,8 @@ Item {
                         // Cycle through windows
                         const next = taskBtn._lastFocused % taskBtn.toplevels.length
                         taskBtn._lastFocused = (next + 1) % taskBtn.toplevels.length
-                        taskBtn.toplevels[next].activate()
+                        const address = HyprlandData.clientForToplevel(taskBtn.toplevels[next])?.address ?? ""
+                        if (address) RootShell.GlobalStates.focusWindowInUnifiedSet(address)
                     }
                 } else if (mouse.button === Qt.RightButton) {
                     // Toggle pin in tasklistBar config

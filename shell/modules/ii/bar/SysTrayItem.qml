@@ -8,6 +8,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import "../../../" as RootShell
 
 MouseArea {
     id: root
@@ -32,6 +33,10 @@ MouseArea {
         switch (event.button) {
         case Qt.LeftButton:
             item.activate();
+            // Tray clients decide themselves whether their activation focuses
+            // a toplevel. Wait for that compositor event, then restore the
+            // matching workspace set on every connected monitor.
+            synchronizeUnifiedFocus.restart();
             break;
         case Qt.RightButton:
             if (item.hasMenu)
@@ -42,6 +47,13 @@ MouseArea {
             break;
         }
         event.accepted = true;
+    }
+
+    Timer {
+        id: synchronizeUnifiedFocus
+        interval: 120
+        repeat: false
+        onTriggered: RootShell.GlobalStates.synchronizeFocusedWindowInUnifiedSet()
     }
     onEntered: {
         tooltip.text = TrayService.getTooltipForItem(root.item);

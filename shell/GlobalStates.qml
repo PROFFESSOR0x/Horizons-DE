@@ -581,6 +581,66 @@ Singleton {
         console.error("[UnifiedWorkspaces] " + action + " failed: " + detail)
     }
 
+    function monitorNameForWindow(window) {
+        if (!window) return ""
+        const directName = String(window.monitor ?? "")
+        if (directName && !/^\d+$/.test(directName)) return directName
+        return (WM.monitors ?? []).find(monitor => Number(monitor?.id) === Number(window.monitor))?.name ?? ""
+    }
+
+    function isUnifiedSetActive(members) {
+        return members.length > 0 && members.every(member =>
+            Number(WM.activeWorkspaceForMonitor(member.monitorName)?.id) === Number(member.workspaceId))
+    }
+
+    // Keep all entry points that focus a running application — dock buttons,
+    // thumbnail popups, window switcher, and tray activations — inside the
+    // same all-monitor workspace set. Hyprland's stock toplevel.activate()
+    // only changes the target window's monitor, which is the regression this
+    // wrapper deliberately prevents.
+    function focusWindowInUnifiedSet(address) {
+        const window = (HyprlandData.windowByAddress ?? {})[address]
+            ?? (HyprlandData.windowList ?? []).find(candidate => candidate?.address === address)
+        if (!window) {
+            root.reportUnifiedWorkspaceError("window focus", "unknown window " + address)
+            return false
+        }
+        if (!Config.options.workspaceLinking.unifiedMultiMonitor) {
+            WM.focusWindow(address)
+            return true
+        }
+        const monitorName = root.monitorNameForWindow(window)
+        const members = root.unifiedWorkspaceMembers(window.workspace?.id, monitorName, false)
+        if (!root.groupCoversConnectedMonitors(members)) {
+            root.reportUnifiedWorkspaceError("window focus", "window " + address
+                + " is not in a complete all-screens workspace set")
+            return false
+        }
+        if (root.isUnifiedSetActive(members)) {
+            WM.focusWindow(address)
+            return true
+        }
+        console.log("[UnifiedWorkspaces] focus window=" + address + " source=" + monitorName
+            + " members=" + members.map(member => member.key).join(","))
+        WM.switchWorkspacesOnMonitors(members, monitorName, address)
+        return true
+    }
+
+    // StatusNotifier applications focus their windows themselves, outside the
+    // dock's click handler. Call this after their activation settles so tray
+    // icons obey the exact same workspace-set rule.
+    function synchronizeFocusedWindowInUnifiedSet() {
+        if (!Config.options.workspaceLinking.unifiedMultiMonitor) return false
+        const address = HyprlandData.activeWorkspace?.lastwindow ?? ""
+        if (!address) return false
+        const window = (HyprlandData.windowByAddress ?? {})[address]
+        if (!window) return false
+        const members = root.unifiedWorkspaceMembers(window.workspace?.id,
+            root.monitorNameForWindow(window), false)
+        if (!root.groupCoversConnectedMonitors(members) || root.isUnifiedSetActive(members)) return false
+        return root.focusWindowInUnifiedSet(address)
+    }
+
     // These paths intentionally have no local-workspace fallback. A shared
     // shortcut must either operate on every monitor in the logical set or do
     // nothing and leave a precise diagnostic in the QuickShell log.
