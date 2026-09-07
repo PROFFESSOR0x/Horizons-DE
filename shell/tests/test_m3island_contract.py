@@ -310,6 +310,11 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("function initializeUnifiedWorkspaceSets", states)
         self.assertIn("function unifiedWorkspaceIdForSlot", states)
         self.assertIn("nextUnusedWorkspaceId", states)
+        self.assertIn("function activateUnifiedWorkspaceNumber", states)
+        self.assertIn("function switchUnifiedWorkspaceRelative", states)
+        self.assertIn("function cycleUnifiedWindows", states)
+        self.assertIn('name: "unifiedWorkspaceNext"', states)
+        self.assertIn('name: "unifiedWorkspaceCycleWindows"', states)
         self.assertIn("unifiedSets", config)
         self.assertIn("HyprlandData.monitors.find", source("services/HyprlandBackend.qml"))
         self.assertIn('Quickshell.execDetached(["hyprctl", "eval"', source("services/HyprlandBackend.qml"))
@@ -326,6 +331,7 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("dismissAction?.()", menu)
         self.assertIn("linkedWorkspaceScope", grid)
         self.assertIn("Use one workspace set across all screens", settings)
+        self.assertIn("onClicked: GlobalStates.setUnifiedMultiMonitorWorkspaces", settings)
 
     def test_dock_context_menu_only_exposes_window_actions_for_running_apps(self) -> None:
         menu = source("modules/common/widgets/DockAppContextMenu.qml")

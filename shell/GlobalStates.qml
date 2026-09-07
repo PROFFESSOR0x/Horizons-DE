@@ -488,6 +488,7 @@ Singleton {
 
     function logicalWorkspaceNumber(workspaceId, monitorName) {
         if (!Config.options.workspaceLinking.unifiedMultiMonitor) return Number(workspaceId)
+        if (!root.isRealWorkspaceId(workspaceId)) return 1
         const key = root.workspaceKey(workspaceId, monitorName)
         const sets = root.unifiedSets()
         const index = sets.findIndex(set => set.some(entry => entry.key === key))
@@ -568,6 +569,109 @@ Singleton {
         Config.options.workspaceLinking.unifiedMultiMonitor = enabled
         if (!enabled) return
         root.initializeUnifiedWorkspaceSets()
+    }
+
+    function unifiedFocusedMonitorName() {
+        const focused = WM.focusedMonitor
+        if (focused?.name) return focused.name
+        return (WM.monitors ?? []).find(monitor => monitor?.focused)?.name ?? ""
+    }
+
+    function reportUnifiedWorkspaceError(action, detail) {
+        console.error("[UnifiedWorkspaces] " + action + " failed: " + detail)
+    }
+
+    // These paths intentionally have no local-workspace fallback. A shared
+    // shortcut must either operate on every monitor in the logical set or do
+    // nothing and leave a precise diagnostic in the QuickShell log.
+    function activateUnifiedWorkspaceNumber(logicalNumber) {
+        if (!Config.options.workspaceLinking.unifiedMultiMonitor) {
+            root.reportUnifiedWorkspaceError("activate", "all-screens mode is disabled")
+            return false
+        }
+        const monitorName = root.unifiedFocusedMonitorName()
+        if (!monitorName) {
+            root.reportUnifiedWorkspaceError("activate", "no focused monitor")
+            return false
+        }
+        const members = root.unifiedSetMembers(Number(logicalNumber), true)
+        if (!root.groupCoversConnectedMonitors(members)) {
+            root.reportUnifiedWorkspaceError("activate", "logical workspace " + logicalNumber
+                + " has no complete monitor set")
+            return false
+        }
+        if (root.isDetachedUnifiedGroup(members)) {
+            root.reportUnifiedWorkspaceError("activate", "logical workspace " + logicalNumber
+                + " is explicitly separated")
+            return false
+        }
+        console.log("[UnifiedWorkspaces] activate logical=" + logicalNumber
+            + " source=" + monitorName + " members="
+            + members.map(member => member.key).join(","))
+        WM.switchWorkspacesOnMonitors(members, monitorName)
+        return true
+    }
+
+    function switchUnifiedWorkspaceRelative(direction) {
+        if (!Config.options.workspaceLinking.unifiedMultiMonitor) {
+            root.reportUnifiedWorkspaceError("relative switch", "all-screens mode is disabled")
+            return false
+        }
+        const monitorName = root.unifiedFocusedMonitorName()
+        const active = WM.activeWorkspaceForMonitor(monitorName)
+        if (!monitorName || !root.isRealWorkspaceId(active?.id)) {
+            root.reportUnifiedWorkspaceError("relative switch", "focused monitor has no real active workspace")
+            return false
+        }
+        const logical = root.logicalWorkspaceNumber(active.id, monitorName)
+        const members = root.unifiedWorkspaceMembers(active.id, monitorName, true)
+        if (!root.groupCoversConnectedMonitors(members)) {
+            root.reportUnifiedWorkspaceError("relative switch", "active workspace "
+                + monitorName + "::" + active.id + " is not in a unified set")
+            return false
+        }
+        const delta = direction === "previous" ? -1 : 1
+        return root.activateUnifiedWorkspaceNumber(Math.max(1, logical + delta))
+    }
+
+    function cycleUnifiedWindows() {
+        if (!Config.options.workspaceLinking.unifiedMultiMonitor) {
+            root.reportUnifiedWorkspaceError("Alt+Tab", "all-screens mode is disabled")
+            return false
+        }
+        const monitorName = root.unifiedFocusedMonitorName()
+        const active = WM.activeWorkspaceForMonitor(monitorName)
+        const members = root.unifiedWorkspaceMembers(active?.id, monitorName, false)
+        if (!root.groupCoversConnectedMonitors(members)) {
+            root.reportUnifiedWorkspaceError("Alt+Tab", "active workspace "
+                + monitorName + "::" + (active?.id ?? "none") + " is not in a unified set")
+            return false
+        }
+        const candidates = []
+        for (const window of (HyprlandData.windowList ?? [])) {
+            if (window?.mapped === false || window?.hidden === true) continue
+            const windowMonitor = (WM.monitors ?? []).find(monitor => Number(monitor?.id) === Number(window?.monitor))?.name ?? ""
+            if (!members.some(member => member.monitorName === windowMonitor
+                    && Number(member.workspaceId) === Number(window?.workspace?.id)))
+                continue
+            candidates.push({
+                address: window.address,
+                focusHistoryId: Number(window.focusHistoryID ?? Number.MAX_SAFE_INTEGER),
+                focused: window.address === HyprlandData.activeWorkspace?.lastwindow,
+            })
+        }
+        candidates.sort((a, b) => a.focusHistoryId - b.focusHistoryId
+            || String(a.address).localeCompare(String(b.address)))
+        if (candidates.length === 0) {
+            root.reportUnifiedWorkspaceError("Alt+Tab", "the unified set has no mapped windows")
+            return false
+        }
+        const focusedIndex = candidates.findIndex(candidate => candidate.focused)
+        const next = candidates[focusedIndex < 0 ? 0 : (focusedIndex + 1) % candidates.length]
+        console.log("[UnifiedWorkspaces] Alt+Tab members=" + members.map(member => member.key).join(",")
+            + " target=" + next.address)
+        WM.focusWindow(next.address)
+        return true
     }
 
     // The first Hyprland IPC snapshot arrives asynchronously after the shell
@@ -710,6 +814,76 @@ Singleton {
         function toggleCenteredWallpaper(): void {
             Config.options.background.centeredWallpaper = !Config.options.background.centeredWallpaper
         }
+    }
+
+    // These are invoked by Hyprland's native `hl.dsp.global()` dispatcher.
+    // Unlike spawning `qs ipc`, the key event crosses no process boundary;
+    // Hyprland dispatches it directly to QuickShell while the grouping state
+    // remains in exactly one place.
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspacePrevious"
+        description: "Focus the previous shared workspace set"
+        onPressed: root.switchUnifiedWorkspaceRelative("previous")
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspaceNext"
+        description: "Focus the next shared workspace set"
+        onPressed: root.switchUnifiedWorkspaceRelative("next")
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspaceCycleWindows"
+        description: "Cycle windows in the shared workspace set"
+        onPressed: root.cycleUnifiedWindows()
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspace1"
+        description: "Focus shared workspace 1"
+        onPressed: root.activateUnifiedWorkspaceNumber(1)
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspace2"
+        description: "Focus shared workspace 2"
+        onPressed: root.activateUnifiedWorkspaceNumber(2)
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspace3"
+        description: "Focus shared workspace 3"
+        onPressed: root.activateUnifiedWorkspaceNumber(3)
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspace4"
+        description: "Focus shared workspace 4"
+        onPressed: root.activateUnifiedWorkspaceNumber(4)
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspace5"
+        description: "Focus shared workspace 5"
+        onPressed: root.activateUnifiedWorkspaceNumber(5)
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspace6"
+        description: "Focus shared workspace 6"
+        onPressed: root.activateUnifiedWorkspaceNumber(6)
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspace7"
+        description: "Focus shared workspace 7"
+        onPressed: root.activateUnifiedWorkspaceNumber(7)
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspace8"
+        description: "Focus shared workspace 8"
+        onPressed: root.activateUnifiedWorkspaceNumber(8)
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspace9"
+        description: "Focus shared workspace 9"
+        onPressed: root.activateUnifiedWorkspaceNumber(9)
+    }
+    CompositorGlobalShortcut {
+        name: "unifiedWorkspace10"
+        description: "Focus shared workspace 10"
+        onPressed: root.activateUnifiedWorkspaceNumber(10)
     }
 
      CompositorGlobalShortcut {

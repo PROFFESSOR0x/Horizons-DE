@@ -92,7 +92,13 @@ ContentPage {
                     buttonIcon: "view_carousel"
                     text: Translation.tr("Use one workspace set across all screens")
                     checked: Config.options.workspaceLinking.unifiedMultiMonitor
-                    onCheckedChanged: GlobalStates.setUnifiedMultiMonitorWorkspaces(checked)
+                    // Write the requested value directly. ConfigSwitch is a
+                    // Button subclass and its checked binding can otherwise
+                    // be replaced by a click before the changed handler sees
+                    // the persisted option, leaving the visual toggle and the
+                    // workspace controller out of sync.
+                    onClicked: GlobalStates.setUnifiedMultiMonitorWorkspaces(
+                        !Config.options.workspaceLinking.unifiedMultiMonitor)
                 }
             }
         }

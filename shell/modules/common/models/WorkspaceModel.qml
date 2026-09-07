@@ -22,10 +22,14 @@ NestableObject {
     readonly property int shownCount: workspaceOptions.shown
 
     readonly property int activeWorkspaceId: {
+        let id
         if (WM.compositor === "hyprland")
-            return hyprMonitor?.activeWorkspace?.id ?? 1
-        const ws = WM.workspaces.find(w => w.output === root.monitorName && w.is_active)
-        return ws?.idx ?? ws?.id ?? 1
+            id = hyprMonitor?.activeWorkspace?.id ?? 1
+        else {
+            const ws = WM.workspaces.find(w => w.output === root.monitorName && w.is_active)
+            id = ws?.idx ?? ws?.id ?? 1
+        }
+        return GlobalStates.isRealWorkspaceId(id) ? Number(id) : 1
     }
     // In the all-screens mode the visible bar uses logical positions while
     // actions still receive the distinct, real workspace id for this output.
