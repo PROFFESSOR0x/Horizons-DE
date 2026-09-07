@@ -1030,9 +1030,9 @@ ContentPage {
                     }
                     ConfigSwitch {
                         buttonIcon: "colors"
-                        text: Translation.tr("Tint app icons")
-                        checked: Config.options.dock.monochromeIcons
-                        onCheckedChanged: { Config.options.dock.monochromeIcons = checked }
+                        text: Translation.tr("Use original icon colors")
+                        checked: !Config.options.dock.monochromeIcons
+                        onCheckedChanged: { Config.options.dock.monochromeIcons = !checked }
                     }
                 }
             }

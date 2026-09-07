@@ -158,7 +158,7 @@ Item {
                 onClicked: {
                     const entry = slotItem.appEntry
                     if (!entry || entry.toplevels.length === 0) {
-                        slotItem.deskEntry?.execute()
+                        TaskbarApps.launch(slotItem.appId, slotItem.deskEntry)
                         return
                     }
                     const next = (slotItem._lastFocused + 1) % entry.toplevels.length
@@ -166,7 +166,7 @@ Item {
                     entry.toplevels[next].activate()
                 }
 
-                middleClickAction: () => { slotItem.deskEntry?.execute() }
+                middleClickAction: () => { TaskbarApps.launch(slotItem.appId, slotItem.deskEntry) }
                 altAction: event => pinnedContextMenu.showAt(event.x, event.y)
 
                 DockAppContextMenu {

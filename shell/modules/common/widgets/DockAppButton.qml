@@ -65,7 +65,7 @@ DockButton {
 
     onClicked: {
         if (appToplevel.toplevels.length === 0) {
-            root.desktopEntry?.execute();
+            TaskbarApps.launch(appToplevel.appId, root.desktopEntry)
             return;
         }
         lastFocused = (lastFocused + 1) % appToplevel.toplevels.length
@@ -73,7 +73,7 @@ DockButton {
     }
 
     middleClickAction: () => {
-        root.desktopEntry?.execute();
+        TaskbarApps.launch(appToplevel.appId, root.desktopEntry)
     }
 
     // Right click is a contextual action menu. Pinning is still available

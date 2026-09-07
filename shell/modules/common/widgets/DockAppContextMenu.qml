@@ -131,8 +131,8 @@ PopupWindow {
         gravity: Edges.Bottom | Edges.Left
         adjustment: PopupAdjustment.All
     }
-    implicitWidth: actions.implicitWidth + 12
-    implicitHeight: actions.implicitHeight + 10
+    width: actions.implicitWidth + 12
+    height: actions.implicitHeight + 10
 
     Rectangle {
         id: menuBackground

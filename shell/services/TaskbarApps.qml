@@ -22,6 +22,14 @@ Singleton {
         }
     }
 
+    function launch(appId, desktopEntry) {
+        if (desktopEntry) {
+            desktopEntry.execute()
+            return
+        }
+        if (appId !== "") Quickshell.execDetached(["gtk-launch", appId])
+    }
+
     property list<var> apps: {
         var map = new Map();
 
