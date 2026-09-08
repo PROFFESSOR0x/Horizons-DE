@@ -1,0 +1,231 @@
+[
+  {
+    "file": "/home/professorx/.cache/quickshell/crashes/vzr239kmkt/log.qslog.log",
+    "bytes": 1544,
+    "decoded_lines": 3,
+    "issues": []
+  },
+  {
+    "file": "/home/professorx/.cache/quickshell/crashes/329v6qykt/log.qslog.log",
+    "bytes": 908852,
+    "decoded_lines": 70,
+    "issues": [
+      [
+        "WARN: ShaderEffect: 'source' does not have a matching property",
+        2
+      ],
+      [
+        "WARN scene: QML ConfigTextArea at @modules/ii/settings/pages/HyprlandSettings.qml[801:21]: Qt Quick Layouts: Detected recursive rearrange. Aborting after two iterations.",
+        2
+      ],
+      [
+        "WARN scene: QML ConfigTextArea at @modules/ii/settings/pages/ServicesConfig.qml[519:21]: Qt Quick Layouts: Detected recursive rearrange. Aborting after two iterations.",
+        2
+      ],
+      [
+        "WARN scene: QML ConfigTextArea at @modules/ii/settings/pages/ServicesConfig.qml[509:21]: Qt Quick Layouts: Detected recursive rearrange. Aborting after two iterations.",
+        2
+      ],
+      [
+        "WARN scene: QML ConfigTextArea at @modules/ii/settings/pages/ServicesConfig.qml[499:21]: Qt Quick Layouts: Detected recursive rearrange. Aborting after two iterations.",
+        2
+      ],
+      [
+        "WARN scene: QML ConfigTextArea at @modules/ii/settings/pages/ServicesConfig.qml[251:21]: Qt Quick Layouts: Detected recursive rearrange. Aborting after two iterations.",
+        2
+      ],
+      [
+        "WARN scene: QML ConfigTextArea at @modules/ii/settings/pages/ServicesConfig.qml[136:17]: Qt Quick Layouts: Detected recursive rearrange. Aborting after two iterations.",
+        2
+      ],
+      [
+        "WARN scene: QML ConfigTextArea at @modules/ii/settings/pages/InterfaceConfig.qml[1951:17]: Qt Quick Layouts: Detected recursive rearrange. Aborting after two iterations.",
+        2
+      ]
+    ]
+  },
+  {
+    "file": "/home/professorx/.cache/quickshell/crashes/odv4h29ikt/log.qslog.log",
+    "bytes": 1332967,
+    "decoded_lines": 212,
+    "issues": [
+      [
+        "WARN scene: @modules/common/models/WorkspaceModel.qml[11:-1]: TypeError: Cannot read property 'id' of null",
+        24
+      ],
+      [
+        "WARN scene: @modules/ii/bar/BarContent.qml[134:13]: Unable to assign [undefined] to double",
+        22
+      ],
+      [
+        "WARN scene: QML Revealer at @modules/common/widgets/FloatingActionButton.qml[45:30]: Binding loop detected for property \"implicitHeight\":",
+        9
+      ],
+      [
+        "WARN scene: QML StyledRectangularShadow at @modules/common/widgets/ToolbarPairedFab.qml[21:26]: Cannot anchor to an item that isn't a parent or sibling.",
+        9
+      ],
+      [
+        "WARN scene: QML TabBar at @modules/common/widgets/ToolbarTabBar.qml[92:5]: Binding loop detected for property \"currentIndex\":",
+        8
+      ],
+      [
+        "WARN quickshell.service.pipewire.node: Cannot update volume props of PwNode(0x7f3a33030f00, id=90/bound) - channelVolumes and channelMap are not the same size. Sizes: 2 0",
+        7
+      ],
+      [
+        "WARN qt.svg: Cannot open file '/usr/share/icons/Humanity/devices/48/printer.svg', because: No such file or directory",
+        5
+      ],
+      [
+        "WARN scene: @modules/common/widgets/ToolbarTabBar.qml[59:9]: Unable to assign [undefined] to QQuickItem*",
+        4
+      ]
+    ]
+  },
+  {
+    "file": "/home/professorx/.cache/quickshell/crashes/yt6y5jkt/log.qslog.log",
+    "bytes": 4515614,
+    "decoded_lines": 516,
+    "issues": [
+      [
+        "WARN scene: @modules/ii/bar/BarContent.qml[134:13]: Unable to assign [undefined] to double",
+        32
+      ],
+      [
+        "WARN scene: @modules/common/models/WorkspaceModel.qml[11:-1]: TypeError: Cannot read property 'id' of null",
+        26
+      ],
+      [
+        "WARN scene: @modules/ii/background/Background.qml[116:-1]: Error: Cannot assign [undefined] to int",
+        16
+      ],
+      [
+        "WARN quickshell.dbus.properties: QDBusError(\"org.freedesktop.DBus.Error.Failed\", \"error occurred in Get\")",
+        16
+      ],
+      [
+        "WARN scene: QML TabBar at @modules/common/widgets/ToolbarTabBar.qml[92:5]: Binding loop detected for property \"currentIndex\":",
+        16
+      ],
+      [
+        "WARN scene: QML Revealer at @modules/common/widgets/FloatingActionButton.qml[45:30]: Binding loop detected for property \"implicitHeight\":",
+        16
+      ],
+      [
+        "WARN scene: QML StyledRectangularShadow at @modules/common/widgets/ToolbarPairedFab.qml[21:26]: Cannot anchor to an item that isn't a parent or sibling.",
+        16
+      ],
+      [
+        "WARN scene: QML StyledImage at @modules/ii/background/Background.qml[131:13]: Cannot open: file:///home/professorx/Pictures/Wallpapers/random_wallpaper.",
+        14
+      ]
+    ]
+  },
+  {
+    "file": "/home/professorx/.cache/quickshell/crashes/8p21q9hzkt/log.qslog.log",
+    "bytes": 0,
+    "decoded_lines": 1,
+    "issues": [
+      [
+        "ERROR: Failed to read log header.",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/home/professorx/.cache/quickshell/crashes/7xop9nkt/log.qslog.log",
+    "bytes": 414996,
+    "decoded_lines": 26,
+    "issues": [
+      [
+        "WARN scene: QML TranslationReader at @services/Translation.qml[68:5]: Read of /home/professorx/.config/illogical-impulse/translations/en_US.json failed: File does not exist.",
+        1
+      ],
+      [
+        "WARN scene: QML MouseArea at @modules/ii/settings/SettingsContent.qml[196:25]: Detected anchors on an item that is managed by a layout. This is undefined behavior; use Layout.alignment instead.",
+        1
+      ],
+      [
+        "WARN scene: @modules/ii/sidebarRight/SidebarRightContent.qml[43:-1]: ReferenceError: filterDuplicatePlayers is not defined",
+        1
+      ],
+      [
+        "WARN scene: @modules/ii/bar/BarContent.qml[373:-1]: TypeError: Cannot assign to read-only property \"mirrored\"",
+        1
+      ],
+      [
+        "WARN scene: @modules/ii/bar/BarContent.qml[342:-1]: TypeError: Cannot assign to read-only property \"mirrored\"",
+        1
+      ],
+      [
+        "WARN qt.qpa.services: Failed to register with host portal QDBusError(\"org.freedesktop.portal.Error.Failed\", \"Could not register app ID: Connection already associated with an application ID\")",
+        1
+      ],
+      [
+        "WARN: Could not load icon \"arch-symbolic\" at size QSize(144, 144) from request",
+        1
+      ],
+      [
+        "WARN scene: QML RowLayout at @modules/ii/settings/pages/About.qml[136:13]: Detected anchors on an item that is managed by a layout. This is undefined behavior; use Layout.alignment instead.",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/home/professorx/.cache/quickshell/crashes/z47z9gmkt/log.qslog.log",
+    "bytes": 296399,
+    "decoded_lines": 25,
+    "issues": [
+      [
+        "WARN caelestia.images.cacheprovider: Source file does not exist: /home/professorx/.face",
+        5
+      ],
+      [
+        "WARN qt.svg: Cannot open file '/usr/share/icons/Humanity/devices/48/printer.svg', because: No such file or directory",
+        2
+      ],
+      [
+        "WARN qt.qml.propertyCache.append: Member data of the object ClippingRectangle_QMLTYPE_197 overrides a member of the base object. Consider renaming it or adding final or override specifier",
+        1
+      ],
+      [
+        "WARN qt.qml.propertyCache.append: Member implicitWidth of the object ClippingWrapperRectangle_QMLTYPE_455 overrides a member of the base object. Consider renaming it or adding final or override specifier",
+        1
+      ],
+      [
+        "WARN qt.qml.propertyCache.append: Member implicitHeight of the object ClippingWrapperRectangle_QMLTYPE_455 overrides a member of the base object. Consider renaming it or adding final or override specifier",
+        1
+      ],
+      [
+        "WARN qt.qml.propertyCache.append: Member implicitWidth of the object WrapperMouseArea_QMLTYPE_523 overrides a member of the base object. Consider renaming it or adding final or override specifier",
+        1
+      ],
+      [
+        "WARN qt.qml.propertyCache.append: Member implicitHeight of the object WrapperMouseArea_QMLTYPE_523 overrides a member of the base object. Consider renaming it or adding final or override specifier",
+        1
+      ],
+      [
+        "WARN scene: @services/Hypr.qml[17:5]: Unable to assign [undefined] to bool",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/home/professorx/.cache/quickshell/crashes/8p21kfgzkt/log.qslog.log",
+    "bytes": 0,
+    "decoded_lines": 1,
+    "issues": [
+      [
+        "ERROR: Failed to read log header.",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/home/professorx/.cache/quickshell/crashes/ltr2h8kmkt/log.qslog.log",
+    "bytes": 1544,
+    "decoded_lines": 3,
+    "issues": []
+  }
+]

@@ -1,0 +1,45 @@
+{
+  "lines": 220,
+  "issues": [
+    [
+      "ERROR qml: [UnifiedWorkspaces] window focus failed: window 0x561d69662c40 is not in a complete all-screens workspace set",
+      13
+    ],
+    [
+      "WARN: Could not load icon \"quickshell\" at size QSize(20, 20) from request",
+      4
+    ],
+    [
+      "ERROR qml: [UnifiedWorkspaces] window focus failed: window 0x561d68a11730 is not in a complete all-screens workspace set",
+      3
+    ],
+    [
+      "WARN: ShaderEffect: 'source' does not have a matching property",
+      2
+    ],
+    [
+      "WARN scene: @modules/ii/wallpaperSelector/WallpaperSelectorContent.qml[140:-1]: ReferenceError: filterField is not defined",
+      2
+    ],
+    [
+      "WARN qt.svg: Cannot open file '/usr/share/icons/Humanity/devices/48/printer.svg', because: No such file or directory",
+      2
+    ],
+    [
+      "WARN: Could not load icon \"quickshell?fallback=image://icon/user-desktop?fallback=image-missing\" at size QSize(18, 18) from request",
+      2
+    ],
+    [
+      "WARN qt.qml.context: qs:@/qs/modules/ii/settings/pages/BackgroundConfig.qml:269:21 Parameter \"checked\" is not declared. Injection of parameters into signal handlers is deprecated. Use JavaScript functions with formal parameters instead.",
+      1
+    ],
+    [
+      "WARN qt.qml.context: qs:@/qs/modules/ii/settings/pages/ExperienceConfig.qml:271:21 Parameter \"checked\" is not declared. Injection of parameters into signal handlers is deprecated. Use JavaScript functions with formal parameters instead.",
+      1
+    ],
+    [
+      "WARN qt.qml.context: qs:@/qs/modules/ii/settings/pages/InterfaceConfig.qml:1720:21 Parameter \"checked\" is not declared. Injection of parameters into signal handlers is deprecated. Use JavaScript functions with formal parameters instead.",
+      1
+    ]
+  ]
+}

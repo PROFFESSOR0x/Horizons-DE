@@ -1,0 +1,10 @@
+{
+  "suite_tests": 48,
+  "seconds": 18.412,
+  "passed": true,
+  "runtime_tests": 10,
+  "lua_parse": true,
+  "shell_reload": "Configuration Loaded observed in installed instance gdwbk562lt",
+  "sidebar_smoke": "Opened, screenshot inspected (placeholder matches disabled pages), closed via IPC",
+  "final_sidebar_lifecycle_smoke": "Two open/close cycles after final constructor/teardown adjustment; no warnings in post-reload observation"
+}

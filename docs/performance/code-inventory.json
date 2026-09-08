@@ -1,0 +1,14 @@
+{
+  "qml_files": 593,
+  "declarations": {
+    "Timer": 172,
+    "Process": 187,
+    "FileView": 32,
+    "LazyLoader": 13,
+    "Loader": 253,
+    "Repeater": 170,
+    "ListView": 9,
+    "ShaderEffect": 1,
+    "MultiEffect": 8
+  }
+}

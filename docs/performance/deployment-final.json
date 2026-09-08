@@ -1,0 +1,134 @@
+{
+  "backup": "/home/professorx/.local/state/horizons/performance-backups/20260908-213954",
+  "installed": "/home/professorx/.config/quickshell/horizons",
+  "files": [
+    {
+      "path": "services/ResourceUsageLease.qml",
+      "existed": false,
+      "before_sha256": null,
+      "after_sha256": "41b0d81d004b3c50ea21e362b2f5708aeb54a769f9aded1c4d06cee7fedfe4fa"
+    },
+    {
+      "path": "services/HyprlandSnapshot.qml",
+      "existed": true,
+      "before_sha256": "e064849888e153e9b68fc18b1b35f4749e50851de9d790b4250dbf2ee60ad4ba",
+      "after_sha256": "e064849888e153e9b68fc18b1b35f4749e50851de9d790b4250dbf2ee60ad4ba"
+    },
+    {
+      "path": "scripts/system/hardware_sample.py",
+      "existed": true,
+      "before_sha256": "1a551afd96597387cc4cbab3d9a90c236725d590914f5229ff5490723945c758",
+      "after_sha256": "1a551afd96597387cc4cbab3d9a90c236725d590914f5229ff5490723945c758"
+    },
+    {
+      "path": "services/HyprlandData.qml",
+      "existed": true,
+      "before_sha256": "4723e43658ed7559a1da489d165947c4e77ea6b9e877841293266d22b581a0e8",
+      "after_sha256": "4723e43658ed7559a1da489d165947c4e77ea6b9e877841293266d22b581a0e8"
+    },
+    {
+      "path": "services/HyprlandBackend.qml",
+      "existed": true,
+      "before_sha256": "4a51f0b59b413ae127ba7902a8db76549b562304f6311df8d5d1730610c04c32",
+      "after_sha256": "4a51f0b59b413ae127ba7902a8db76549b562304f6311df8d5d1730610c04c32"
+    },
+    {
+      "path": "services/ResourceUsage.qml",
+      "existed": true,
+      "before_sha256": "e32e2db9fb6abf1d0c96cdf6fed3487b21f4cb1fa277fef0c02b52e40cfcbb58",
+      "after_sha256": "32b69e41299ad30fc12ff4b97a117f13e1ab6376b3b904eeaa5991bf05a8c7a5"
+    },
+    {
+      "path": "services/DateTime.qml",
+      "existed": true,
+      "before_sha256": "665f7985ac4b9d5a6f3d6e649bacb0e1a65c996e8190175ff61d8455bceb28f2",
+      "after_sha256": "665f7985ac4b9d5a6f3d6e649bacb0e1a65c996e8190175ff61d8455bceb28f2"
+    },
+    {
+      "path": "services/AppSearch.qml",
+      "existed": true,
+      "before_sha256": "ec92ee5ffa4eb73da8a0dc825be9674edcbfca9282e82107d2e82acc3b805cb7",
+      "after_sha256": "ec92ee5ffa4eb73da8a0dc825be9674edcbfca9282e82107d2e82acc3b805cb7"
+    },
+    {
+      "path": "modules/common/widgets/StyledText.qml",
+      "existed": true,
+      "before_sha256": "80ede4d88a59e29667b51ab489990f0a716764270cb3bff2e7148367f0e9da67",
+      "after_sha256": "80ede4d88a59e29667b51ab489990f0a716764270cb3bff2e7148367f0e9da67"
+    },
+    {
+      "path": "modules/ii/sidebarLeft/SidebarLeft.qml",
+      "existed": true,
+      "before_sha256": "cc1edbb76118049b8a92db7695155617a1ee7dd04f45a8250d18e583cc201c17",
+      "after_sha256": "b24af6e42acbda7ea3f3e4aa224f4d7d649fed4af4a4a305c8452072b399d04c"
+    },
+    {
+      "path": "modules/ii/sidebarLeft/SidebarLeftContent.qml",
+      "existed": true,
+      "before_sha256": "c68a19d5536313882f510460fc811ff93b03cc5a0f1a47c6ad485f72c6402b81",
+      "after_sha256": "c68a19d5536313882f510460fc811ff93b03cc5a0f1a47c6ad485f72c6402b81"
+    },
+    {
+      "path": "modules/ii/background/widgets/resources/ResourcesWidget.qml",
+      "existed": true,
+      "before_sha256": "b07899010b594c410aa840012b49449d2074d0b26ea73f2ff6a558541680661a",
+      "after_sha256": "0f06260eb4a5ff11a5a528f597393a4dbb79a6071410ef686bed9954ac4701f7"
+    },
+    {
+      "path": "modules/ii/background/widgets/systemHistory/SystemHistoryWidget.qml",
+      "existed": true,
+      "before_sha256": "ec733b410bcbd8b62ac68ee66eab3462b8b72b128f700e825a4137fdbf048f93",
+      "after_sha256": "301955aa00b823463f68fb6f8ce808f86b527127cab99be7f2f1f6480732eafc"
+    },
+    {
+      "path": "modules/ii/background/widgets/uptime/UptimeWidget.qml",
+      "existed": true,
+      "before_sha256": "54f4dd81a275fe117720b12a576165b8f347cc7ece3931446ec7efb4830ef6a8",
+      "after_sha256": "660737f49cecc31a4916b663abf66777c879f5c4ffafd728f44c93caaf2dfca5"
+    },
+    {
+      "path": "modules/ii/bar/Resources.qml",
+      "existed": true,
+      "before_sha256": "1d33f1e732a581f5ec44fe9fef71db79945ed53ff8bed2aa4e95aa698b1cfe17",
+      "after_sha256": "31adee671addc38030d13bed7e952ace66f69b0637574fd12cb97a52db66db6e"
+    },
+    {
+      "path": "modules/ii/bar/ResourcesPopup.qml",
+      "existed": true,
+      "before_sha256": "cc40b1eceeff7137065d422d511effd4a3fe7e35d2e72b45826771dd7bfece11",
+      "after_sha256": "a9ff2dcb2535a17ebd4e953543cf8cbd5d6be5358880b3bfc06ab173405f2f7b"
+    },
+    {
+      "path": "modules/ii/bar/Resource.qml",
+      "existed": true,
+      "before_sha256": "ca1fb14054fcc5fbd7b520e0127dc7793759a39658ab1b4d3e3c39e7ff66c314",
+      "after_sha256": "ca1fb14054fcc5fbd7b520e0127dc7793759a39658ab1b4d3e3c39e7ff66c314"
+    },
+    {
+      "path": "modules/ii/infoStrip/InfoStripContent.qml",
+      "existed": true,
+      "before_sha256": "2093254d049b8009bac165dfd26a7d2d6ea1ff0c350f6c911f2220a35151dd45",
+      "after_sha256": "1f6a6e072e76d431d6aaab53d1073a697090713e86b22fe4d6a84a349772f2fc"
+    },
+    {
+      "path": "modules/ii/m3Island/M3MiniStats.qml",
+      "existed": true,
+      "before_sha256": "547f077b23a0533f37b3f1c29097fdafd3d2dbf37d4ab9241a0f4766092c0519",
+      "after_sha256": "5a84e15718de294ab23f419d5beb9d748348d474f70e8e66e7e15b3cfbaa06f7"
+    },
+    {
+      "path": "modules/ii/overlay/resources/Resources.qml",
+      "existed": true,
+      "before_sha256": "aa77df9af5f6a28043a464ce36ec6cceea478e14cbe696cdb9d7d76d30a07e78",
+      "after_sha256": "b75c3bab84fc9f0a56451b335ebc9fc2ec71f5a14a1c38d8cf63966b03201ef0"
+    },
+    {
+      "path": "modules/ii/sysmonitorBar/SysmonitorBarContent.qml",
+      "existed": true,
+      "before_sha256": "14983b6999727eb5b0e1b81abbc4ae0e48a536de9151d893988469d25580c7db",
+      "after_sha256": "69323cd1823711e9805688c3864dea17928571e5b59f3e850a0d11d2470bcd8d"
+    }
+  ],
+  "timestamp": "2026-09-08T21:39:54+0300",
+  "reload": "automatic file watcher; no second explicit reload requested"
+}

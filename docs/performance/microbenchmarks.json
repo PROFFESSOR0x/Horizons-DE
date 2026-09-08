@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-09-08T14:36:07+0300",
+  "quickshell": "Quickshell 0.3.1 (revision , distributed by Arch Linux)",
+  "hyprland": "Hyprland 0.56.2 built from branch v0.56.2 at commit efb50993780079460b0cbed1363e2166a2de1d9f clean ([gha] Nix: update inputs).",
+  "notes": "Warm microbenchmarks in an active desktop; not FPS or whole-shell CPU savings.",
+  "hyprctl_clients": {
+    "n": 30,
+    "median_ms": 20.0027135,
+    "p95_ms": 24.967822,
+    "min_ms": 16.859366,
+    "max_ms": 26.666085
+  },
+  "direct_socket_clients": {
+    "n": 30,
+    "median_ms": 1.020386,
+    "p95_ms": 3.542181,
+    "min_ms": 0.806781,
+    "max_ms": 3.685299
+  },
+  "old_hardware_pipelines": {
+    "n": 30,
+    "median_ms": 104.7231155,
+    "p95_ms": 113.017286,
+    "min_ms": 97.277484,
+    "max_ms": 117.658931
+  },
+  "new_hardware_python": {
+    "n": 30,
+    "median_ms": 253.260742,
+    "p95_ms": 274.841884,
+    "min_ms": 236.431715,
+    "max_ms": 274.909809
+  },
+  "hardware_sample": {
+    "cpuTemp": 62.0
+  }
+}

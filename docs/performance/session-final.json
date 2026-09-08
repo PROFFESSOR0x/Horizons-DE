@@ -1,0 +1,10 @@
+{
+  "pid": 555172,
+  "elapsed_seconds": 20.01474422800129,
+  "cpu_percent_one_core": 16.238029139803555,
+  "rss_start_mib": 1210.90234375,
+  "rss_end_mib": 1223.5546875,
+  "rss_peak_mib": 1223.5546875,
+  "main_thread_voluntary_switches": 4761,
+  "notes": "Single running QS process; excludes children, GPU, compositor and other thread context switches. Uncontrolled live desktop."
+}

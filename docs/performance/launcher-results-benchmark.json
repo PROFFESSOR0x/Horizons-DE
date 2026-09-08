@@ -1,0 +1,23 @@
+{
+  "rowsPerRound": 1000,
+  "actionsPerRow": 2,
+  "oldMs": [
+    354,
+    326,
+    350,
+    359,
+    279,
+    280,
+    283
+  ],
+  "newMs": [
+    27,
+    23,
+    27,
+    17,
+    59,
+    16,
+    60
+  ],
+  "notes": "Synthetic result construction only. Seven rounds, 1000 rows + 2 actions each, actual Quickshell QML engine; not end-to-end launcher latency."
+}

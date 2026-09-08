@@ -1,0 +1,74 @@
+{
+  "backup": "/home/professorx/.local/state/horizons/bugfix-backups/20260908-225004",
+  "live": "/home/professorx/.config/quickshell/horizons",
+  "files": [
+    {
+      "path": "GlobalStates.qml",
+      "sha256": "514b3a857853ff90f6cae4d06cd77bb63033347e757687cca0659678f9e980d6"
+    },
+    {
+      "path": "services/HyprlandData.qml",
+      "sha256": "ab2931972db2ba993d1841e738e527663473304353e2158839d0d4d4e829c4ec"
+    },
+    {
+      "path": "services/HyprlandBackend.qml",
+      "sha256": "e047cc0bd8da46a0c24d612a77349d5fb2ea28c8776c054dec94e2d6efa0fd19"
+    },
+    {
+      "path": "services/Cliphist.qml",
+      "sha256": "2c534d38b752310ce0ba38860240a0fba6af13febca3e9d46592ec87ccb51c3b"
+    },
+    {
+      "path": "services/LauncherSearch.qml",
+      "sha256": "2973d1306ce5a9911ac7d82109c010f29d42b236a39d918a57b0bb301eca4f29"
+    },
+    {
+      "path": "modules/common/Directories.qml",
+      "sha256": "f5f963b2d82cba44deb2208bb97ea7ed25e9da21d127dc1e06a718c265abeb1b"
+    },
+    {
+      "path": "modules/common/widgets/CliphistImage.qml",
+      "sha256": "ea7ab801abb660df7f612d637a7973276cef7e7697c78f4358fd1a282cce5fd5"
+    },
+    {
+      "path": "modules/common/models/WorkspaceModel.qml",
+      "sha256": "39e410aebea654312c101b3d8e7ced91ad14dfcc0c122d26997ea3428f8d055a"
+    },
+    {
+      "path": "modules/common/widgets/DockAppContextMenu.qml",
+      "sha256": "9bbe508c10be07b2a0711501f01a7373c45528e61e608fcb992d6fd563ca3617"
+    },
+    {
+      "path": "modules/ii/bar/Workspaces.qml",
+      "sha256": "e4ad6fcc1a69665298f62462f9c54df1f619d766a0479fb866c4ec17cea642eb"
+    },
+    {
+      "path": "modules/ii/overview/OverviewWidget.qml",
+      "sha256": "a20a13dbe07cbbb8e10799c192dab3458106b1d95cebecc975ad55937835bbd7"
+    },
+    {
+      "path": "modules/ii/overview/NiriOverview.qml",
+      "sha256": "735cba6f6e6dc827c4fd7f6255b9cdcea4f80aab9445599d586a803a08c9f425"
+    },
+    {
+      "path": "modules/ii/overview/WindowsGrid.qml",
+      "sha256": "8acc24a0e994bed91f5af962d3c3af0c830ed00eb2ad4c29524a23b043fa27d4"
+    },
+    {
+      "path": "modules/ii/m3Island/M3LauncherInline.qml",
+      "sha256": "be75d54b4151ab9d1d85d2941ef3715c6feec6b377d71a65415ccf9051be604e"
+    },
+    {
+      "path": "modules/ii/settings/pages/InterfaceConfig.qml",
+      "sha256": "77cad57768b6152610a30811f0cb29f80cdec08b01c4d3f2089e91e0796c77d9"
+    },
+    {
+      "path": "modules/ii/overview/SearchItem.qml",
+      "sha256": "439159054dae5790f423d36606bc026b4498a9f5e42efae09a5f76afd0060fb6"
+    },
+    {
+      "path": "modules/ii/overview/SearchWidget.qml",
+      "sha256": "458be58876a3a0124c7618667301585c2cc59c5f09c118636d43cd09c1b6b6a0"
+    }
+  ]
+}

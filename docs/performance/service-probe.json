@@ -1,0 +1,23 @@
+{
+  "notes": "25 explicit full refreshes at 200ms, live compositor; CPU excludes child processes; peak RSS sampled at 100ms.",
+  "baseline": {
+    "ticks": 25,
+    "windows": 28,
+    "monitors": 28,
+    "workspaces": 28,
+    "active": 28,
+    "peak_rss_mib": 224.68359375,
+    "process_cpu_seconds": 0.97,
+    "elapsed_seconds": 6.1365726069998345
+  },
+  "optimized": {
+    "ticks": 25,
+    "windows": 1,
+    "monitors": 2,
+    "workspaces": 1,
+    "active": 1,
+    "peak_rss_mib": 227.69921875,
+    "process_cpu_seconds": 1.02,
+    "elapsed_seconds": 6.1341120729994145
+  }
+}

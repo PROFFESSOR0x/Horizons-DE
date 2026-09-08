@@ -1,0 +1,414 @@
+[
+  {
+    "file": "/run/user/1000/quickshell/by-id/l8r4a91lt/log.qslog",
+    "bytes": 123650,
+    "lines": 23,
+    "issues": [
+      [
+        "WARN scene: QML StyledImage at @modules/common/widgets/Carousel.qml[155:9]: Cannot open file:///: Path is a directory",
+        5
+      ],
+      [
+        "WARN scene: @modules/common/widgets/ConfigSelectionArray.qml[85:-1]: Error: Cannot assign [undefined] to bool",
+        5
+      ],
+      [
+        "WARN scene: QML FileView at @services/SystemTheming.qml[110:5]: Read of /tmp/horizons-settings-smoke/config/matugen/config.toml failed: File does not exist.",
+        1
+      ],
+      [
+        "WARN scene: @modules/common/widgets/ConfigSelectionArray.qml[86:-1]: Error: Cannot assign to non-existent property \"rightmost\"",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/run/user/1000/quickshell/by-id/l8r4a91lt/log.log",
+    "bytes": 3031,
+    "lines": 23,
+    "issues": [
+      [
+        "WARN scene: QML StyledImage at @modules/common/widgets/Carousel.qml[155:9]: Cannot open file:///: Path is a directory",
+        5
+      ],
+      [
+        "WARN scene: @modules/common/widgets/ConfigSelectionArray.qml[85:-1]: Error: Cannot assign [undefined] to bool",
+        5
+      ],
+      [
+        "WARN scene: QML FileView at @services/SystemTheming.qml[110:5]: Read of /tmp/horizons-settings-smoke/config/matugen/config.toml failed: File does not exist.",
+        1
+      ],
+      [
+        "WARN scene: @modules/common/widgets/ConfigSelectionArray.qml[86:-1]: Error: Cannot assign to non-existent property \"rightmost\"",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/run/user/1000/quickshell/by-id/e2qt691lt/log.qslog",
+    "bytes": 475975,
+    "lines": 35,
+    "issues": [
+      [
+        "WARN scene: QML StyledImage at @modules/common/widgets/Carousel.qml[155:9]: Cannot open file:///: Path is a directory",
+        3
+      ],
+      [
+        "WARN scene: QML FileView at @services/SystemTheming.qml[110:5]: Read of /tmp/horizons-settings-smoke/config/matugen/config.toml failed: File does not exist.",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/run/user/1000/quickshell/by-id/e2qt691lt/log.log",
+    "bytes": 9842,
+    "lines": 35,
+    "issues": [
+      [
+        "WARN scene: QML StyledImage at @modules/common/widgets/Carousel.qml[155:9]: Cannot open file:///: Path is a directory",
+        3
+      ],
+      [
+        "WARN scene: QML FileView at @services/SystemTheming.qml[110:5]: Read of /tmp/horizons-settings-smoke/config/matugen/config.toml failed: File does not exist.",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/run/user/1000/quickshell/by-id/kxo3191lt/log.qslog",
+    "bytes": 118000,
+    "lines": 11,
+    "issues": [
+      [
+        "WARN scene: QML StyledImage at @modules/common/widgets/Carousel.qml[155:9]: Cannot open file:///: Path is a directory",
+        3
+      ],
+      [
+        "WARN scene: QML FileView at @modules/common/Config.qml[355:5]: Read of /tmp/horizons-settings-smoke/config/horizons/config.json failed: File does not exist.",
+        1
+      ],
+      [
+        "WARN quickshell.io.fileview: got operation finished from dropped operation qs::io::FileViewOperation(<address>)",
+        1
+      ],
+      [
+        "WARN scene: QML FileView at @services/SystemTheming.qml[110:5]: Read of /tmp/horizons-settings-smoke/config/matugen/config.toml failed: File does not exist.",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/run/user/1000/quickshell/by-id/kxo3191lt/log.log",
+    "bytes": 1367,
+    "lines": 11,
+    "issues": [
+      [
+        "WARN scene: QML StyledImage at @modules/common/widgets/Carousel.qml[155:9]: Cannot open file:///: Path is a directory",
+        3
+      ],
+      [
+        "WARN scene: QML FileView at @modules/common/Config.qml[355:5]: Read of /tmp/horizons-settings-smoke/config/horizons/config.json failed: File does not exist.",
+        1
+      ],
+      [
+        "WARN quickshell.io.fileview: got operation finished from dropped operation qs::io::FileViewOperation(<address>)",
+        1
+      ],
+      [
+        "WARN scene: QML FileView at @services/SystemTheming.qml[110:5]: Read of /tmp/horizons-settings-smoke/config/matugen/config.toml failed: File does not exist.",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/run/user/1000/quickshell/by-id/aqo2z81lt/log.qslog",
+    "bytes": 100352,
+    "lines": 44,
+    "issues": [
+      [
+        "WARN: --- WARNING ---",
+        1
+      ],
+      [
+        "WARN: WAYLAND_DISPLAY is present but QT_QPA_PLATFORM is \"offscreen\"",
+        1
+      ],
+      [
+        "WARN: If you are actually running wayland, set QT_QPA_PLATFORM to \"wayland\" or most functionality will be broken.",
+        1
+      ],
+      [
+        "ERROR: Failed to load configuration",
+        1
+      ],
+      [
+        "ERROR:   caused by @shell.qml[8:5]: Type SettingsContent unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/ii/settings/SettingsContent.qml[24:5]: Type SettingsRegistry unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/ii/settings/SettingsRegistry.qml[-1:-1]: Type Ai unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/Ai.qml[23:43]: Type GeminiApiStrategy unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/ai/GeminiApiStrategy.qml[-1:-1]: Type ColorUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/ColorUtils.qml[-1:-1]: Type DateUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/DateUtils.qml[-1:-1]: Type FileUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/FileUtils.qml[-1:-1]: Type Fuzzy unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/Fuzzy.qml[-1:-1]: Type Levendist unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/Levendist.qml[-1:-1]: Type NotificationUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/NotificationUtils.qml[-1:-1]: Type NumberUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/NumberUtils.qml[-1:-1]: Type ObjectUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/ObjectUtils.qml[-1:-1]: Type Session unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/Session.qml[-1:-1]: Type Config unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/Config.qml[-1:-1]: Type Directories unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/Directories.qml[-1:-1]: Type ConflictKiller unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/ConflictKiller.qml[-1:-1]: Type DateTime unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/DateTime.qml[-1:-1]: Type DesktopVisualizer unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/DesktopVisualizer.qml[-1:-1]: Type EasyEffects unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/EasyEffects.qml[-1:-1]: Type Emojis unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/Emojis.qml[-1:-1]: Type FirstRunExperience unavailable",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/run/user/1000/quickshell/by-id/aqo2z81lt/log.log",
+    "bytes": 4846,
+    "lines": 44,
+    "issues": [
+      [
+        "WARN: --- WARNING ---",
+        1
+      ],
+      [
+        "WARN: WAYLAND_DISPLAY is present but QT_QPA_PLATFORM is \"offscreen\"",
+        1
+      ],
+      [
+        "WARN: If you are actually running wayland, set QT_QPA_PLATFORM to \"wayland\" or most functionality will be broken.",
+        1
+      ],
+      [
+        "ERROR: Failed to load configuration",
+        1
+      ],
+      [
+        "ERROR:   caused by @shell.qml[8:5]: Type SettingsContent unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/ii/settings/SettingsContent.qml[24:5]: Type SettingsRegistry unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/ii/settings/SettingsRegistry.qml[-1:-1]: Type Ai unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/Ai.qml[23:43]: Type GeminiApiStrategy unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/ai/GeminiApiStrategy.qml[-1:-1]: Type ColorUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/ColorUtils.qml[-1:-1]: Type DateUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/DateUtils.qml[-1:-1]: Type FileUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/FileUtils.qml[-1:-1]: Type Fuzzy unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/Fuzzy.qml[-1:-1]: Type Levendist unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/Levendist.qml[-1:-1]: Type NotificationUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/NotificationUtils.qml[-1:-1]: Type NumberUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/NumberUtils.qml[-1:-1]: Type ObjectUtils unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/ObjectUtils.qml[-1:-1]: Type Session unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/functions/Session.qml[-1:-1]: Type Config unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/Config.qml[-1:-1]: Type Directories unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @modules/common/Directories.qml[-1:-1]: Type ConflictKiller unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/ConflictKiller.qml[-1:-1]: Type DateTime unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/DateTime.qml[-1:-1]: Type DesktopVisualizer unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/DesktopVisualizer.qml[-1:-1]: Type EasyEffects unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/EasyEffects.qml[-1:-1]: Type Emojis unavailable",
+        1
+      ],
+      [
+        "ERROR:   caused by @services/Emojis.qml[-1:-1]: Type FirstRunExperience unavailable",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/run/user/1000/quickshell/by-id/vwuv61lt/log.qslog",
+    "bytes": 847818,
+    "lines": 36,
+    "issues": [
+      [
+        "WARN: ShaderEffect: 'source' does not have a matching property",
+        2
+      ],
+      [
+        "WARN quickshell.dbus.properties: Error updating property :1.65/StatusNotifierItem/org.kde.StatusNotifierItem:IconName",
+        2
+      ],
+      [
+        "WARN quickshell.dbus.properties: QDBusError(\"org.freedesktop.DBus.Error.Failed\", \"error occurred in Get\")",
+        2
+      ],
+      [
+        "WARN qt.qpa.services: Failed to register with host portal QDBusError(\"org.freedesktop.portal.Error.Failed\", \"Could not register app ID: Connection already associated with an application ID\")",
+        1
+      ],
+      [
+        "WARN scene: QML FileView at @services/NiriConfig.qml[202:5]: Read of /home/professorx/.config/niri/qssettings/outputs.kdl failed: File does not exist.",
+        1
+      ],
+      [
+        "WARN: Could not load icon \"codium?fallback=image://icon/user-desktop?fallback=image-missing\" at size QSize(18, 18) from request",
+        1
+      ],
+      [
+        "WARN: QQmlVMEMetaObject: Internal error - attempted to evaluate a function in an invalid context",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/run/user/1000/quickshell/by-id/vwuv61lt/log.log",
+    "bytes": 4710,
+    "lines": 36,
+    "issues": [
+      [
+        "WARN: ShaderEffect: 'source' does not have a matching property",
+        2
+      ],
+      [
+        "WARN quickshell.dbus.properties: Error updating property :1.65/StatusNotifierItem/org.kde.StatusNotifierItem:IconName",
+        2
+      ],
+      [
+        "WARN quickshell.dbus.properties: QDBusError(\"org.freedesktop.DBus.Error.Failed\", \"error occurred in Get\")",
+        2
+      ],
+      [
+        "WARN qt.qpa.services: Failed to register with host portal QDBusError(\"org.freedesktop.portal.Error.Failed\", \"Could not register app ID: Connection already associated with an application ID\")",
+        1
+      ],
+      [
+        "WARN scene: QML FileView at @services/NiriConfig.qml[202:5]: Read of /home/professorx/.config/niri/qssettings/outputs.kdl failed: File does not exist.",
+        1
+      ],
+      [
+        "WARN: Could not load icon \"codium?fallback=image://icon/user-desktop?fallback=image-missing\" at size QSize(18, 18) from request",
+        1
+      ],
+      [
+        "WARN: QQmlVMEMetaObject: Internal error - attempted to evaluate a function in an invalid context",
+        1
+      ]
+    ]
+  },
+  {
+    "file": "/home/professorx/.cache/quickshell/horizons/logs/qs.log",
+    "bytes": 72504,
+    "lines": 684,
+    "issues": []
+  }
+]

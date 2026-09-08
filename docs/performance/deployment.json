@@ -1,0 +1,15 @@
+{
+  "backup": "/home/professorx/.local/state/horizons/performance-backups/20260908-144628",
+  "installed": "/home/professorx/.config/quickshell/horizons",
+  "files": [
+    "services/HyprlandSnapshot.qml",
+    "scripts/system/hardware_sample.py",
+    "services/HyprlandData.qml",
+    "services/HyprlandBackend.qml",
+    "services/ResourceUsage.qml",
+    "services/DateTime.qml",
+    "modules/ii/background/widgets/uptime/UptimeWidget.qml",
+    "modules/ii/infoStrip/InfoStripContent.qml"
+  ],
+  "timestamp": "2026-09-08T14:46:28+0300"
+}
