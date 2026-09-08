@@ -182,3 +182,7 @@ inactiveBackground=76,70,90
 activeFont=Google Sans Flex,10,-1,5,500,0,0,0,0,0,0,0,0,0,0,1,Medium
 inactiveBlend=161,169,177
 inactiveForeground=232,222,248
+
+[BusyCursorSettings]
+Bouncing=false
+BusyCursor=false

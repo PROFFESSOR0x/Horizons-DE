@@ -45,9 +45,12 @@ Singleton {
     // every property it reads (including WM.obscuredMonitors) is a real
     // property read, captured by the binding that calls it.
     function shownOnScreen(screenName, visualizerConfig) {
-        if (!visualizerConfig?.enable || !root.allowedOnScreen(screenName)) return false;
+        const name = visualizerConfig === Config.options.background.widgets.visualizer ? "visualizer"
+            : visualizerConfig === Config.options.background.widgets.visualizerMirror ? "visualizerMirror" : "fullMonitorVisualizer";
+        const locked = GlobalStates.screenLocked || GlobalStates.lockPreviewOpen;
+        if (!GlobalStates.widgetShown(name, locked) || (!locked && !root.allowedOnScreen(screenName))) return false;
         if (root.editingPreviewActive) return true;
-        if ((visualizerConfig.hideWhenObscured ?? true) && WM.obscuredMonitors[screenName]) return false;
+        if (!locked && (visualizerConfig.hideWhenObscured ?? true) && WM.obscuredMonitors[screenName]) return false;
         return true;
     }
 
@@ -55,7 +58,7 @@ Singleton {
     // a window covering one monitor never silences the visualizer still
     // visible on another.
     readonly property bool visibleAnywhere: {
-        if (!root.enabled) return false;
+
         if (root.editingPreviewActive) return false;
         const screens = Quickshell.screens;
         for (let i = 0; i < screens.length; i++) {

@@ -71,6 +71,7 @@ RowLayout {
         spacing: 2
 
         Repeater {
+            id: optionsRepeater
             model: root.options
             delegate: SelectionGroupButton {
                 id: paletteButton
@@ -80,8 +81,8 @@ RowLayout {
                     if (index === 0) {
                         paletteButton.leftmost = true
                     } else {
-                        var prev = buttonsFlow.children[index - 1]
-                        var thisIsOnNewLine = prev && prev.y !== paletteButton.y
+                        var prev = optionsRepeater.itemAt(index - 1)
+                        var thisIsOnNewLine = !prev || prev.y !== paletteButton.y
                         paletteButton.leftmost = thisIsOnNewLine
                         if (prev) prev.rightmost = thisIsOnNewLine
                     }

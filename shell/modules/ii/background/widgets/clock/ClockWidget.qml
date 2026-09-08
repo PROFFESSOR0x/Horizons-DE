@@ -12,9 +12,8 @@ AbstractBackgroundWidget {
     id: root
 
     configEntryName: "clock"
-    // Clock is the lock screen's stable visual anchor. All other background
-    // widgets continue to obey Lock > Show Widgets and its allow-list.
-    visibleWhenLocked: true
+    // The clock obeys the same explicit visibility choice as other widgets.
+    visibleWhenLocked: GlobalStates.widgetShown(configEntryName, true)
 
     implicitHeight: contentColumn.implicitHeight
     implicitWidth: contentColumn.implicitWidth

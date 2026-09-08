@@ -133,28 +133,17 @@ class M3IslandContractTests(unittest.TestCase):
 
     def test_persistent_and_compositor_data_fail_closed(self) -> None:
         todo = source("services/Todo.qml")
-        hyprland_data = source("services/HyprlandData.qml")
         xkb = source("services/HyprlandXkb.qml")
         theme_loader = source("services/MaterialThemeLoader.qml")
         styled_popup = source("modules/common/widgets/StyledPopup.qml")
 
         self.assertIn("Corrupt storage", todo)
-        self.assertIn("function parseHyprctlJson", hyprland_data)
+        # Hyprland failure preservation is exercised by test_performance_runtime.
         self.assertIn("Failed to parse devices", xkb)
         self.assertIn("Ignoring invalid color theme", theme_loader)
         self.assertIn("Appearance.liquidGlassEnabled", styled_popup)
 
-    def test_compositor_refreshes_are_debounced(self) -> None:
-        hyprland_data = source("services/HyprlandData.qml")
-
-        self.assertIn("id: refreshDebounce", hyprland_data)
-        self.assertIn("function scheduleUpdateAll", hyprland_data)
-        self.assertIn("scheduleUpdateAll()", hyprland_data)
-        self.assertIn("property bool windowRefreshQueued", hyprland_data)
-        self.assertIn("if (getClients.running)", hyprland_data)
-        self.assertIn("windowRefreshDebounce.restart()", hyprland_data)
-        self.assertNotIn("root.windowRefreshDebounce.restart()", hyprland_data)
-        self.assertIn('"windowtitlev2"', hyprland_data)
+    # Scheduler semantics now have real QML tests in test_performance_runtime.py.
 
     def test_hyprland_customization_never_writes_removed_options(self) -> None:
         config = source("modules/common/Config.qml")
@@ -470,8 +459,10 @@ class M3IslandContractTests(unittest.TestCase):
         settings_content = source("modules/ii/settings/SettingsContent.qml")
         settings_search = source("modules/ii/settings/pages/SettingsSearch.qml")
 
-        self.assertIn("settingLabels", settings_content)
-        self.assertIn("collectSearchData", settings_content)
+        registry = source("modules/ii/settings/SettingsRegistry.qml")
+        self.assertIn("settingLabels", registry)
+        self.assertIn("registry.searchIndex", settings_content)
+        self.assertNotIn("collectSearchData", settings_content)
         self.assertIn("matchingSettings", settings_search)
         self.assertIn("resultButton.modelData.matchingSettings", settings_search)
 
@@ -516,8 +507,8 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("isInteractionScreen", lock)
         self.assertIn("Behavior on controlsVisibility", lock)
         self.assertIn("surfaceScreenName === \"\"", lock)
-        self.assertIn("Config.options.background.widgets.clock.enable", background)
-        self.assertIn("visibleWhenLocked: true", clock)
+        self.assertIn('GlobalStates.widgetShown("clock", bgRoot.lockPresentationActive)', background)
+        self.assertIn("visibleWhenLocked: GlobalStates.widgetShown(configEntryName, true)", clock)
         self.assertNotIn("lockVisualizerRing", clock)
         self.assertNotIn("clockVisualizer", settings)
         self.assertIn("Hide lock controls when idle", settings)
@@ -555,10 +546,10 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("mapToItem(lockControlsPreview", background)
         self.assertIn("GlobalStates.saveLockPreview()", background)
         self.assertIn("GlobalStates.resetLockWidgetLayout()", background)
-        self.assertIn("Lock screen live preview", interface)
+        self.assertIn("Live preview", interface)
         self.assertIn("visualizerMirror", interface)
         self.assertIn("setWidgetLockOnly", widget_settings)
-        self.assertIn("Show only on the lock screen", widget_settings)
+        self.assertIn("WidgetsSubmenu", widget_settings)
 
     def test_lock_layout_can_be_shared_or_saved_per_output(self) -> None:
         config = source("modules/common/Config.qml")
@@ -571,10 +562,11 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("property bool perScreenLayout", config)
         self.assertIn("property var layoutByScreen", config)
         self.assertIn("property bool unlockBoxPrimaryMonitorOnly", config)
-        self.assertIn("function applyLockDesignToOutput", states)
+        self.assertNotIn("function applyLockDesignToOutput", states)
         self.assertIn("byScreen", abstract_widget)
         self.assertIn("lockLayoutForOutput", lock)
-        self.assertIn("Apply other screen", background)
+        self.assertNotIn("Apply other screen", background)
+        self.assertIn("WidgetsSubmenu", background)
         self.assertIn("Customize lock layout per display", settings)
         self.assertIn("Unlock box just on the primary monitor", settings)
 

@@ -1,3 +1,4 @@
+import Quickshell
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
@@ -6,6 +7,9 @@ import Quickshell.Io
 
 StyledPopup {
     id: root
+    property QtObject resourceUsageLease: ResourceUsageLease {
+        active: root.active
+    }
 
     function formatKB(kb) {
         return (kb / (1024 * 1024)).toFixed(1) + " GB"

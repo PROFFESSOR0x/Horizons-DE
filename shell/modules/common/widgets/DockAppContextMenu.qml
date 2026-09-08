@@ -80,9 +80,8 @@ PopupWindow {
     }
     function openInNewWorkspace() {
         const monitorName = WM.monitorFor(root.hostWindow?.screen)?.name ?? ""
-        const workspaceId = WM.nextWorkspaceId()
+        const workspaceId = GlobalStates.newWorkspaceId(monitorName)
         if (workspaceId < 1) {
-            root.launch()
             return
         }
         // GlobalStates keeps the all-screens workspace mode coherent; the

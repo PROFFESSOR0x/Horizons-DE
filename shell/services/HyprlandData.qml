@@ -13,6 +13,7 @@ import qs.services
  */
 Singleton {
     id: root
+    property bool workspacesReady: false
     property var windowList: []
     property var addresses: []
     property var windowByAddress: ({})
@@ -22,12 +23,11 @@ Singleton {
     property var activeWorkspace: null
     property var monitors: []
     property var layers: ({})
-    // A mapped window commonly emits open, focus, title, and geometry events
-    // in one burst. Never restart `hyprctl clients -j` while its previous
-    // response is still being parsed on the QML thread; perform one trailing
-    // refresh instead.
-    property bool windowRefreshQueued: false
-
+    readonly property string requestSocketPath: {
+        const runtime = Quickshell.env("XDG_RUNTIME_DIR") ?? ""
+        const signature = Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") ?? ""
+        return runtime && signature ? runtime + "/hypr/" + signature + "/.socket.sock" : ""
+    }
     // decoration:blur:variant (hyprwm/Hyprland PR #15661, merged
     // 2026-08-22) isn't in any tagged Hyprland release yet, only in a
     // from-source/-git build past that commit — hyprconfigurator.py's
@@ -105,88 +105,29 @@ Singleton {
 
     // Internals
 
-    function parseHyprctlJson(text, fallback, label) {
-        try {
-            return JSON.parse(text)
-        } catch (error) {
-            console.log("[HyprlandData] Failed to parse " + label + ": " + error)
-            return fallback
-        }
-    }
-
     function updateWindowList() {
-        if (WM.compositor !== "hyprland") return;
-        if (getClients.running) {
-            root.windowRefreshQueued = true
-            return
-        }
-        getClients.running = true;
+        if (WM.compositor === "hyprland") getClients.request()
     }
-
     function updateLayers() {
-        if (WM.compositor !== "hyprland") return;
-        getLayers.running = true;
+        if (WM.compositor === "hyprland") getLayers.request()
     }
-
     function updateMonitors() {
-        if (WM.compositor !== "hyprland") return;
-        getMonitors.running = true;
+        if (WM.compositor === "hyprland") getMonitors.request()
     }
-
     function updateWorkspaces() {
-        if (WM.compositor !== "hyprland") return;
-        getWorkspaces.running = true;
-        getActiveWorkspace.running = true;
+        if (WM.compositor !== "hyprland") return
+        getWorkspaces.request()
+        getActiveWorkspace.request()
     }
-
     function updateAll() {
-        if (WM.compositor !== "hyprland") return;
-        updateWindowList();
-        updateMonitors();
-        updateLayers();
-        updateWorkspaces();
+        updateWindowList()
+        updateMonitors()
+        updateLayers()
+        updateWorkspaces()
     }
-
-    function scheduleWindowListUpdate() {
-        if (WM.compositor !== "hyprland") return;
-        windowRefreshDebounce.restart();
-    }
-
-    function scheduleWorkspaceUpdate() {
-        if (WM.compositor !== "hyprland") return;
-        workspaceRefreshDebounce.restart();
-    }
-
-    // A single user action can produce a burst of raw events. Coalescing them
-    // keeps the shell responsive instead of starting four hyprctl calls per event.
-    function scheduleUpdateAll() {
-        if (WM.compositor !== "hyprland") return;
-        refreshDebounce.restart();
-    }
-
-    Timer {
-        id: refreshDebounce
-        interval: 80
-        repeat: false
-        onTriggered: root.updateAll()
-    }
-
-    Timer {
-        id: windowRefreshDebounce
-        interval: 35
-        repeat: false
-        onTriggered: root.updateWindowList()
-    }
-
-    Timer {
-        id: workspaceRefreshDebounce
-        interval: 35
-        repeat: false
-        onTriggered: {
-            root.updateMonitors()
-            root.updateWorkspaces()
-        }
-    }
+    function scheduleWindowListUpdate() { updateWindowList() }
+    function scheduleWorkspaceUpdate() { updateMonitors(); updateWorkspaces() }
+    function scheduleUpdateAll() { updateAll() }
 
     function biggestWindowForWorkspace(workspaceId) {
         const windowsInThisWorkspace = HyprlandData.windowList.filter(w => w?.workspace?.id == workspaceId);
@@ -207,99 +148,83 @@ Singleton {
         enabled: WM.compositor === "hyprland"
 
         function onRawEvent(event) {
-            if (["openlayer", "closelayer", "screencast"].includes(event.name)) return;
-            if (["openwindow", "closewindow", "activewindow", "activewindowv2",
-                 "movewindow", "windowtitle", "windowtitlev2", "changefloatingmode",
-                 "fullscreen", "pin", "urgent"].includes(event.name)) {
-                root.scheduleWindowListUpdate()
+            const name = event.name
+            if (["openlayer", "closelayer"].includes(name)) {
+                root.updateLayers()
+                return
+            }
+            if (["screencast", "activelayout", "submap", "bell", "configreloaded"].includes(name)) {
+                if (name === "configreloaded") root.updateAll()
+                return
+            }
+            if (["openwindow", "closewindow", "movewindow", "movewindowv2"].includes(name)) {
+                root.updateWindowList()
+                root.updateWorkspaces()
+                return
+            }
+            if (["activewindow", "activewindowv2", "windowtitle", "windowtitlev2",
+                 "changefloatingmode", "fullscreen", "pin", "urgent"].includes(name)) {
+                root.updateWindowList()
+                // lastwindow, window count/title and fullscreen metadata can change.
+                root.updateWorkspaces()
                 return
             }
             if (["workspace", "workspacev2", "focusedmon", "focusedmonv2",
-                 "moveworkspace", "moveworkspacev2", "renameworkspace"].includes(event.name)) {
+                 "moveworkspace", "moveworkspacev2", "renameworkspace",
+                 "createworkspace", "createworkspacev2", "destroyworkspace",
+                 "destroyworkspacev2", "activespecial", "activespecialv2"].includes(name)) {
                 root.scheduleWorkspaceUpdate()
                 return
             }
-            scheduleUpdateAll()
+            // Keep a conservative fallback for compositor extensions/new events.
+            root.scheduleUpdateAll()
         }
     }
 
-    Process {
+    HyprlandSnapshot {
+        socketPath: root.requestSocketPath
         id: getClients
-        command: ["hyprctl", "clients", "-j"]
-        stdout: StdioCollector {
-            id: clientsCollector
-            onStreamFinished: {
-                const clients = root.parseHyprctlJson(clientsCollector.text, [], "clients")
-                root.windowList = Array.isArray(clients) ? clients : []
-                let tempWinByAddress = {};
-                for (var i = 0; i < root.windowList.length; ++i) {
-                    var win = root.windowList[i];
-                    tempWinByAddress[win.address] = win;
-                }
-                root.windowByAddress = tempWinByAddress;
-                root.addresses = root.windowList.map(win => win.address);
-            }
-        }
-        onExited: (exitCode, exitStatus) => {
-            if (!root.windowRefreshQueued) return
-            root.windowRefreshQueued = false
-            windowRefreshDebounce.restart()
+        query: "clients"
+        onSnapshot: clients => {
+            const index = {}
+            for (const win of clients) index[win.address] = win
+            root.windowByAddress = index
+            root.addresses = clients.map(win => win.address)
+            root.windowList = clients
         }
     }
-
-    Process {
+    HyprlandSnapshot {
+        socketPath: root.requestSocketPath
         id: getMonitors
-        command: ["hyprctl", "monitors", "-j"]
-        stdout: StdioCollector {
-            id: monitorsCollector
-            onStreamFinished: {
-                const monitors = root.parseHyprctlJson(monitorsCollector.text, [], "monitors")
-                root.monitors = Array.isArray(monitors) ? monitors : []
-            }
-        }
+        query: "monitors"
+        onSnapshot: value => { root.monitors = value }
     }
-
-    Process {
+    HyprlandSnapshot {
+        socketPath: root.requestSocketPath
         id: getLayers
-        command: ["hyprctl", "layers", "-j"]
-        stdout: StdioCollector {
-            id: layersCollector
-            onStreamFinished: {
-                const layers = root.parseHyprctlJson(layersCollector.text, {}, "layers")
-                root.layers = layers && typeof layers === "object" ? layers : {}
-            }
-        }
+        query: "layers"
+        expectedType: "object"
+        onSnapshot: value => { root.layers = value }
     }
-
-    Process {
+    HyprlandSnapshot {
+        socketPath: root.requestSocketPath
         id: getWorkspaces
-        command: ["hyprctl", "workspaces", "-j"]
-        stdout: StdioCollector {
-            id: workspacesCollector
-            onStreamFinished: {
-                const parsedWorkspaces = root.parseHyprctlJson(workspacesCollector.text, [], "workspaces")
-                var rawWorkspaces = Array.isArray(parsedWorkspaces) ? parsedWorkspaces : []
-                root.workspaces = rawWorkspaces.filter(ws => ws.id >= 1 && ws.id <= 100);
-                let tempWorkspaceById = {};
-                for (var i = 0; i < root.workspaces.length; ++i) {
-                    var ws = root.workspaces[i];
-                    tempWorkspaceById[ws.id] = ws;
-                }
-                root.workspaceById = tempWorkspaceById;
-                root.workspaceIds = root.workspaces.map(ws => ws.id);
-            }
+        query: "workspaces"
+        onSnapshot: value => {
+            const workspaces = value.filter(ws => Number.isInteger(ws.id) && ws.id >= 1)
+            const index = {}
+            for (const ws of workspaces) index[ws.id] = ws
+            root.workspaceById = index
+            root.workspaceIds = workspaces.map(ws => ws.id)
+            root.workspaces = workspaces
+            root.workspacesReady = true
         }
     }
-
-    Process {
+    HyprlandSnapshot {
+        socketPath: root.requestSocketPath
         id: getActiveWorkspace
-        command: ["hyprctl", "activeworkspace", "-j"]
-        stdout: StdioCollector {
-            id: activeWorkspaceCollector
-            onStreamFinished: {
-                const workspace = root.parseHyprctlJson(activeWorkspaceCollector.text, null, "active workspace")
-                root.activeWorkspace = workspace && typeof workspace === "object" ? workspace : null
-            }
-        }
+        query: "activeworkspace"
+        expectedType: "object"
+        onSnapshot: value => { root.activeWorkspace = value }
     }
 }

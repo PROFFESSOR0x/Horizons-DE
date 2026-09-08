@@ -1,3 +1,4 @@
+import Quickshell
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Io
@@ -9,34 +10,29 @@ import qs.modules.ii.background.widgets
 
 AbstractBackgroundWidget {
     id: root
+    property QtObject resourceUsageLease: ResourceUsageLease {
+        active: root.visible && (root.QsWindow.window?.visible ?? false)
+    }
     configEntryName: "uptime"
     hoverEnabled: true
     implicitWidth: 320
     implicitHeight: col.implicitHeight + 24
 
-    property string uptimeStr: "--"
+    readonly property string uptimeStr: DateTime.uptime
     property string loadStr: "--"
 
-    FileView { id: fvUptime; path: "/proc/uptime" }
-    FileView { id: fvLoad; path: "/proc/loadavg" }
-
-    Timer {
-        interval: 5000; running: true; repeat: true
-        onTriggered: { fvUptime.reload(); fvLoad.reload() }
-        Component.onCompleted: { fvUptime.reload(); fvLoad.reload() }
+    FileView {
+        id: fvLoad
+        path: "/proc/loadavg"
+        preload: true
+        blockLoading: false
+        onLoaded: root.updateLoad()
     }
-    Connections { target: fvUptime; function onFileChanged() { updateUptime() } }
-    Connections { target: fvLoad; function onFileChanged() { updateLoad() } }
-    function updateUptime() {
-        const txt = fvUptime.text()
-        const sec = parseFloat(txt.split(" ")[0])
-        if (isNaN(sec)) return
-        const d = Math.floor(sec/86400)
-        const h = Math.floor((sec%86400)/3600)
-        const m = Math.floor((sec%3600)/60)
-        if (d>0) root.uptimeStr = d+"d "+h+"h "+m+"m"
-        else if (h>0) root.uptimeStr = h+"h "+m+"m"
-        else root.uptimeStr = m+"m"
+    Timer {
+        interval: 5000
+        running: root.visible
+        repeat: true
+        onTriggered: fvLoad.reload()
     }
     function updateLoad() {
         const t = fvLoad.text().trim().split(" ")

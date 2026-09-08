@@ -22,6 +22,7 @@ Scope {
             visible: AppLaunchService.active
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
+            mask: Region {}
             WlrLayershell.layer: Config.options.appLaunch.aboveWindows
                 ? WlrLayer.Overlay : WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None

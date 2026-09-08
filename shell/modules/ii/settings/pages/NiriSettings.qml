@@ -75,13 +75,14 @@ rm -f "$tmp"`]
     MonitorConfigOption { id: monitorConfig }
 
     ColumnLayout {
+        visible: page.settingsShow("appearance|devices|effects|input-details|system|window-rules");
         id: mainLayout
         Layout.fillWidth: true
         Layout.fillHeight: true
         spacing: 20
 
         NoticeBox {
-            visible: page.includeStatus !== "ok"
+            visible: page.settingsShow("system") && (page.includeStatus !== "ok")
             Layout.fillWidth: true
             text: page.includeStatus === "misplaced"
                 ? Translation.tr("The qssettings include lines are in your config.kdl but not at the end. Later config wins in niri, so your own settings currently override these. Fix moves them to the bottom (a backup of config.kdl is made first).")
@@ -90,6 +91,8 @@ rm -f "$tmp"`]
             Item { Layout.fillWidth: true }
 
             RippleButtonWithIcon {
+                visible: page.settingsShow("system");
+                objectName: "NiriSettings.nirisettings";
                 Layout.fillWidth: false
                 buttonRadius: Appearance.rounding.small
                 materialIcon: page.includeStatus === "misplaced" ? "build" : "auto_fix_high"
@@ -101,6 +104,8 @@ rm -f "$tmp"`]
             }
 
             RippleButtonWithIcon {
+                visible: page.settingsShow("system");
+                objectName: "NiriSettings.nirisettings-2";
                 id: copyIncludesButton
                 property bool justCopied: false
                 Layout.fillWidth: false
@@ -128,26 +133,33 @@ rm -f "$tmp"`]
             icon: "monitor"
             shape: MaterialShape.Shape.ClamShell
             title: Translation.tr("Displays")
-            visible: monitorConfig.monitors.length > 0
+            visible: page.settingsShow("devices|window-rules") && (monitorConfig.monitors.length > 0)
 
             MonitorCanvas {
+                visible: page.settingsShow("devices");
+                objectName: "NiriSettings.arrange-displays";
                 id: monitorCanvas
                 Layout.fillWidth: true
                 monitorConfig: monitorConfig
             }
 
             ContentSubsection {
+                visible: page.settingsShow("devices|window-rules");
                 Layout.topMargin: 10
                 title: (monitorConfig.monitors[monitorCanvas.selectedIndex]?.name ?? "")
                     + " · "
                     + (monitorConfig.monitors[monitorCanvas.selectedIndex]?.description ?? "")
 
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("devices|window-rules")
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.enabled";
                         buttonIcon: "tv_off"
                         text: Translation.tr("Enabled")
                         checked: !(monitorConfig.monitors[monitorCanvas.selectedIndex]?.disabled ?? false)
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === !(monitorConfig.monitors[monitorCanvas.selectedIndex]?.disabled ?? false)) return
                             monitorConfig.updateMonitor(monitorCanvas.selectedIndex, { disabled: !checked })
                             monitorConfig.applyAndSave(monitorCanvas.selectedIndex)
@@ -155,6 +167,9 @@ rm -f "$tmp"`]
                     }
 
                     ConfigComboBox {
+                        objectName: "NiriSettings.resolution-refresh-rate";
+                        visible: page.settingsShow("devices");
+
                         Layout.fillWidth: true
                         buttonIcon: "aspect_ratio"
                         text: Translation.tr("Resolution & Refresh Rate")
@@ -176,6 +191,8 @@ rm -f "$tmp"`]
                     }
 
                     ConfigSelectionArray {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.orientation";
                         text: Translation.tr("Orientation")
                         icon: "mobile_rotate"
                         currentValue: monitorConfig.monitors[monitorCanvas.selectedIndex]?.transform ?? 0
@@ -192,10 +209,12 @@ rm -f "$tmp"`]
                     }
 
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.variable-refresh-rate-vrr";
                         buttonIcon: "autoplay"
                         text: Translation.tr("Variable refresh rate (VRR)")
                         checked: monitorConfig.monitors[monitorCanvas.selectedIndex]?.vrr ?? false
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === (monitorConfig.monitors[monitorCanvas.selectedIndex]?.vrr ?? false)) return
                             monitorConfig.updateMonitor(monitorCanvas.selectedIndex, { vrr: checked })
                             monitorConfig.applyAndSave(monitorCanvas.selectedIndex)
@@ -203,11 +222,13 @@ rm -f "$tmp"`]
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.scale";
                         icon: "zoom_in"
                         text: Translation.tr("Scale")
                         value: Math.round((monitorConfig.monitors[monitorCanvas.selectedIndex]?.scale ?? 1.0) * 100)
                         from: 50; to: 300; stepSize: 25
-                        onValueChanged: {
+                        onEdited: {
                             const newVal = value / 100.0
                             if (newVal === (monitorConfig.monitors[monitorCanvas.selectedIndex]?.scale ?? 1.0)) return
                             monitorConfig.updateMonitor(monitorCanvas.selectedIndex, { scale: newVal })
@@ -216,11 +237,13 @@ rm -f "$tmp"`]
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "NiriSettings.position-x";
                         icon: "swap_horiz"
                         text: Translation.tr("Position X")
                         value: monitorConfig.monitors[monitorCanvas.selectedIndex]?.x ?? 0
                         from: 0; to: 7680; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             if (value === (monitorConfig.monitors[monitorCanvas.selectedIndex]?.x ?? 0)) return
                             monitorConfig.updateMonitor(monitorCanvas.selectedIndex, { x: value })
                             monitorConfig.applyAndSave(monitorCanvas.selectedIndex)
@@ -228,11 +251,13 @@ rm -f "$tmp"`]
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "NiriSettings.position-y";
                         icon: "swap_vert"
                         text: Translation.tr("Position Y")
                         value: monitorConfig.monitors[monitorCanvas.selectedIndex]?.y ?? 0
                         from: 0; to: 4320; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             if (value === (monitorConfig.monitors[monitorCanvas.selectedIndex]?.y ?? 0)) return
                             monitorConfig.updateMonitor(monitorCanvas.selectedIndex, { y: value })
                             monitorConfig.applyAndSave(monitorCanvas.selectedIndex)
@@ -244,23 +269,30 @@ rm -f "$tmp"`]
 
         // Layout
         ContentSection {
+            visible: page.settingsShow("devices|window-rules");
             icon: "auto_awesome_mosaic"
             shape: MaterialShape.Shape.Gem
             title: Translation.tr("Layout")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("devices|window-rules")
                 ConfigSpinBox {
+                    visible: page.settingsShow("devices");
+                    objectName: "NiriSettings.gaps";
                     icon: "margin"
                     text: Translation.tr("Gaps")
                     value: NiriConfig.options.layout.gaps
                     from: 0; to: 60; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === NiriConfig.options.layout.gaps) return
                         NiriConfig.options.layout.gaps = value
                     }
                 }
 
                 ConfigSelectionArray {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "NiriSettings.center-focused-column";
                     text: Translation.tr("Center focused column")
                     icon: "align_horizontal_center"
                     currentValue: NiriConfig.options.layout.centerFocusedColumn
@@ -275,6 +307,8 @@ rm -f "$tmp"`]
                 }
 
                 ConfigSelectionArray {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "NiriSettings.default-column-width";
                     text: Translation.tr("Default column width")
                     icon: "width"
                     currentValue: NiriConfig.options.layout.defaultColumnWidth
@@ -292,22 +326,28 @@ rm -f "$tmp"`]
 
         // Input
         ContentSection {
+            visible: page.settingsShow("devices|input-details");
             icon: "trackpad_input"
             shape: MaterialShape.Shape.Pentagon
             title: Translation.tr("Input")
 
             ContentSubsection {
+                visible: page.settingsShow("devices|input-details");
                 title: Translation.tr("Keyboard")
 
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("devices|input-details")
                     ConfigTextArea {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.keyboard-layout";
                         id: kbLayoutField
                         Layout.fillWidth: true
                         buttonIcon: "keyboard"
                         text: Translation.tr("Keyboard layout")
                         placeholderText: Translation.tr("e.g., us, es, latam")
                         Component.onCompleted: value = NiriConfig.options.input.kbLayout
-                        onValueChanged: kbLayoutDebounceTimer.restart()
+                        onEdited: kbLayoutDebounceTimer.restart()
 
                         Timer {
                             id: kbLayoutDebounceTimer
@@ -320,42 +360,50 @@ rm -f "$tmp"`]
                     }
 
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.numlock-by-default";
                         buttonIcon: "numbers"
                         text: Translation.tr("Numlock by default")
                         checked: NiriConfig.options.input.numlock
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === NiriConfig.options.input.numlock) return
                             NiriConfig.options.input.numlock = checked
                         }
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("input-details");
+                        objectName: "NiriSettings.repeat-delay-ms";
                         icon: "keyboard_return"
                         text: Translation.tr("Repeat delay (ms)")
                         value: NiriConfig.options.input.repeatDelay
                         from: 100; to: 1000; stepSize: 10
-                        onValueChanged: {
+                        onEdited: {
                             if (value === NiriConfig.options.input.repeatDelay) return
                             NiriConfig.options.input.repeatDelay = value
                         }
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("input-details");
+                        objectName: "NiriSettings.repeat-rate";
                         icon: "speed"
                         text: Translation.tr("Repeat rate")
                         value: NiriConfig.options.input.repeatRate
                         from: 10; to: 100; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             if (value === NiriConfig.options.input.repeatRate) return
                             NiriConfig.options.input.repeatRate = value
                         }
                     }
 
                     ConfigSwitch {
+                        visible: page.settingsShow("input-details");
+                        objectName: "NiriSettings.focus-follows-mouse";
                         buttonIcon: "mouse"
                         text: Translation.tr("Focus follows mouse")
                         checked: NiriConfig.options.input.focusFollowsMouse
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === NiriConfig.options.input.focusFollowsMouse) return
                             NiriConfig.options.input.focusFollowsMouse = checked
                         }
@@ -364,44 +412,55 @@ rm -f "$tmp"`]
             }
 
             ContentSubsection {
+                visible: page.settingsShow("devices|input-details");
                 title: Translation.tr("Touchpad")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("devices|input-details")
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.tap-to-click";
                         buttonIcon: "touch_app"
                         text: Translation.tr("Tap to click")
                         checked: NiriConfig.options.input.touchpad.tap
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === NiriConfig.options.input.touchpad.tap) return
                             NiriConfig.options.input.touchpad.tap = checked
                         }
                     }
 
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.natural-scroll";
                         buttonIcon: "swap_vert"
                         text: Translation.tr("Natural scroll")
                         checked: NiriConfig.options.input.touchpad.naturalScroll
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === NiriConfig.options.input.touchpad.naturalScroll) return
                             NiriConfig.options.input.touchpad.naturalScroll = checked
                         }
                     }
 
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.disable-while-typing";
                         buttonIcon: "keyboard_hide"
                         text: Translation.tr("Disable while typing")
                         checked: NiriConfig.options.input.touchpad.disableWhileTyping
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === NiriConfig.options.input.touchpad.disableWhileTyping) return
                             NiriConfig.options.input.touchpad.disableWhileTyping = checked
                         }
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("input-details");
+                        objectName: "NiriSettings.scroll-factor";
                         icon: "swipe"
                         text: Translation.tr("Scroll factor")
                         value: Math.round(NiriConfig.options.input.touchpad.scrollFactor * 10)
                         from: 1; to: 30; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             const newVal = value / 10.0
                             if (newVal === NiriConfig.options.input.touchpad.scrollFactor) return
                             NiriConfig.options.input.touchpad.scrollFactor = newVal
@@ -409,11 +468,13 @@ rm -f "$tmp"`]
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.acceleration-speed";
                         icon: "speed"
                         text: Translation.tr("Acceleration speed")
                         value: Math.round(NiriConfig.options.input.touchpad.accelSpeed * 10)
                         from: -10; to: 10; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             const newVal = value / 10.0
                             if (newVal === NiriConfig.options.input.touchpad.accelSpeed) return
                             NiriConfig.options.input.touchpad.accelSpeed = newVal
@@ -423,24 +484,31 @@ rm -f "$tmp"`]
             }
 
             ContentSubsection {
+                visible: page.settingsShow("devices");
                 title: Translation.tr("Mouse")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("devices")
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.natural-scroll-2";
                         buttonIcon: "swap_vert"
                         text: Translation.tr("Natural scroll")
                         checked: NiriConfig.options.input.mouse.naturalScroll
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === NiriConfig.options.input.mouse.naturalScroll) return
                             NiriConfig.options.input.mouse.naturalScroll = checked
                         }
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("devices");
+                        objectName: "NiriSettings.acceleration-speed-2";
                         icon: "speed"
                         text: Translation.tr("Acceleration speed")
                         value: Math.round(NiriConfig.options.input.mouse.accelSpeed * 10)
                         from: -10; to: 10; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             const newVal = value / 10.0
                             if (newVal === NiriConfig.options.input.mouse.accelSpeed) return
                             NiriConfig.options.input.mouse.accelSpeed = newVal
@@ -452,91 +520,110 @@ rm -f "$tmp"`]
 
         // Visual & Aesthetics
         ContentSection {
+            visible: page.settingsShow("effects");
             icon: "deblur"
             shape: MaterialShape.Shape.PixelCircle
             title: Translation.tr("Visual & Aesthetics")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("effects")
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "NiriSettings.window-rounding";
                     icon: "rounded_corner"
                     text: Translation.tr("Window Rounding")
                     value: NiriConfig.options.decoration.rounding
                     from: 0; to: 30; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === NiriConfig.options.decoration.rounding) return
                         NiriConfig.options.decoration.rounding = value
                     }
                 }
 
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "NiriSettings.border";
                     buttonIcon: "border_outer"
                     text: Translation.tr("Border")
                     checked: NiriConfig.options.decoration.border.enable
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === NiriConfig.options.decoration.border.enable) return
                         NiriConfig.options.decoration.border.enable = checked
                     }
                 }
 
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "NiriSettings.border-size";
                     icon: "border_outer"
                     text: Translation.tr("Border Size")
                     value: NiriConfig.options.decoration.border.width
                     from: 0; to: 10; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === NiriConfig.options.decoration.border.width) return
                         NiriConfig.options.decoration.border.width = value
                     }
                 }
 
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "NiriSettings.focus-ring";
                     buttonIcon: "center_focus_strong"
                     text: Translation.tr("Focus ring")
                     checked: NiriConfig.options.decoration.focusRing.enable
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === NiriConfig.options.decoration.focusRing.enable) return
                         NiriConfig.options.decoration.focusRing.enable = checked
                     }
                 }
 
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "NiriSettings.focus-ring-width";
                     icon: "center_focus_weak"
                     text: Translation.tr("Focus ring width")
                     value: NiriConfig.options.decoration.focusRing.width
                     from: 0; to: 10; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === NiriConfig.options.decoration.focusRing.width) return
                         NiriConfig.options.decoration.focusRing.width = value
                     }
                 }
 
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "NiriSettings.shadows";
                     buttonIcon: "ev_shadow"
                     text: Translation.tr("Shadows")
                     checked: NiriConfig.options.decoration.shadow.enable
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === NiriConfig.options.decoration.shadow.enable) return
                         NiriConfig.options.decoration.shadow.enable = checked
                     }
                 }
 
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "NiriSettings.shadow-softness";
                     icon: "blur_linear"
                     text: Translation.tr("Shadow softness")
                     value: NiriConfig.options.decoration.shadow.softness
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         if (value === NiriConfig.options.decoration.shadow.softness) return
                         NiriConfig.options.decoration.shadow.softness = value
                     }
                 }
 
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "NiriSettings.shadow-spread";
                     icon: "expand_all"
                     text: Translation.tr("Shadow spread")
                     value: NiriConfig.options.decoration.shadow.spread
                     from: 0; to: 50; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === NiriConfig.options.decoration.shadow.spread) return
                         NiriConfig.options.decoration.shadow.spread = value
                     }
@@ -544,35 +631,44 @@ rm -f "$tmp"`]
             }
 
             ContentSubsection {
+                visible: page.settingsShow("effects");
                 title: Translation.tr("Blur")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("effects")
                     ConfigSwitch {
+                        visible: page.settingsShow("effects");
+                        objectName: "NiriSettings.blur";
                         buttonIcon: "blur_on"
                         text: Translation.tr("Blur")
                         checked: NiriConfig.options.decoration.blur.enable
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === NiriConfig.options.decoration.blur.enable) return
                             NiriConfig.options.decoration.blur.enable = checked
                         }
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("effects");
+                        objectName: "NiriSettings.blur-passes";
                         icon: "layers"
                         text: Translation.tr("Blur Passes")
                         value: NiriConfig.options.decoration.blur.passes
                         from: 1; to: 6; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             if (value === NiriConfig.options.decoration.blur.passes) return
                             NiriConfig.options.decoration.blur.passes = value
                         }
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("effects");
+                        objectName: "NiriSettings.blur-offset";
                         icon: "blur_circular"
                         text: Translation.tr("Blur Offset")
                         value: Math.round(NiriConfig.options.decoration.blur.offset * 10)
                         from: 0; to: 100; stepSize: 5
-                        onValueChanged: {
+                        onEdited: {
                             const newVal = value / 10.0
                             if (newVal === NiriConfig.options.decoration.blur.offset) return
                             NiriConfig.options.decoration.blur.offset = newVal
@@ -580,11 +676,13 @@ rm -f "$tmp"`]
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("effects");
+                        objectName: "NiriSettings.blur-noise";
                         icon: "grain"
                         text: Translation.tr("Blur Noise (%)")
                         value: Math.round(NiriConfig.options.decoration.blur.noise * 100)
                         from: 0; to: 20; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             const newVal = value / 100.0
                             if (newVal === NiriConfig.options.decoration.blur.noise) return
                             NiriConfig.options.decoration.blur.noise = newVal
@@ -592,11 +690,13 @@ rm -f "$tmp"`]
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("effects");
+                        objectName: "NiriSettings.blur-saturation";
                         icon: "palette"
                         text: Translation.tr("Blur Saturation (%)")
                         value: Math.round(NiriConfig.options.decoration.blur.saturation * 100)
                         from: 0; to: 300; stepSize: 10
-                        onValueChanged: {
+                        onEdited: {
                             const newVal = value / 100.0
                             if (newVal === NiriConfig.options.decoration.blur.saturation) return
                             NiriConfig.options.decoration.blur.saturation = newVal
@@ -608,11 +708,17 @@ rm -f "$tmp"`]
 
         // Cursor
         ContentSection {
+            visible: page.settingsShow("appearance|input-details");
             icon: "mouse"
             shape: MaterialShape.Shape.Arrow
             title: Translation.tr("Cursor")
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("appearance|input-details")
                 ConfigComboBox {
+                    objectName: "NiriSettings.cursor-theme";
+                    visible: page.settingsShow("appearance");
+
                     buttonIcon: "mouse"
                     fieldWidth: 70
                     text: Translation.tr("Cursor theme")
@@ -623,12 +729,14 @@ rm -f "$tmp"`]
                 }
 
                 ConfigSpinBox {
+                    visible: page.settingsShow("appearance");
+                    objectName: "NiriSettings.cursor-size";
                     id: cursorSizeSpin
                     icon: "zoom_in"
                     text: Translation.tr("Cursor size")
                     value: NiriConfig.options.cursor.size
                     from: 16; to: 64; stepSize: 2
-                    onValueChanged: {
+                    onEdited: {
                         if (value === NiriConfig.options.cursor.size) return
                         NiriConfig.options.cursor.size = value
                         cursorSizeApplyTimer.restart()
@@ -642,10 +750,12 @@ rm -f "$tmp"`]
                 }
 
                 ConfigSwitch {
+                    visible: page.settingsShow("input-details");
+                    objectName: "NiriSettings.hide-while-typing";
                     buttonIcon: "keyboard_hide"
                     text: Translation.tr("Hide while typing")
                     checked: NiriConfig.options.cursor.hideWhenTyping
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === NiriConfig.options.cursor.hideWhenTyping) return
                         NiriConfig.options.cursor.hideWhenTyping = checked
                     }
@@ -655,26 +765,33 @@ rm -f "$tmp"`]
 
         // Animations
         ContentSection {
+            visible: page.settingsShow("effects");
             icon: "animation"
             shape: MaterialShape.Shape.Oval
             title: Translation.tr("Animations")
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("effects")
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "NiriSettings.enable";
                     buttonIcon: "check"
                     text: Translation.tr("Enable")
                     checked: NiriConfig.options.animations.enable
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === NiriConfig.options.animations.enable) return
                         NiriConfig.options.animations.enable = checked
                     }
                 }
 
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "NiriSettings.slowdown-10";
                     icon: "speed"
                     text: Translation.tr("Slowdown (×10)")
                     value: Math.round(NiriConfig.options.animations.slowdown * 10)
                     from: 1; to: 50; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         const newVal = value / 10.0
                         if (newVal === NiriConfig.options.animations.slowdown) return
                         NiriConfig.options.animations.slowdown = newVal

@@ -12,6 +12,11 @@ Item {
     implicitHeight: col.implicitHeight + 16
 
     readonly property var widgetList: [
+        { key: "networkInfo", icon: "wifi", name: Translation.tr("Network info") },
+        { key: "systemHistory", icon: "monitor_heart", name: Translation.tr("System history") },
+        { key: "uptime", icon: "schedule", name: Translation.tr("Uptime") },
+        { key: "visualizerMirror", icon: "graphic_eq", name: Translation.tr("Mirrored visualizer") },
+        { key: "fullMonitorVisualizer", icon: "graphic_eq", name: Translation.tr("Full monitor visualizer") },
         { key: "visualizer",  icon: "graphic_eq",         name: Translation.tr("Visualizer") },
         { key: "customImage", icon: "image",              name: Translation.tr("Custom Image") },
         { key: "weather",     icon: "partly_cloudy_day",  name: Translation.tr("Weather") },
@@ -38,12 +43,20 @@ Item {
         anchors { fill: parent; margins: 8 }
         spacing: 2
 
+        StyledText {
+            Layout.fillWidth: true
+            text: Translation.tr("Choose where each widget appears")
+            wrapMode: Text.WordWrap
+        }
+
         ConfigSwitch {
+            visible: !GlobalStates.lockPreviewOpen
             Layout.fillWidth: true
             buttonIcon: "lock"
             text: Translation.tr("Lock widget positions")
             checked: Config.options.background.widgetsLocked
-            onCheckedChanged: Config.options.background.widgetsLocked = checked
+            autoToggle: false
+            onClicked: Config.options.background.widgetsLocked = !Config.options.background.widgetsLocked
         }
 
         Rectangle {
@@ -57,14 +70,32 @@ Item {
 
         Repeater {
             model: root.widgetList
-            delegate: ConfigSwitch {
+            delegate: ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
-                buttonIcon: modelData.icon
-                text: modelData.name
-                checked: Config.options.background.widgets[modelData.key].enable
-                onCheckedChanged: Config.options.background.widgets[modelData.key].enable = checked
+                StyledText { text: modelData.name }
+                RowLayout {
+                    Layout.fillWidth: true
+                    ConfigSwitch {
+                        autoToggle: false
+                        text: Translation.tr("Desktop")
+                        checked: GlobalStates.widgetShown(modelData.key, false)
+                        onClicked: GlobalStates.setWidgetShown(modelData.key, false, !GlobalStates.widgetShown(modelData.key, false))
+                    }
+                    ConfigSwitch {
+                        autoToggle: false
+                        text: Translation.tr("Lock screen")
+                        checked: GlobalStates.widgetShown(modelData.key, true)
+                        onClicked: GlobalStates.setWidgetShown(modelData.key, true, !GlobalStates.widgetShown(modelData.key, true))
+                    }
+                }
             }
+        }
+        RippleButton {
+            Layout.fillWidth: true
+            text: Translation.tr("Customize lock screen")
+            visible: !GlobalStates.lockPreviewOpen
+            onClicked: GlobalStates.beginLockPreview()
         }
     }
 }

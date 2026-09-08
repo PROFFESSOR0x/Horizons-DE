@@ -107,7 +107,8 @@ ButtonMouseArea {
             // while the user continues right-click selecting.
             GlobalStates.workspaceSelection = []
             GlobalStates.workspaceSelectionAnchor = null
-            switchWorkspace(workspaceId)
+            const index = Math.max(0, Math.floor((root.vertical ? mouse.y : mouse.x) / root.workspaceButtonWidth))
+            GlobalStates.activateWorkspaceSlot(wsModel.getWorkspaceNumberAt(index), wsModel.monitorName)
         }
         else if (mouse.button == Qt.RightButton) {
             // Do not open a menu at the end of a selection drag. A simple
@@ -120,9 +121,9 @@ ButtonMouseArea {
     }
     onWheel: event => {
         if (event.angleDelta.y < 0)
-            WM.switchWorkspaceRelative("next");
+            GlobalStates.unifiedWorkspacesEnabled ? GlobalStates.switchUnifiedWorkspaceRelative("next") : WM.switchWorkspaceRelative("next");
         else if (event.angleDelta.y > 0)
-            WM.switchWorkspaceRelative("prev");
+            GlobalStates.unifiedWorkspacesEnabled ? GlobalStates.switchUnifiedWorkspaceRelative("prev") : WM.switchWorkspaceRelative("prev");
     }
 
     WorkspaceContextMenu {

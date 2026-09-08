@@ -142,7 +142,7 @@ Item {
                                 onPressed: {
                                     if (root.draggingTargetWorkspace === -1) {
                                         GlobalStates.overviewOpen = false
-                                        Hyprland.dispatch(`hl.dsp.focus({ workspace = ${workspace.workspaceValue} })`)
+                                        GlobalStates.activateWorkspace(workspace.workspaceValue, root.monitor?.name ?? "")
                                     }
                                 }
                             }
@@ -283,7 +283,7 @@ Item {
 
                             if (event.button === Qt.LeftButton) {
                                 GlobalStates.overviewOpen = false
-                                Hyprland.dispatch(`hl.dsp.focus({ window = "address:${windowData.address}" })`)
+                                GlobalStates.focusWindowInUnifiedSet(windowData.address)
                                 event.accepted = true
                             } else if (event.button === Qt.MiddleButton) {
                                 Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${windowData.address}" })`)

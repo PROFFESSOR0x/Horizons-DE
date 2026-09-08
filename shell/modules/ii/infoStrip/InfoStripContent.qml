@@ -10,6 +10,9 @@ import qs.modules.common.functions
 
 Item {
     id: root
+    property QtObject resourceUsageLease: ResourceUsageLease {
+        active: root.visible && (root.QsWindow.window?.visible ?? false)
+    }
     implicitHeight: 24
     width: parent.width
 
@@ -71,6 +74,7 @@ Item {
                 }
 
                 StyledText {
+                textFormat: Text.PlainText
                     Layout.fillWidth: true
                     text: ToplevelManager.activeToplevel?.title ?? ""
                     elide: Text.ElideRight
@@ -100,7 +104,8 @@ Item {
                     opacity: 0.6
                 }
                 StyledText {
-                    text: Math.round(ResourceUsage.cpuUsage) + "%"
+                textFormat: Text.PlainText
+                    text: Math.round(ResourceUsage.cpuUsage * 100) + "%"
                     font.pixelSize: Appearance.font.pixelSize.smallest
                     font.features: { "tnum": 1 }
                     color: Appearance.colors.colOnLayer1
@@ -122,6 +127,7 @@ Item {
                     opacity: 0.6
                 }
                 StyledText {
+                textFormat: Text.PlainText
                     text: Math.round(ResourceUsage.memoryUsedPercentage * 100) + "%"
                     font.pixelSize: Appearance.font.pixelSize.smallest
                     font.features: { "tnum": 1 }
@@ -143,6 +149,7 @@ Item {
                     Layout.alignment: Qt.AlignVCenter
                 }
                 StyledText {
+                textFormat: Text.PlainText
                     visible: Notifications.unread > 0
                     text: Notifications.unread
                     font.pixelSize: Appearance.font.pixelSize.smallest
@@ -156,6 +163,7 @@ Item {
             active: Config.options.infoStrip.showClock
             visible: active
             sourceComponent: StyledText {
+                textFormat: Text.PlainText
                 text: DateTime.time
                 font.pixelSize: Appearance.font.pixelSize.small
                 font.features: { "tnum": 1 }

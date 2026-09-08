@@ -39,7 +39,7 @@ Rectangle {
         return match ? parseInt(match[2]) : 0;
     }
     property real scale: {
-        return Math.min(root.maxWidth / imageWidth, root.maxHeight / imageHeight, 1);
+        return (imageWidth > 0 && imageHeight > 0) ? Math.min(root.maxWidth / imageWidth, root.maxHeight / imageHeight, 1) : 0;
     }
 
     color: Appearance.colors.colLayer1
@@ -47,26 +47,31 @@ Rectangle {
     implicitHeight: imageHeight * scale
     implicitWidth: imageWidth * scale
 
-    Component.onCompleted: {
-        decodeImageProcess.running = true;
+    function decode() {
+        root.source = ""
+        if (decodeImageProcess.running || root.entryNumber < 1) return
+        decodeImageProcess.requestedPath = root.imageDecodeFilePath
+        decodeImageProcess.exec(["bash", "-c",
+            `set -e; umask 077; mkdir -p -- "$1"; if [ ! -s "$2" ]; then tmp=$(mktemp "$2.XXXXXX"); trap 'rm -f -- "$tmp"' EXIT; printf "%s\\n" "$3" | "$4" decode > "$tmp"; test -s "$tmp"; mv -- "$tmp" "$2"; fi`,
+            "cliphist-thumbnail", root.imageDecodePath, root.imageDecodeFilePath,
+            String(root.entryNumber), Cliphist.cliphistBinary])
     }
+    Component.onCompleted: decode()
+    onEntryChanged: Qt.callLater(root.decode)
 
     Process {
         id: decodeImageProcess
-        command: ["bash", "-c", `[ -f ${imageDecodeFilePath} ] || echo '${StringUtils.shellSingleQuoteEscape(root.entry)}' | ${Cliphist.cliphistBinary} decode > '${imageDecodeFilePath}'`]
+        property string requestedPath: ""
         onExited: (exitCode, exitStatus) => {
-            if (exitCode === 0) {
-                root.source = imageDecodeFilePath;
-            } else {
-                console.error("[CliphistImage] Failed to decode image for entry:", root.entry);
-                root.source = "";
+            if (requestedPath !== root.imageDecodeFilePath) {
+                Qt.callLater(root.decode)
+                return
             }
+            root.source = exitCode === 0 ? "file://" + requestedPath : ""
         }
     }
-
-    Component.onDestruction: {
-        Quickshell.execDetached(["bash", "-c", `[ -f '${imageDecodeFilePath}' ] && rm -f '${imageDecodeFilePath}'`]);
-    }
+    // Files are shared by delegates: destroying one must not delete another
+    // view's image. Cache cleanup belongs to the service, never to a row.
 
     layer.enabled: true
     layer.effect: OpacityMask {

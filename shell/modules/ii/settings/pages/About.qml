@@ -37,7 +37,7 @@ ContentPage {
 
     Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: 156 
+        Layout.preferredHeight: 156
         Layout.topMargin: !isMinimal ? 35 : 4
         Layout.leftMargin: !isMinimal ? 16 : 0
         Layout.rightMargin: !isMinimal ? 16 : 0

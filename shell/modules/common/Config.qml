@@ -174,9 +174,13 @@ Singleton {
             opts.workspaceLinking.detachedGroups);
         opts.workspaceLinking.unifiedSets = cleanWorkspaceGroups(opts.workspaceLinking.unifiedSets);
         if (opts.appLaunch === undefined)
-            opts.appLaunch = { showIndicator: true, timeout: 10000 };
-        else if (opts.appLaunch.aboveWindows === undefined)
-            opts.appLaunch.aboveWindows = true;
+            opts.appLaunch = { showIndicator: true, timeout: 5000, aboveWindows: true, trackExternal: false };
+        else {
+            if (opts.appLaunch.aboveWindows === undefined)
+                opts.appLaunch.aboveWindows = true;
+            if (opts.appLaunch.trackExternal === undefined)
+                opts.appLaunch.trackExternal = false;
+        }
         if (opts.lock.autoHideControls === undefined)
             opts.lock.autoHideControls = true;
         if (opts.lock.controlsIdleSeconds === undefined)
@@ -221,6 +225,22 @@ Singleton {
         }
         if (widgets?.lockOnly === undefined)
             widgets.lockOnly = [];
+        // Freeze legacy mirroring once; subsequent desktop changes never
+        // silently add or remove lock-screen widgets.
+        if (!opts.lock.widgetVisibilityMigrated) {
+            const allowed = opts.lock.enabledWidgets ?? [];
+            opts.lock.enabledWidgets = Object.keys(widgets ?? {}).filter(name =>
+                widgets[name]?.enable && (name === "clock"
+                    || (opts.lock.showWidgets && (allowed.length === 0 || allowed.includes(name)))));
+            if (opts.lock.enabledWidgets.includes("clock")) opts.lock.showWidgets = true;
+            const positions = opts.lock.widgetPositions ?? {};
+            for (const name of Object.keys(widgets ?? {})) {
+                if (widgets[name]?.x !== undefined && positions[name] === undefined)
+                    positions[name] = { x: widgets[name].x, y: widgets[name].y };
+            }
+            opts.lock.widgetPositions = positions;
+            opts.lock.widgetVisibilityMigrated = true;
+        }
         if (opts.lock.widgetPositions === undefined)
             opts.lock.widgetPositions = {};
 
@@ -787,11 +807,20 @@ Singleton {
             }
 
             property JsonObject settings: JsonObject {
+                property bool advancedExpanded: false
+                property string lastPage: "appearance"
                 property string style: "default" // default - minimal
                 property real borderSize: 1
                 property string borderColor: "layer0Border"
                 property int preferredWidth: 1180
                 property int preferredHeight: 780
+                // When true the settings panel behaves like a normal window:
+                // no dimmed backdrop, no click-outside/FocusGrab dismiss, stays
+                // open until explicitly closed. False restores the overlay behavior.
+                property bool normalWindow: false
+                // Remembers the UI language active before Arabic mode was
+                // enabled, so disabling Arabic mode restores it ("auto" by default).
+                property string prevLanguage: "auto"
             }
 
             property JsonObject sessionScreen: JsonObject {
@@ -1534,13 +1563,9 @@ Singleton {
                 property bool useHyprlock: false
                 property bool launchOnStartup: false
                 property bool showWidgets: false
-                // Which background widgets (by their qs.modules.ii.background.widgets
-                // configEntryName, e.g. "clock", "weather", "todo") are allowed to show
-                // on the lock screen, independent of their desktop configuration. An
-                // empty list means "no restriction" (all desktop-enabled widgets may
-                // show, matching legacy behavior); a non-empty list is treated as the
-                // explicit allow-list. Only takes effect when showWidgets is true.
-                property list<string> enabledWidgets: []
+                // Explicit membership; empty means no widgets on the lock screen.
+                property bool widgetVisibilityMigrated: false
+                property list<string> enabledWidgets: ["clock"]
                 property bool showMedia: true
                 property bool showToolbars: true
                 // Independent visibility for the left (username/media/keyboard) and
@@ -1672,7 +1697,8 @@ Singleton {
             property JsonObject appLaunch: JsonObject {
                 property bool showIndicator: true
                 property bool aboveWindows: true
-                property int timeout: 10000
+                property int timeout: 5000
+                property bool trackExternal: false
             }
 
             property JsonObject overview: JsonObject {

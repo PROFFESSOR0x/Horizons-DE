@@ -10,7 +10,7 @@ Text {
     renderType: Text.NativeRendering
     verticalAlignment: Text.AlignVCenter
     property bool shouldUseNumberFont: /^\d+$/.test(root.text)
-    property var defaultFont: shouldUseNumberFont ? Appearance.font.family.numbers : Appearance.font.family.main
+    property string defaultFont: shouldUseNumberFont ? Appearance.font.family.numbers : Appearance.font.family.main
     
     font {
         hintingPreference: Font.PreferDefaultHinting

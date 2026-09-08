@@ -16,12 +16,7 @@ AbstractWidget {
     required property int scaledScreenWidth
     required property int scaledScreenHeight
     required property real wallpaperScale
-    // Per-widget lock-screen visibility: an empty lock.enabledWidgets list means
-    // "no restriction" (every desktop-enabled widget may show, preserving legacy
-    // behavior), otherwise only widgets named in that list are allowed.
-    property bool visibleWhenLocked: Config.options.lock.showWidgets
-        && (Config.options.lock.enabledWidgets.length === 0
-            || Config.options.lock.enabledWidgets.indexOf(configEntryName) !== -1)
+    property bool visibleWhenLocked: GlobalStates.widgetShown(configEntryName, true)
     readonly property bool lockPresentationActive: GlobalStates.screenLocked || GlobalStates.lockPreviewOpen
     readonly property bool onlyWhenLocked: Config.options.background.widgets.lockOnly.indexOf(configEntryName) !== -1
     property var configEntry: Config.options.background.widgets[configEntryName]
@@ -88,8 +83,10 @@ AbstractWidget {
         positions[configEntryName] = Object.assign({}, base, normalized, { byScreen: overrides })
         Config.options.lock.widgetPositions = positions
     }
-    property real targetX: Math.max(0, Math.min(savedX, scaledScreenWidth - width))
-    property real targetY : Math.max(0, Math.min(savedY, scaledScreenHeight - height))
+    property real autoX: configEntry.x
+    property real autoY: configEntry.y
+    property real targetX: !lockPresentationActive && placementStrategy !== "free" ? autoX : Math.max(0, Math.min(savedX, scaledScreenWidth - width))
+    property real targetY: !lockPresentationActive && placementStrategy !== "free" ? autoY : Math.max(0, Math.min(savedY, scaledScreenHeight - height))
     x: targetX
     y: targetY
     visible: opacity > 0
@@ -145,12 +142,12 @@ AbstractWidget {
                 ? existingBase : normalized
             positions[configEntryName] = Object.assign({}, fallback, { byScreen: overrides })
             Config.options.lock.widgetPositions = positions
-        } else {
+        } else if (!root.lockPresentationActive && root.draggable) {
             configEntry.x = root.x;
             configEntry.y = root.y;
         }
-        root.targetX = Qt.binding(() => Math.max(0, Math.min(root.savedX, scaledScreenWidth - width)));
-        root.targetY = Qt.binding(() => Math.max(0, Math.min(root.savedY, scaledScreenHeight - height)));
+        root.targetX = Qt.binding(() => !root.lockPresentationActive && root.placementStrategy !== "free" ? root.autoX : Math.max(0, Math.min(root.savedX, scaledScreenWidth - width)));
+        root.targetY = Qt.binding(() => !root.lockPresentationActive && root.placementStrategy !== "free" ? root.autoY : Math.max(0, Math.min(root.savedY, scaledScreenHeight - height)));
         root.restoreXYBinding();
     }
 
@@ -211,8 +208,8 @@ AbstractWidget {
                 const parsedContent = JSON.parse(output);
                 root.dominantColor = parsedContent.dominant_color || Appearance.colors.colPrimary;
                 if (root.placementStrategy === "free") return;
-                root.targetX = parsedContent.center_x * root.wallpaperScale - root.width / 2;
-                root.targetY  = parsedContent.center_y * root.wallpaperScale - root.height / 2;
+                root.autoX = parsedContent.center_x * root.wallpaperScale - root.width / 2;
+                root.autoY = parsedContent.center_y * root.wallpaperScale - root.height / 2;
             }
         }
     }

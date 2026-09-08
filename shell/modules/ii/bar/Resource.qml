@@ -115,6 +115,7 @@ Item {
                 font.pixelSize: Appearance.font.pixelSize.small
             }
             StyledText {
+                textFormat: Text.PlainText
                 id: percentageText
                 anchors.centerIn: parent
                 color: Appearance.colors.colOnLayer1

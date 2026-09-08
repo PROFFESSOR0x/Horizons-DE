@@ -10,6 +10,7 @@ import Quickshell.Io
  * A nice wrapper for date and time strings.
  */
 Singleton {
+    id: root
     property var clock: SystemClock {
         id: clock
         precision: {
@@ -35,35 +36,29 @@ Singleton {
     readonly property string digitM1: minuteStr.charAt(1)
     property string uptime: "0h, 0m"
 
+    // Uptime is displayed at minute precision; sampling every 2–3s is wasted I/O.
     Timer {
-        interval: Config?.options?.resources?.updateInterval ?? 3000
+        interval: 60000
         running: true
         repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            fileUptime.reload();
-            const textUptime = fileUptime.text();
-            const uptimeSeconds = Number(textUptime.split(" ")[0] ?? 0);
-
-            // Convert seconds to days, hours, and minutes
-            const days = Math.floor(uptimeSeconds / 86400);
-            const hours = Math.floor((uptimeSeconds % 86400) / 3600);
-            const minutes = Math.floor((uptimeSeconds % 3600) / 60);
-
-            // Build the formatted uptime string
-            let formatted = "";
-            if (days > 0)
-                formatted += `${days}d`;
-            if (hours > 0)
-            formatted += `${formatted ? ", " : ""}${hours}h`;
-            if (minutes > 0 || !formatted)
-                formatted += `${formatted ? ", " : ""}${minutes}m`;
-                uptime = formatted;
-        }
+        onTriggered: fileUptime.reload()
     }
-
     FileView {
         id: fileUptime
         path: "/proc/uptime"
+        preload: true
+        blockLoading: false
+        onLoaded: {
+            const seconds = Number(text().split(" ")[0])
+            if (!Number.isFinite(seconds) || seconds < 0) return
+            const days = Math.floor(seconds / 86400)
+            const hours = Math.floor(seconds % 86400 / 3600)
+            const minutes = Math.floor(seconds % 3600 / 60)
+            const parts = []
+            if (days > 0) parts.push(days + "d")
+            if (hours > 0) parts.push(hours + "h")
+            if (minutes > 0 || parts.length === 0) parts.push(minutes + "m")
+            root.uptime = parts.join(", ")
+        }
     }
 }

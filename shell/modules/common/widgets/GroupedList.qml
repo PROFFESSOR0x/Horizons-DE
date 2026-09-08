@@ -12,7 +12,8 @@ Item {
     property real smallRadius: Appearance.rounding.unsharpenmore
     property color bgcolor: Appearance.colors.colLayer1
     property color borderColor: Appearance.colors.colLayer0Border
-    property real itemVerticalPadding: 24
+    property bool compact: false
+    property real itemVerticalPadding: compact ? 12 : 24
     // Config* rows have genuinely different natural heights (a ConfigSwitch
     // is just an icon/label/toggle; a ConfigTextArea carries a description
     // line and an input field), which otherwise makes their background
@@ -21,7 +22,7 @@ Item {
     // control stays vertically centered) keeps the pills a consistent
     // height without touching genuinely-taller rows (wrapped multi-line
     // text, etc.) — they simply exceed the minimum and keep their own size.
-    property real minRowHeight: 48
+    property real minRowHeight: compact ? 38 : 48
     // Rows taller than this are genuinely tall (a wrapped multi-line
     // description, a text area, a two-line Flow of option buttons) and keep
     // their own height. Rows below it are all normalized to the tallest of
@@ -29,13 +30,13 @@ Item {
     // say, 52 used to skip padding entirely and end up a few pixels taller
     // than every 48-and-under neighbour, which is the uneven-pill look in a
     // group of otherwise identical-looking settings.
-    property real maxNormalizedRowHeight: 64
+    property real maxNormalizedRowHeight: compact ? 52 : 64
     readonly property real normalizedRowHeight: {
         let tallest = root.minRowHeight
         const rows = root.items
         for (let i = 0; i < rows.length; ++i) {
             const it = rows[i]
-            if (!it || !it.visible) continue
+            if (!it || !it.visible || it.groupDescription === true) continue
             const h = it.implicitHeight
             if (h > tallest && h <= root.maxNormalizedRowHeight) tallest = h
         }
@@ -45,7 +46,7 @@ Item {
     implicitHeight: contentArea.implicitHeight
 
     function extraPadFor(item) {
-        return item ? Math.max(0, (root.normalizedRowHeight - item.implicitHeight) / 2) : 0
+        return item && item.groupDescription !== true ? Math.max(0, (root.normalizedRowHeight - item.implicitHeight) / 2) : 0
     }
 
     ColumnLayout {
@@ -90,7 +91,7 @@ Item {
             y: (row?.y ?? 0) - root.itemVerticalPadding / 2 - extraPad
             width: root.width
             height: itemVisible ? (row.height + root.itemVerticalPadding + 2 * extraPad) : 0
-            visible: itemVisible
+            visible: itemVisible && row.groupDescription !== true
             z: -1
             color: root.bgcolor
             radius: root.bigRadius

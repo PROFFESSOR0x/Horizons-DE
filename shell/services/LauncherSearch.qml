@@ -15,6 +15,8 @@ Singleton {
     id: root
 
     property string query: ""
+    readonly property bool clipboardQuery: query.startsWith(Config.options.search.prefix.clipboard)
+    onClipboardQueryChanged: { if (clipboardQuery) Cliphist.refresh() }
 
     function ensurePrefix(prefix) {
         if ([Config.options.search.prefix.action, Config.options.search.prefix.app, Config.options.search.prefix.clipboard, Config.options.search.prefix.emojis, Config.options.search.prefix.symbols, Config.options.search.prefix.math, Config.options.search.prefix.shellCommand, Config.options.search.prefix.webSearch,].some(i => root.query.startsWith(i))) {
@@ -290,7 +292,7 @@ Singleton {
             // single-colour glyphs that take the shell's text colour, unlike a
             // themed MIME icon set) while still letting you tell a video from
             // an archive without reading the name.
-            return resultComp.createObject(null, {
+            return root.makeResult({
                 rawValue: path,
                 name: fileName,
                 comment: dirPath,
@@ -301,14 +303,14 @@ Singleton {
                 execute: () => {
                     root.openPath(path);
                 },
-                actions: [resultComp.createObject(null, {
+                actions: [root.makeResult({
                         name: Translation.tr("Open containing folder"),
                         iconName: "folder_open",
                         iconType: LauncherSearchResult.IconType.Material,
                         execute: () => {
                             root.openPath(dirPath);
                         }
-                    }), resultComp.createObject(null, {
+                    }), root.makeResult({
                         name: Translation.tr("Copy path"),
                         iconName: "content_copy",
                         iconType: LauncherSearchResult.IconType.Material,
@@ -478,7 +480,7 @@ Singleton {
     // timers and reassigned file-search state while Qt was evaluating
     // `results`, which is the binding loop reported in output.txt and made the
     // M3 launcher stutter under rapid typing.
-    property list<var> results: []
+    property var results: []
     Timer {
         id: resultsUpdateTimer
         interval: 24
@@ -494,6 +496,10 @@ Singleton {
                 : "";
         }
 
+        const prefix = Config.options.search.prefix
+        if ([prefix.clipboard, prefix.emojis, prefix.symbols, prefix.action,
+                prefix.keybinds, prefix.systemServices, prefix.sshHosts].some(value => value && query.startsWith(value)))
+            return ""
         const isMath = /^\d/.test(query) || query.startsWith(Config.options.search.prefix.math);
         const isCommand = query.startsWith(Config.options.search.prefix.shellCommand);
         const isWeb = query.startsWith(Config.options.search.prefix.webSearch);
@@ -524,7 +530,8 @@ Singleton {
         const query = root.query;
         const needsMath = /^\d/.test(query)
             || query.startsWith(Config.options.search.prefix.math)
-            || Config.options.search.prefix.showDefaultActionsWithoutPrefix;
+            || (Config.options.search.prefix.showDefaultActionsWithoutPrefix
+                && /\d/.test(query) && /[+*/^()=-]/.test(query));
         if (query.length > 0 && needsMath)
             nonAppResultsTimer.restart();
         else
@@ -533,8 +540,40 @@ Singleton {
         root._requestFileSearch(root._fileSearchTermForQuery());
     }
 
+    // Result rows are data, not visual QObjects. Avoid constructing a QML
+    // object (and action objects) for every match on every keystroke.
+    function makeResult(properties) {
+        return Object.assign({type: "", name: "", rawValue: "", iconName: "",
+            iconType: LauncherSearchResult.IconType.None,
+            fontType: LauncherSearchResult.FontType.Normal, verb: "",
+            blurImage: false, actions: [], id: "", shown: true, comment: "",
+            runInTerminal: false, genericName: "", keywords: [], category: properties.type ?? "",
+            execute: () => {}}, properties)
+    }
+
+    Connections {
+        target: Cliphist
+        function onEntriesChanged() {
+            if (root.query.startsWith(Config.options.search.prefix.clipboard))
+                resultsUpdateTimer.start()
+        }
+    }
+
+    property int resultRevision: 0
     function updateResults() {
-        root.results = root.buildResults();
+        const started = Date.now()
+        const next = root.buildResults()
+        const revision = ++root.resultRevision
+        // ScriptModel compares a cheap unique key, not entire QVariantMaps
+        // containing closures. A new revision also refreshes action callbacks.
+        for (let i = 0; i < next.length; ++i) next[i].key = revision + ":" + i
+        const buildMs = Date.now() - started
+        root.results = next
+        const elapsed = Date.now() - started
+        if (elapsed > 32)
+            console.warn("[LauncherSearch] slow result build ms=" + elapsed
+                + " buildMs=" + buildMs + " publishMs=" + (elapsed - buildMs)
+                + " rows=" + root.results.length + " clipboard=" + root.clipboardQuery)
     }
 
     onQueryChanged: {
@@ -564,7 +603,7 @@ Singleton {
                     shouldBlurImage = shouldBlurImage && (root.containsUnsafeLink(array[index - 1]) || root.containsUnsafeLink(array[index + 1]));
                 }
                 const type = `#${entry.match(/^\s*(\S+)/)?.[1] || ""}`;
-                return resultComp.createObject(null, {
+                return root.makeResult({
                     rawValue: entry,
                     name: StringUtils.cleanCliphistEntry(entry),
                     verb: "",
@@ -572,14 +611,14 @@ Singleton {
                     execute: () => {
                         Cliphist.copy(entry);
                     },
-                    actions: [resultComp.createObject(null, {
+                    actions: [root.makeResult({
                             name: Translation.tr("Copy"),
                             iconName: "content_copy",
                             iconType: LauncherSearchResult.IconType.Material,
                             execute: () => {
                                 Cliphist.copy(entry);
                             }
-                        }), resultComp.createObject(null, {
+                        }), root.makeResult({
                             name: Translation.tr("Delete"),
                             iconName: "delete",
                             iconType: LauncherSearchResult.IconType.Material,
@@ -595,7 +634,7 @@ Singleton {
             const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.emojis);
             return Emojis.fuzzyQuery(searchString).map(entry => {
                 const emoji = entry.match(/^\s*(\S+)/)?.[1] || "";
-                return resultComp.createObject(null, {
+                return root.makeResult({
                     rawValue: entry,
                     name: entry.replace(/^\s*\S+\s+/, ""),
                     iconName: emoji,
@@ -626,7 +665,7 @@ Singleton {
             }).map(bind => {
                 const modsStr = bind.mods.join(" + ");
                 const keyStr  = modsStr.length > 0 ? `${modsStr} + ${bind.key}` : bind.key;
-                return resultComp.createObject(null, {
+                return root.makeResult({
                     name: bind.comment,
                     iconName: "keyboard",
                     iconType: LauncherSearchResult.IconType.Material,
@@ -645,7 +684,7 @@ Singleton {
                 const tabIdx = entry.indexOf("\t");
                 const symName = tabIdx >= 0 ? entry.slice(0, tabIdx) : entry;
                 const symTags = tabIdx >= 0 ? entry.slice(tabIdx + 1) : "";
-                return resultComp.createObject(null, {
+                return root.makeResult({
                     rawValue: entry,
                     name: symName,
                     iconName: symName,
@@ -669,7 +708,7 @@ Singleton {
             // SSH quick-connect (~/.ssh/config Host entries - see sshConfigFile above)
             const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.sshHosts).toLowerCase().trim();
             return root.sshHostNames.filter(host => searchString.length === 0 || host.toLowerCase().includes(searchString)).map(host => {
-                return resultComp.createObject(null, {
+                return root.makeResult({
                     rawValue: host,
                     name: host,
                     iconName: "dns",
@@ -692,7 +731,7 @@ Singleton {
                 .filter(unit => includeSystemScope || unit.scope === "user")
                 .filter(unit => searchString.length === 0 || unit.name.toLowerCase().includes(searchString))
                 .slice(0, maxResults).map(unit => {
-                return resultComp.createObject(null, {
+                return root.makeResult({
                     rawValue: unit.name,
                     name: unit.name,
                     comment: (unit.scope === "system" ? Translation.tr("System - pkexec required") : Translation.tr("User")) + " · " + unit.enabled,
@@ -703,17 +742,17 @@ Singleton {
                     execute: () => {
                         root.runSystemServiceAction(unit, "restart");
                     },
-                    actions: [resultComp.createObject(null, {
+                    actions: [root.makeResult({
                             name: Translation.tr("Start"),
                             iconName: "play_arrow",
                             iconType: LauncherSearchResult.IconType.Material,
                             execute: () => root.runSystemServiceAction(unit, "start")
-                        }), resultComp.createObject(null, {
+                        }), root.makeResult({
                             name: Translation.tr("Stop"),
                             iconName: "stop",
                             iconType: LauncherSearchResult.IconType.Material,
                             execute: () => root.runSystemServiceAction(unit, "stop")
-                        }), resultComp.createObject(null, {
+                        }), root.makeResult({
                             name: Translation.tr("Status"),
                             iconName: "info",
                             iconType: LauncherSearchResult.IconType.Material,
@@ -731,7 +770,7 @@ Singleton {
         }
 
         ////////////////// Init ///////////////////
-        const mathResultObject = resultComp.createObject(null, {
+        const mathResultObject = root.makeResult({
             name: root.mathResult,
             verb: Translation.tr("Copy"),
             type: Translation.tr("Math result"),
@@ -751,7 +790,7 @@ Singleton {
         // so the tail past this cap is never what anyone was looking for.
         const appLimit = Math.max(10, Config.options.search.maxAppResults ?? 100);
         const appResultObjects = AppSearch.fuzzyQuery(StringUtils.cleanPrefix(root.query, Config.options.search.prefix.app)).slice(0, appLimit).map(entry => {
-            return resultComp.createObject(null, {
+            return root.makeResult({
                 type: Translation.tr("App"),
                 id: entry.id,
                 name: entry.name,
@@ -771,7 +810,7 @@ Singleton {
                 genericName: entry.genericName,
                 keywords: entry.keywords,
                 actions: entry.actions.map(action => {
-                    return resultComp.createObject(null, {
+                    return root.makeResult({
                         name: action.name,
                         iconName: action.icon,
                         iconType: LauncherSearchResult.IconType.System,
@@ -795,7 +834,7 @@ Singleton {
             if (query === "") return acc;
 
             if (page.page.toLowerCase().includes(query) || dynamicKeywords.includes(query)) {
-                acc.push(resultComp.createObject(null, {
+                acc.push(root.makeResult({
                     name: page.page,
                     comment: dynamicKeywords.includes(query) ? "Section: " + query : "Settings for " + page.page,
                     verb: Translation.tr("Go"),
@@ -813,7 +852,7 @@ Singleton {
             }
             return acc;
         }, []);
-        const commandResultObject = resultComp.createObject(null, {
+        const commandResultObject = root.makeResult({
             name: StringUtils.cleanPrefix(root.query, Config.options.search.prefix.shellCommand).replace("file://", ""),
             verb: Translation.tr("Run"),
             type: Translation.tr("Command"),
@@ -829,7 +868,7 @@ Singleton {
                 Quickshell.execDetached(["bash", "-c", root.query.startsWith('sudo') ? `${Config.options.apps.terminal} fish -C '${cleanedCommand}'` : cleanedCommand]);
             }
         });
-        const webSearchResultObject = resultComp.createObject(null, {
+        const webSearchResultObject = root.makeResult({
             name: StringUtils.cleanPrefix(root.query, Config.options.search.prefix.webSearch),
             verb: Translation.tr("Search"),
             type: Translation.tr("Web search"),
@@ -854,7 +893,7 @@ Singleton {
                 && settingsQuery.length > 0
                 && action.action.toLowerCase().includes(settingsQuery);
             if (bareMatch || actionString.startsWith(root.query) || root.query.startsWith(actionString)) {
-                return resultComp.createObject(null, {
+                return root.makeResult({
                     name: (!bareMatch && root.query.startsWith(actionString)) ? root.query : actionString,
                     verb: Translation.tr("Run"),
                     type: Translation.tr("Action"),

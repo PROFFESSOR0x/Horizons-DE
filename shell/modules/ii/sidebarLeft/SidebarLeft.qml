@@ -59,28 +59,41 @@ Scope { // Scope
         else root.pin = !root.pin;
     }
 
-    Component.onCompleted: {
-        root.sidebarContent = contentComponent.createObject(null, {
-            "scopeRoot": root,
-        });
-        // PanelWindow may fail to instantiate on X11 (no wl_display / no layer-shell).
-        // Guard against null so the whole shell does not throw "contentParent of null".
-        if (sidebarLoader.item?.contentParent) {
-            sidebarLoader.item.contentParent.children = [root.sidebarContent];
-        } else {
-            console.warn("[SidebarLeft] PanelWindow not ready (likely X11 without layer-shell), content will attach when loader becomes ready")
+    function ensureContent() {
+        const host = root.detach ? detachedSidebarLoader.item : sidebarLoader.item
+        if (!host?.contentParent) return
+        if (!root.sidebarContent) {
+            // Set a graphical parent during creation. A Scope is not an Item;
+            // passing it as parent produces a graphics-scene warning. Explicit
+            // teardown below owns this object across dock/undock transitions.
+            root.sidebarContent = contentComponent.createObject(null, {
+                "scopeRoot": root, "parent": host.contentParent
+            })
+        } else root.sidebarContent.parent = host.contentParent
+    }
+    Component.onCompleted: if (GlobalStates.sidebarLeftOpen) ensureContent()
+    Component.onDestruction: if (root.sidebarContent) root.sidebarContent.destroy()
+    Connections {
+        target: GlobalStates
+        function onSidebarLeftOpenChanged() {
+            if (GlobalStates.sidebarLeftOpen) root.ensureContent()
         }
     }
     Connections {
         target: sidebarLoader
         function onLoaded() {
-            if (root.sidebarContent && sidebarLoader.item?.contentParent && root.sidebarContent.parent == null) {
-                sidebarLoader.item.contentParent.children = [root.sidebarContent];
-            }
+            if (!root.detach && GlobalStates.sidebarLeftOpen) root.ensureContent()
+        }
+    }
+    Connections {
+        target: detachedSidebarLoader
+        function onLoaded() {
+            if (root.detach) root.ensureContent()
         }
     }
 
     onDetachChanged: {
+        root.ensureContent()
         if (root.detach) {
             if (sidebarLoader.item) GlobalFocusGrab.removeDismissable(sidebarLoader.item) // Remove sidebar from the focus grab system
             if (sidebarContent) sidebarContent.parent = null; // Detach content from sidebar

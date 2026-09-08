@@ -44,6 +44,10 @@ Item {
                     .filter(label => matcher(label))
                     .slice(0, 3)
                 return {
+                    id: entry.id,
+                    source: entry.source,
+                    route: entry.route,
+                    advanced: entry.advanced,
                     pageName: entry.pageName,
                     pageIcon: entry.pageIcon,
                     sectionTitle: entry.sectionTitle,
@@ -153,7 +157,7 @@ Item {
                                 color: Appearance.colors.colOnLayer1
                             }
                             StyledText {
-                                text: resultButton.modelData.pageName
+                                text: (resultButton.modelData.advanced ? Translation.tr("Advanced") + " / " : "") + resultButton.modelData.pageName
                                 font.pixelSize: Appearance.font.pixelSize.smaller
                                 color: Appearance.colors.colSubtext
                             }

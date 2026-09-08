@@ -205,7 +205,7 @@ Item {
                         if (!tile.win) return;
                         if (event.button === Qt.LeftButton) {
                             GlobalStates.windowSwitcherOpen = false;
-                            WM.focusWindow(tile.win.address);
+                            GlobalStates.focusWindowInUnifiedSet(tile.win.address);
                         } else if (event.button === Qt.MiddleButton) {
                             WM.closeWindow(tile.win.address);
                         }

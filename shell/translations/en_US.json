@@ -755,5 +755,9 @@
   "Variant (per layout, comma-separated)": "Variant (per layout, comma-separated)",
   "Model": "Model",
   "Rules": "Rules",
-  "Hyprland uses comma-separated layouts. Example: us,ara. Indicator in bar shows active layout. Click bar indicator to switch.": "Hyprland uses comma-separated layouts. Example: us,ara. Indicator in bar shows active layout. Click bar indicator to switch."
+  "Hyprland uses comma-separated layouts. Example: us,ara. Indicator in bar shows active layout. Click bar indicator to switch.": "Hyprland uses comma-separated layouts. Example: us,ara. Indicator in bar shows active layout. Click bar indicator to switch.",
+  "Arabic mode": "Arabic mode",
+  "Normal window mode": "Normal window mode",
+  "Window width": "Window width",
+  "Window height": "Window height"
 }

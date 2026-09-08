@@ -12,6 +12,9 @@ import qs.modules.ii.overlay
 
 StyledOverlayWidget {
     id: root
+    property QtObject resourceUsageLease: ResourceUsageLease {
+        active: root.visible && (root.QsWindow.window?.visible ?? false)
+    }
     minimumWidth: 300
     minimumHeight: 200
     property list<var> resources: [

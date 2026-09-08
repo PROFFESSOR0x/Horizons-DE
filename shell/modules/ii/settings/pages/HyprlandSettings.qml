@@ -57,167 +57,10 @@ ContentPage {
 
 
 
-    Component.onCompleted: {
-        const h = Config.options.hyprland
-        // Build combined kb_options (base + switch shortcut)
-        let kbOptionsCombined = (h.input.kbOptions ?? "").trim()
-        const sw = (h.input.kbLayoutSwitchShortcut ?? "").trim()
-        if (sw) {
-            if (kbOptionsCombined && !kbOptionsCombined.includes(sw)) kbOptionsCombined = kbOptionsCombined ? kbOptionsCombined + "," + sw : sw
-            else if (!kbOptionsCombined) kbOptionsCombined = sw
-        }
-        // Helpers to write optional shadow color
-        const shadowColor = (h.decoration.shadow.color ?? "").trim()
-        const shadowColorInactive = (h.decoration.shadow.colorInactive ?? "").trim()
-        HyprlandConfig.setMany({
-            "decoration:rounding":                  h.decoration.rounding,
-            "decoration:rounding_power":            h.decoration.roundingPower,
-            "decoration:blur:enabled":              h.decoration.blur.enabled ? 1 : 0,
-            "decoration:blur:size":                 h.decoration.blur.size,
-            "decoration:blur:passes":               h.decoration.blur.passes,
-            "decoration:blur:vibrancy":             h.decoration.blur.vibrancy,
-            "decoration:blur:xray":                 h.decoration.blur.xray ? 1 : 0,
-            "decoration:blur:new_optimizations":    h.decoration.blur.newOptimizations ? 1 : 0,
-            "decoration:blur:variant":              h.decoration.blur.variant,
-            "decoration:blur:glass:refraction":     h.decoration.blur.glass.refraction,
-            "decoration:blur:glass:size":           h.decoration.blur.glass.size,
-            "decoration:blur:glass:roughness":      h.decoration.blur.glass.roughness,
-            "decoration:blur:acrylic:refraction":   h.decoration.blur.acrylic.refraction,
-            "decoration:blur:acrylic:bulb":         h.decoration.blur.acrylic.bulb,
-            "decoration:blur:acrylic:clarity":      h.decoration.blur.acrylic.clarity,
-            "decoration:blur:acrylic:aberration":   h.decoration.blur.acrylic.aberration,
-            "decoration:blur:acrylic:tint":         h.decoration.blur.acrylic.tint,
-            "decoration:blur:ripple:strength":      h.decoration.blur.ripple.strength,
-            "decoration:blur:ripple:radius":        h.decoration.blur.ripple.radius,
-            "decoration:blur:ripple:width":         h.decoration.blur.ripple.width,
-            "decoration:blur:ripple:duration":      h.decoration.blur.ripple.duration,
-            "decoration:blur:drops:speed":          h.decoration.blur.drops.speed,
-            "decoration:blur:water:strength":       h.decoration.blur.water.strength,
-            "decoration:blur:water:radius":         h.decoration.blur.water.radius,
-            "decoration:blur:water:speed":          h.decoration.blur.water.speed,
-            "decoration:blur:water:damping":        h.decoration.blur.water.damping,
-            "decoration:blur:water:duration":       h.decoration.blur.water.duration,
-            "decoration:blur:fluid_jar:color":      h.decoration.blur.fluidJar.color,
-            "decoration:blur:fluid_jar:speed":       h.decoration.blur.fluidJar.speed,
-            "decoration:blur:fluid_jar:fill_amount": h.decoration.blur.fluidJar.fillAmount,
-            "decoration:blur:fluid_jar:mass":        h.decoration.blur.fluidJar.mass,
-            "decoration:blur:fluid_jar:precision":   h.decoration.blur.fluidJar.precision,
-            "decoration:blur:fluid_jar:turbulence":  h.decoration.blur.fluidJar.turbulence,
-            "decoration:blur:fluid_jar:distortion":  h.decoration.blur.fluidJar.distortion,
-            "decoration:blur:heat_shimmer:speed":   h.decoration.blur.heatShimmer.speed,
-            "decoration:blur:aurora:speed":         h.decoration.blur.aurora.speed,
-            "decoration:blur:aurora:intensity":     h.decoration.blur.aurora.intensity,
-            "decoration:blur:aurora:color1":        h.decoration.blur.aurora.color1,
-            "decoration:blur:aurora:color2":        h.decoration.blur.aurora.color2,
-            "decoration:blur:haze:intensity":       h.decoration.blur.haze.intensity,
-            "decoration:blur:haze:iridescence":     h.decoration.blur.haze.iridescence,
-            "decoration:active_opacity":            h.decoration.activeOpacity,
-            "decoration:inactive_opacity":          h.decoration.inactiveOpacity,
-            "decoration:fullscreen_opacity":        h.decoration.fullscreenOpacity,
-            "decoration:dim_inactive":              h.decoration.dimInactive ? 1 : 0,
-            "decoration:dim_strength":              h.decoration.dimStrength,
-            "decoration:dim_special":               h.decoration.dimSpecial,
-            "decoration:border_part_of_window":     h.decoration.borderPartOfWindow ? 1 : 0,
-            "decoration:shadow:enabled":            h.decoration.shadow.enabled ? 1 : 0,
-            "decoration:shadow:range":              h.decoration.shadow.range,
-            "decoration:shadow:render_power":       h.decoration.shadow.renderPower,
-            "decoration:shadow:sharp":              h.decoration.shadow.sharp ? 1 : 0,
-            "decoration:shadow:color":              shadowColor || "[[EMPTY]]",
-            "decoration:shadow:color_inactive":     shadowColorInactive || "[[EMPTY]]",
-            "decoration:shadow:offset":             `${h.decoration.shadow.offsetX}, ${h.decoration.shadow.offsetY}`,
-            "decoration:shadow:scale":              h.decoration.shadow.scale,
-            "general:border_size":                  h.general.borderSize,
-            "general:gaps_in":                      h.general.gapsIn,
-            "general:gaps_out":                     h.general.gapsOut,
-            "general:gaps_workspaces":              h.general.gapsWorkspaces,
-            "general:layout":                       h.general.layout,
-            "general:resize_on_border":             h.general.resizeOnBorder ? 1 : 0,
-            "general:allow_tearing":                h.general.allowTearing ? 1 : 0,
-            "general:snap:enabled":                 h.general.snapEnabled ? 1 : 0,
-            "general:snap:window_gap":              h.general.snapWindowGap,
-            "general:snap:monitor_gap":             h.general.snapMonitorGap,
-            "general:snap:border_overlap":          h.general.snapBorderOverlap ? 1 : 0,
-            "general:snap:respect_gaps":            h.general.snapRespectGaps ? 1 : 0,
-            "animations:enabled":                   h.animations.enable ? 1 : 0,
-            "input:kb_layout":                      h.input.kbLayout,
-            "input:kb_variant":                     h.input.kbVariant || "[[EMPTY]]",
-            "input:kb_model":                       h.input.kbModel || "[[EMPTY]]",
-            "input:kb_rules":                       h.input.kbRules || "[[EMPTY]]",
-            "input:kb_options":                     kbOptionsCombined || "[[EMPTY]]",
-            "input:numlock_by_default":             h.input.numlock ? 1 : 0,
-            "input:repeat_delay":                   h.input.repeatDelay,
-            "input:repeat_rate":                    h.input.repeatRate,
-            "input:follow_mouse":                   h.input.followMouse,
-            "input:touchpad:natural_scroll":        h.input.touchpad.naturalScroll ? 1 : 0,
-            "input:touchpad:disable_while_typing":  h.input.touchpad.disableWhileTyping ? 1 : 0,
-            "input:touchpad:clickfinger_behavior":  h.input.touchpad.clickfingerBehavior ? 1 : 0,
-            "input:touchpad:scroll_factor":         h.input.touchpad.scrollFactor,
-            "misc:disable_hyprland_logo":           h.misc.disableHyprlandLogo ? 1 : 0,
-            "misc:disable_splash_rendering":        h.misc.disableSplashRendering ? 1 : 0,
-            "misc:vrr":                             h.misc.vrr,
-            "misc:mouse_move_enables_dpms":         h.misc.mouseMoveEnablesDpms ? 1 : 0,
-            "misc:key_press_enables_dpms":          h.misc.keyPressEnablesDpms ? 1 : 0,
-            "misc:animate_manual_resizes":          h.misc.animateManualResizes ? 1 : 0,
-            "misc:animate_mouse_windowdragging":    h.misc.animateMouseWindowDragging ? 1 : 0,
-            "misc:allow_session_lock_restore":      h.misc.allowSessionLockRestore ? 1 : 0,
-            "misc:focus_on_activate":               h.misc.focusOnActivate,
-            "cursor:zoom_factor":                   h.cursor.zoomFactor,
-            "cursor:zoom_rigid":                    h.cursor.zoomRigid ? 1 : 0,
-            "cursor:hide_on_key_press":             h.cursor.hideOnKeyPress ? 1 : 0,
-            "cursor:hide_on_touch":                 h.cursor.hideOnTouch ? 1 : 0,
-            "cursor:hotspot_padding":               h.cursor.hotspotPadding,
-            "cursor:inactive_timeout":              h.cursor.inactiveTimeout,
-            "cursor:no_warps":                      h.cursor.noWarps ? 1 : 0,
-            "cursor:persistent_warps":              h.cursor.persistentWarps ? 1 : 0,
-            "gestures:workspace_swipe_distance":                 h.gestures.workspaceSwipeDistance,
-            "gestures:workspace_swipe_cancel_ratio":             h.gestures.workspaceSwipeCancelRatio,
-            "gestures:workspace_swipe_min_speed_to_force":       h.gestures.workspaceSwipeMinSpeedToForce,
-            "gestures:workspace_swipe_direction_lock":           h.gestures.workspaceSwipeDirectionLock ? 1 : 0,
-            "gestures:workspace_swipe_direction_lock_threshold": h.gestures.workspaceSwipeDirectionLockThreshold,
-            "gestures:workspace_swipe_create_new":               h.gestures.workspaceSwipeCreateNew ? 1 : 0,
-            "dwindle:preserve_split":                     h.dwindle.preserveSplit ? 1 : 0,
-            "dwindle:smart_split":                        h.dwindle.smartSplit ? 1 : 0,
-            "dwindle:smart_resizing":                     h.dwindle.smartResizing ? 1 : 0,
-            "master:new_status":                          h.master.newStatus,
-            "master:mfact":                               h.master.mfact,
-            "master:orientation":                         h.master.orientation,
-            "group:auto_group":                           h.group.autoGroup ? 1 : 0,
-            "group:drag_into_group":                     h.group.dragIntoGroup ? 1 : 0,
-            "group:merge_groups_on_drag":               h.group.mergeGroupsOnDrag ? 1 : 0,
-            "group:groupbar:enabled":                   h.group.groupbar.enabled ? 1 : 0,
-            // Advanced fields supported by current Hyprland.
-            "decoration:blur:noise":                   h.decoration.blur.noise,
-            "decoration:blur:contrast":                h.decoration.blur.contrast,
-            "decoration:blur:brightness":               h.decoration.blur.brightness,
-            "decoration:blur:vibrancy_darkness":        h.decoration.blur.vibrancyDarkness,
-            "decoration:blur:special":                  h.decoration.blur.special ? 1 : 0,
-            "decoration:blur:popups":                   h.decoration.blur.popups ? 1 : 0,
-            "decoration:blur:popups_ignorealpha":       h.decoration.blur.popupsIgnorealpha ? 1 : 0,
-            "decoration:dim_modal":                     h.decoration.dimModal ? 1 : 0,
-            "decoration:dim_around":                    h.decoration.dimAround ? 1 : 0,
-            "general:col.active_border":                (h.general.colActiveBorder ?? "") || "[[EMPTY]]",
-            "general:col.inactive_border":              (h.general.colInactiveBorder ?? "") || "[[EMPTY]]",
-            "general:col.nogroup_border":               (h.general.colNogroupBorder ?? "") || "[[EMPTY]]",
-            "general:float_gaps":                       h.general.floatGaps,
-            "general:extend_border_grab_area":          h.general.extendBorderGrabArea ? 1 : 0,
-            "general:hover_icon_on_border":             h.general.hoverIconOnBorder ? 1 : 0,
-            "general:no_focus_fallback":                h.general.noFocusFallback ? 1 : 0,
-            "input:sensitivity":                        h.input.sensitivity,
-            "input:accel_profile":                      (h.input.accelProfile ?? "") || "[[EMPTY]]",
-            "input:force_no_accel":                     h.input.forceNoAccel ? 1 : 0,
-            "input:scroll_factor":                      h.input.scrollFactor,
-            "input:scroll_button":                      h.input.scrollButton,
-            "input:left_handed":                        h.input.leftHanded ? 1 : 0,
-            "input:touchpad:tap_to_click":              h.input.touchpad.tapToClick ? 1 : 0,
-            "input:touchpad:tap_button_map":            h.input.touchpad.tapButtonMap,
-            "input:touchpad:tap_and_drag":              h.input.touchpad.tapAndDrag ? 1 : 0,
-            "input:touchpad:drag_lock":                 h.input.touchpad.dragLock ? 1 : 0,
-        })
-    }
-
     MonitorConfigOption { id: monitorConfig }
 
     ColumnLayout {
+        visible: page.settingsShow("apps|devices|effects|input-details|window-rules");
         id: mainLayout
         Layout.fillWidth: true
         Layout.fillHeight: true
@@ -228,26 +71,33 @@ ContentPage {
             icon: "monitor"
             shape: MaterialShape.Shape.ClamShell
             title: Translation.tr("Displays")
-            visible: monitorConfig.monitors.length > 0
+            visible: page.settingsShow("devices|window-rules") && (monitorConfig.monitors.length > 0)
 
             MonitorCanvas {
+                visible: page.settingsShow("devices");
+                objectName: "HyprlandSettings.arrange-displays";
                 id: monitorCanvas
                 Layout.fillWidth: true
                 monitorConfig: monitorConfig
             }
 
             ContentSubsection {
+                visible: page.settingsShow("devices|window-rules");
                 Layout.topMargin: 10
                 title: (monitorConfig.monitors[monitorCanvas.selectedIndex]?.name ?? "")
                     + " · "
                     + (monitorConfig.monitors[monitorCanvas.selectedIndex]?.description ?? "")
 
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("devices|window-rules")
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "HyprlandSettings.enabled";
                         buttonIcon: "tv_off"
                         text: Translation.tr("Enabled")
                         checked: !(monitorConfig.monitors[monitorCanvas.selectedIndex]?.disabled ?? false)
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === !(monitorConfig.monitors[monitorCanvas.selectedIndex]?.disabled ?? false)) return
                             monitorConfig.updateMonitor(monitorCanvas.selectedIndex, { disabled: !checked })
                             monitorConfig.applyAndSave(monitorCanvas.selectedIndex)
@@ -255,6 +105,9 @@ ContentPage {
                     }
 
                     ConfigComboBox {
+                        objectName: "HyprlandSettings.resolution-refresh-rate";
+                        visible: page.settingsShow("devices");
+
                         Layout.fillWidth: true
                         buttonIcon: "aspect_ratio"
                         text: Translation.tr("Resolution & Refresh Rate")
@@ -276,6 +129,8 @@ ContentPage {
                     }
 
                     ConfigSelectionArray {
+                        visible: page.settingsShow("devices");
+                        objectName: "HyprlandSettings.orientation";
                         text: Translation.tr("Orientation")
                         icon: "mobile_rotate"
                         currentValue: monitorConfig.monitors[monitorCanvas.selectedIndex]?.transform ?? 0
@@ -290,13 +145,15 @@ ContentPage {
                             { displayName: "270°",                   icon: "rotate_90_degrees_ccw", value: 3 },
                         ]
                     }
-    
+
                     ConfigSpinBox {
+                        visible: page.settingsShow("devices");
+                        objectName: "HyprlandSettings.scale";
                         icon: "zoom_in"
                         text: Translation.tr("Scale")
                         value: Math.round((monitorConfig.monitors[monitorCanvas.selectedIndex]?.scale ?? 1.0) * 100)
                         from: 50; to: 300; stepSize: 25
-                        onValueChanged: {
+                        onEdited: {
                             const newVal = value / 100.0
                             if (newVal === (monitorConfig.monitors[monitorCanvas.selectedIndex]?.scale ?? 1.0)) return
                             monitorConfig.updateMonitor(monitorCanvas.selectedIndex, { scale: newVal })
@@ -305,11 +162,13 @@ ContentPage {
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.position-x";
                         icon: "swap_horiz"
                         text: Translation.tr("Position X")
                         value: monitorConfig.monitors[monitorCanvas.selectedIndex]?.x ?? 0
                         from: 0; to: 7680; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             if (value === (monitorConfig.monitors[monitorCanvas.selectedIndex]?.x ?? 0)) return
                             monitorConfig.updateMonitor(monitorCanvas.selectedIndex, { x: value })
                             monitorConfig.applyAndSave(monitorCanvas.selectedIndex)
@@ -317,11 +176,13 @@ ContentPage {
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.position-y";
                         icon: "swap_vert"
                         text: Translation.tr("Position Y")
                         value: monitorConfig.monitors[monitorCanvas.selectedIndex]?.y ?? 0
                         from: 0; to: 4320; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             if (value === (monitorConfig.monitors[monitorCanvas.selectedIndex]?.y ?? 0)) return
                             monitorConfig.updateMonitor(monitorCanvas.selectedIndex, { y: value })
                             monitorConfig.applyAndSave(monitorCanvas.selectedIndex)
@@ -330,6 +191,8 @@ ContentPage {
 
                     // Logical size display
                     StyledText {
+                        property bool groupDescription: true;
+                        visible: page.settingsShow("window-rules");
                         Layout.fillWidth: true
                         font.pixelSize: Appearance.font.pixelSize.smaller
                         color: Appearance.colors.colSubtext
@@ -344,11 +207,16 @@ ContentPage {
                 // Advanced Monitor Settings
                 ContentSubsection {
                     title: Translation.tr("Advanced Monitor Settings")
-                    visible: monitorConfig.monitors.length > 0
+                    visible: page.settingsShow("window-rules") && (monitorConfig.monitors.length > 0)
 
                     GroupedList {
+                        compact: true;
+                        visible: page.settingsShow("window-rules")
                         // Mirror
                         ConfigComboBox {
+                            objectName: "HyprlandSettings.mirror";
+                            visible: page.settingsShow("window-rules");
+
                             Layout.fillWidth: true
                             buttonIcon: "flip_camera_android"
                             text: Translation.tr("Mirror")
@@ -371,6 +239,8 @@ ContentPage {
 
                         // Bitdepth
                         ConfigSelectionArray {
+                            visible: page.settingsShow("window-rules");
+                            objectName: "HyprlandSettings.bit-depth";
                             text: Translation.tr("Bit Depth")
                             icon: "palette"
                             currentValue: monitorConfig.monitors[monitorCanvas.selectedIndex]?.bitdepth ?? 8
@@ -386,6 +256,8 @@ ContentPage {
 
                         // VRR (Variable Refresh Rate)
                         ConfigSelectionArray {
+                            visible: page.settingsShow("window-rules");
+                            objectName: "HyprlandSettings.vrr";
                             text: Translation.tr("VRR")
                             icon: "speed"
                             currentValue: monitorConfig.monitors[monitorCanvas.selectedIndex]?.vrr ?? 0
@@ -402,6 +274,9 @@ ContentPage {
 
                         // Color Management
                         ConfigComboBox {
+                            objectName: "HyprlandSettings.color-management";
+                            visible: page.settingsShow("window-rules");
+
                             Layout.fillWidth: true
                             buttonIcon: "color_lens"
                             text: Translation.tr("Color Management")
@@ -422,6 +297,8 @@ ContentPage {
 
                         // Reserved Area
                         ConfigSpinBox {
+                            visible: page.settingsShow("window-rules");
+                            objectName: "HyprlandSettings.reserved-area";
                             icon: "space_bar"
                             text: Translation.tr("Reserved Area")
                             value: {
@@ -429,7 +306,7 @@ ContentPage {
                                 return (typeof r === "object") ? (r.top || 0) : r
                             }
                             from: 0; to: 200; stepSize: 1
-                            onValueChanged: {
+                            onEdited: {
                                 monitorConfig.updateMonitor(monitorCanvas.selectedIndex, { reservedArea: value })
                                 monitorConfig.applyAndSave(monitorCanvas.selectedIndex)
                             }
@@ -437,6 +314,8 @@ ContentPage {
 
                         // Transform (extended: 0-7)
                         ConfigSelectionArray {
+                            visible: page.settingsShow("window-rules");
+                            objectName: "HyprlandSettings.transform";
                             text: Translation.tr("Transform")
                             icon: "rotate_right"
                             currentValue: monitorConfig.monitors[monitorCanvas.selectedIndex]?.transform ?? 0
@@ -456,18 +335,23 @@ ContentPage {
                             ]
                         }
                     }
-                }       
+                }
             }
         }
 
         // Layout
         ContentSection {
+            visible: page.settingsShow("devices|window-rules");
             icon: "auto_awesome_mosaic"
             shape: MaterialShape.Shape.Gem
             title: Translation.tr("Layout")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("devices")
                 ConfigSelectionArray {
+                    visible: page.settingsShow("devices");
+                    objectName: "HyprlandSettings.tiling-layout";
                     text: Translation.tr("Tiling Layout")
                     icon: "responsive_layout"
                     currentValue: Config.options.hyprland.general.layout
@@ -484,35 +368,47 @@ ContentPage {
             }
             // Dwindle options
             ContentSubsection {
-                visible: Config.options.hyprland.general.layout === "dwindle"
+                visible: page.settingsShow("window-rules") && (Config.options.hyprland.general.layout === "dwindle")
                 title: Translation.tr("Dwindle")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("window-rules")
                     ConfigSwitch {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.preserve-split";
                         buttonIcon: "splitscreen"
                         text: Translation.tr("Preserve Split")
                         checked: Config.options.hyprland.dwindle.preserveSplit
-                        onCheckedChanged: { if (checked === Config.options.hyprland.dwindle.preserveSplit) return; Config.options.hyprland.dwindle.preserveSplit = checked; HyprlandConfig.set("dwindle:preserve_split", checked?1:0) }
+                        onEdited: { if (checked === Config.options.hyprland.dwindle.preserveSplit) return; Config.options.hyprland.dwindle.preserveSplit = checked; HyprlandConfig.set("dwindle:preserve_split", checked?1:0) }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.smart-split";
                         buttonIcon: "auto_awesome"
                         text: Translation.tr("Smart Split")
                         checked: Config.options.hyprland.dwindle.smartSplit
-                        onCheckedChanged: { if (checked === Config.options.hyprland.dwindle.smartSplit) return; Config.options.hyprland.dwindle.smartSplit = checked; HyprlandConfig.set("dwindle:smart_split", checked?1:0) }
+                        onEdited: { if (checked === Config.options.hyprland.dwindle.smartSplit) return; Config.options.hyprland.dwindle.smartSplit = checked; HyprlandConfig.set("dwindle:smart_split", checked?1:0) }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.smart-resizing";
                         buttonIcon: "open_with"
                         text: Translation.tr("Smart Resizing")
                         checked: Config.options.hyprland.dwindle.smartResizing
-                        onCheckedChanged: { if (checked === Config.options.hyprland.dwindle.smartResizing) return; Config.options.hyprland.dwindle.smartResizing = checked; HyprlandConfig.set("dwindle:smart_resizing", checked?1:0) }
+                        onEdited: { if (checked === Config.options.hyprland.dwindle.smartResizing) return; Config.options.hyprland.dwindle.smartResizing = checked; HyprlandConfig.set("dwindle:smart_resizing", checked?1:0) }
                     }
                 }
             }
             // Master options
             ContentSubsection {
-                visible: Config.options.hyprland.general.layout === "master"
+                visible: page.settingsShow("window-rules") && (Config.options.hyprland.general.layout === "master")
                 title: Translation.tr("Master")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("window-rules")
                     ConfigSelectionArray {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.new-window-status";
                         text: Translation.tr("New Window Status")
                         icon: "add"
                         currentValue: Config.options.hyprland.master.newStatus
@@ -524,13 +420,17 @@ ContentPage {
                         ]
                     }
                     ConfigSlider {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.master-factor";
                         text: Translation.tr("Master Factor")
                         buttonIcon: "splitscreen"
                         value: Config.options.hyprland.master.mfact
                         from: 0.1; to: 0.9
-                        onValueChanged: { Config.options.hyprland.master.mfact = value; HyprlandConfig.set("master:mfact", value) }
+                        onEdited: { Config.options.hyprland.master.mfact = value; HyprlandConfig.set("master:mfact", value) }
                     }
                     ConfigSelectionArray {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.orientation-2";
                         text: Translation.tr("Orientation")
                         icon: "rotate_90_degrees_ccw"
                         currentValue: Config.options.hyprland.master.orientation
@@ -547,31 +447,42 @@ ContentPage {
             }
             // Group
             ContentSubsection {
+                visible: page.settingsShow("window-rules");
                 title: Translation.tr("Group")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("window-rules")
                     ConfigSwitch {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.auto-group";
                         buttonIcon: "group"
                         text: Translation.tr("Auto Group")
                         checked: Config.options.hyprland.group.autoGroup
-                        onCheckedChanged: { if (checked === Config.options.hyprland.group.autoGroup) return; Config.options.hyprland.group.autoGroup = checked; HyprlandConfig.set("group:auto_group", checked?1:0) }
+                        onEdited: { if (checked === Config.options.hyprland.group.autoGroup) return; Config.options.hyprland.group.autoGroup = checked; HyprlandConfig.set("group:auto_group", checked?1:0) }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.drag-into-group";
                         buttonIcon: "group_add"
                         text: Translation.tr("Drag Into Group")
                         checked: Config.options.hyprland.group.dragIntoGroup
-                        onCheckedChanged: { if (checked === Config.options.hyprland.group.dragIntoGroup) return; Config.options.hyprland.group.dragIntoGroup = checked; HyprlandConfig.set("group:drag_into_group", checked?1:0) }
+                        onEdited: { if (checked === Config.options.hyprland.group.dragIntoGroup) return; Config.options.hyprland.group.dragIntoGroup = checked; HyprlandConfig.set("group:drag_into_group", checked?1:0) }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.merge-groups-on-drag";
                         buttonIcon: "merge"
                         text: Translation.tr("Merge Groups On Drag")
                         checked: Config.options.hyprland.group.mergeGroupsOnDrag
-                        onCheckedChanged: { if (checked === Config.options.hyprland.group.mergeGroupsOnDrag) return; Config.options.hyprland.group.mergeGroupsOnDrag = checked; HyprlandConfig.set("group:merge_groups_on_drag", checked?1:0) }
+                        onEdited: { if (checked === Config.options.hyprland.group.mergeGroupsOnDrag) return; Config.options.hyprland.group.mergeGroupsOnDrag = checked; HyprlandConfig.set("group:merge_groups_on_drag", checked?1:0) }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.group-bar-enabled";
                         buttonIcon: "view_agenda"
                         text: Translation.tr("Group Bar Enabled")
                         checked: Config.options.hyprland.group.groupbar.enabled
-                        onCheckedChanged: { if (checked === Config.options.hyprland.group.groupbar.enabled) return; Config.options.hyprland.group.groupbar.enabled = checked; HyprlandConfig.set("group:groupbar:enabled", checked?1:0) }
+                        onEdited: { if (checked === Config.options.hyprland.group.groupbar.enabled) return; Config.options.hyprland.group.groupbar.enabled = checked; HyprlandConfig.set("group:groupbar:enabled", checked?1:0) }
                     }
                 }
             }
@@ -579,11 +490,13 @@ ContentPage {
 
         // Input
         ContentSection {
+            visible: page.settingsShow("devices|input-details");
             icon: "trackpad_input"
             shape: MaterialShape.Shape.Pentagon
             title: Translation.tr("Input")
 
             ContentSubsection {
+                visible: page.settingsShow("devices|input-details");
                 id: keyboardSection
                 title: Translation.tr("Keyboard")
 
@@ -618,11 +531,15 @@ ContentPage {
                 Process { id: kbReloadProc; command: ["hyprctl", "reload"] }
 
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("devices|input-details")
                     // Current layouts chips
                     ColumnLayout {
+                        visible: page.settingsShow("devices");
                         Layout.fillWidth: true
                         spacing: 8
                         StyledText {
+                            visible: page.settingsShow("devices");
                             text: Translation.tr("Keyboard layouts")
                             color: Appearance.colors.colOnSecondaryContainer
                         }
@@ -670,6 +587,7 @@ ContentPage {
                         }
                         // Add new layout row
                         RowLayout {
+                            visible: page.settingsShow("devices");
                             Layout.fillWidth: true
                             spacing: 8
                             // Let the row shrink rather than pushing the Add button off-screen
@@ -738,6 +656,8 @@ ContentPage {
                                 }
                             }
                             RippleButtonWithIcon {
+                                visible: page.settingsShow("devices");
+                                objectName: "HyprlandSettings.add";
                                 id: addBtn
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredWidth: implicitWidth
@@ -758,6 +678,7 @@ ContentPage {
                             }
                         }
                         StyledText {
+                            visible: page.settingsShow("devices");
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
                             font.pixelSize: Appearance.font.pixelSize.smaller
@@ -768,6 +689,9 @@ ContentPage {
 
                     // Extra xkb options / switch shortcut
                     ConfigComboBox {
+                        objectName: "HyprlandSettings.layout-switch-shortcut";
+                        visible: page.settingsShow("devices");
+
                         text: Translation.tr("Layout switch shortcut")
                         buttonIcon: "swap_horiz"
                         currentValue: Config.options.hyprland.input.kbLayoutSwitchShortcut ?? ""
@@ -790,6 +714,8 @@ ContentPage {
                     }
 
                     ConfigTextArea {
+                        visible: page.settingsShow("input-details");
+                        objectName: "HyprlandSettings.extra-xkb-options";
                         id: kbOptionsField
                         Layout.fillWidth: true
                         buttonIcon: "tune"
@@ -802,7 +728,7 @@ ContentPage {
                             keyboardSection.applyKbOptions()
                         }
                         // also auto debounce
-                        onValueChanged: kbOptionsDebounce.restart()
+                        onEdited: kbOptionsDebounce.restart()
                         Timer {
                             id: kbOptionsDebounce
                             interval: 1000
@@ -814,13 +740,15 @@ ContentPage {
                         }
                     }
                     ConfigTextArea {
+                        visible: page.settingsShow("input-details");
+                        objectName: "HyprlandSettings.variant-per-layout-comma-separated";
                         id: kbVariantField
                         Layout.fillWidth: true
                         buttonIcon: "polyline"
                         text: Translation.tr("Variant (per layout, comma-separated)")
                         placeholderText: Translation.tr("e.g., ,, or dvorak")
                         Component.onCompleted: value = Config.options.hyprland.input.kbVariant ?? ""
-                        onValueChanged: kbVariantDebounce.restart()
+                        onEdited: kbVariantDebounce.restart()
                         Timer {
                             id: kbVariantDebounce
                             interval: 1000
@@ -833,16 +761,19 @@ ContentPage {
                         }
                     }
                     RowLayout {
+                        visible: page.settingsShow("input-details");
                         Layout.fillWidth: true
                         spacing: 10
                         ConfigTextArea {
+                            visible: page.settingsShow("input-details");
+                            objectName: "HyprlandSettings.model";
                             id: kbModelField
                             Layout.fillWidth: true
                             buttonIcon: "keyboard_alt"
                             text: Translation.tr("Model")
                             placeholderText: "pc104"
                             Component.onCompleted: value = Config.options.hyprland.input.kbModel ?? ""
-                            onValueChanged: kbModelDebounce.restart()
+                            onEdited: kbModelDebounce.restart()
                             Timer {
                                 id: kbModelDebounce
                                 interval: 1000
@@ -855,13 +786,15 @@ ContentPage {
                             }
                         }
                         ConfigTextArea {
+                            visible: page.settingsShow("input-details");
+                            objectName: "HyprlandSettings.rules";
                             id: kbRulesField
                             Layout.fillWidth: true
                             buttonIcon: "rule"
                             text: Translation.tr("Rules")
                             placeholderText: "evdev"
                             Component.onCompleted: value = Config.options.hyprland.input.kbRules ?? ""
-                            onValueChanged: kbRulesDebounce.restart()
+                            onEdited: kbRulesDebounce.restart()
                             Timer {
                                 id: kbRulesDebounce
                                 interval: 1000
@@ -875,10 +808,12 @@ ContentPage {
                         }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "HyprlandSettings.numlock-by-default";
                         buttonIcon: "numbers"
                         text: Translation.tr("Numlock by default")
                         checked: Config.options.hyprland.input.numlock
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.input.numlock) return
                             Config.options.hyprland.input.numlock = checked
                             HyprlandConfig.set("input:numlock_by_default", checked ? 1 : 0)
@@ -886,11 +821,13 @@ ContentPage {
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("input-details");
+                        objectName: "HyprlandSettings.repeat-delay-ms";
                         icon: "keyboard_return"
                         text: Translation.tr("Repeat delay (ms)")
                         value: Config.options.hyprland.input.repeatDelay
                         from: 100; to: 1000; stepSize: 10
-                        onValueChanged: {
+                        onEdited: {
                             if (value === Config.options.hyprland.input.repeatDelay) return
                             Config.options.hyprland.input.repeatDelay = value
                             HyprlandConfig.set("input:repeat_delay", value)
@@ -898,17 +835,21 @@ ContentPage {
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("input-details");
+                        objectName: "HyprlandSettings.repeat-rate";
                         icon: "speed"
                         text: Translation.tr("Repeat rate")
                         value: Config.options.hyprland.input.repeatRate
                         from: 10; to: 100; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             if (value === Config.options.hyprland.input.repeatRate) return
                             Config.options.hyprland.input.repeatRate = value
                             HyprlandConfig.set("input:repeat_rate", value)
                         }
                     }
                     ConfigSelectionArray {
+                        visible: page.settingsShow("input-details");
+                        objectName: "HyprlandSettings.follow-mouse";
                         text: Translation.tr("Follow mouse")
                         icon: "mouse"
                         currentValue: Config.options.hyprland.input.followMouse
@@ -927,13 +868,18 @@ ContentPage {
             }
 
             ContentSubsection {
+                visible: page.settingsShow("devices|input-details");
                 title: Translation.tr("Touchpad")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("devices|input-details")
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "HyprlandSettings.natural-scroll";
                         buttonIcon: "swap_vert"
                         text: Translation.tr("Natural scroll")
                         checked: Config.options.hyprland.input.touchpad.naturalScroll
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.input.touchpad.naturalScroll) return
                             Config.options.hyprland.input.touchpad.naturalScroll = checked
                             HyprlandConfig.set("input:touchpad:natural_scroll", checked ? 1 : 0)
@@ -941,10 +887,12 @@ ContentPage {
                     }
 
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "HyprlandSettings.disable-while-typing";
                         buttonIcon: "keyboard_hide"
                         text: Translation.tr("Disable while typing")
                         checked: Config.options.hyprland.input.touchpad.disableWhileTyping
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.input.touchpad.disableWhileTyping) return
                             Config.options.hyprland.input.touchpad.disableWhileTyping = checked
                             HyprlandConfig.set("input:touchpad:disable_while_typing", checked ? 1 : 0)
@@ -952,10 +900,12 @@ ContentPage {
                     }
 
                     ConfigSwitch {
+                        visible: page.settingsShow("input-details");
+                        objectName: "HyprlandSettings.clickfinger-behavior";
                         buttonIcon: "touch_app"
                         text: Translation.tr("Clickfinger behavior")
                         checked: Config.options.hyprland.input.touchpad.clickfingerBehavior
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.input.touchpad.clickfingerBehavior) return
                             Config.options.hyprland.input.touchpad.clickfingerBehavior = checked
                             HyprlandConfig.set("input:touchpad:clickfinger_behavior", checked ? 1 : 0)
@@ -963,11 +913,13 @@ ContentPage {
                     }
 
                     ConfigSpinBox {
+                        visible: page.settingsShow("input-details");
+                        objectName: "HyprlandSettings.scroll-factor";
                         icon: "swipe"
                         text: Translation.tr("Scroll factor")
                         value: Math.round(Config.options.hyprland.input.touchpad.scrollFactor * 10)
                         from: 1; to: 30; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             const newVal = value / 10.0
                             if (newVal === Config.options.hyprland.input.touchpad.scrollFactor) return
                             Config.options.hyprland.input.touchpad.scrollFactor = newVal
@@ -978,19 +930,26 @@ ContentPage {
 
                 // Touchpad advanced
                 ContentSubsection {
+                    visible: page.settingsShow("devices|input-details");
                     title: Translation.tr("Touchpad Advanced")
                     GroupedList {
+                        compact: true;
+                        visible: page.settingsShow("devices|input-details")
                         ConfigSwitch {
+                            visible: page.settingsShow("devices");
+                            objectName: "HyprlandSettings.tap-to-click";
                             buttonIcon: "touch_app"
                             text: Translation.tr("Tap to Click")
                             checked: Config.options.hyprland.input.touchpad.tapToClick
-                            onCheckedChanged: {
+                            onEdited: {
                                 if (checked === Config.options.hyprland.input.touchpad.tapToClick) return
                                 Config.options.hyprland.input.touchpad.tapToClick = checked
                                 HyprlandConfig.set("input:touchpad:tap_to_click", checked ? 1 : 0)
                             }
                         }
                         ConfigSelectionArray {
+                            visible: page.settingsShow("input-details");
+                            objectName: "HyprlandSettings.tap-button-map";
                             text: Translation.tr("Tap Button Map")
                             icon: "swap_horiz"
                             currentValue: Config.options.hyprland.input.touchpad.tapButtonMap
@@ -1004,20 +963,24 @@ ContentPage {
                             ]
                         }
                         ConfigSwitch {
+                            visible: page.settingsShow("input-details");
+                            objectName: "HyprlandSettings.tap-and-drag";
                             buttonIcon: "drag_indicator"
                             text: Translation.tr("Tap and Drag")
                             checked: Config.options.hyprland.input.touchpad.tapAndDrag
-                            onCheckedChanged: {
+                            onEdited: {
                                 if (checked === Config.options.hyprland.input.touchpad.tapAndDrag) return
                                 Config.options.hyprland.input.touchpad.tapAndDrag = checked
                                 HyprlandConfig.set("input:touchpad:tap_and_drag", checked ? 1 : 0)
                             }
                         }
                         ConfigSwitch {
+                            visible: page.settingsShow("input-details");
+                            objectName: "HyprlandSettings.drag-lock";
                             buttonIcon: "lock"
                             text: Translation.tr("Drag Lock")
                             checked: Config.options.hyprland.input.touchpad.dragLock
-                            onCheckedChanged: {
+                            onEdited: {
                                 if (checked === Config.options.hyprland.input.touchpad.dragLock) return
                                 Config.options.hyprland.input.touchpad.dragLock = checked
                                 HyprlandConfig.set("input:touchpad:drag_lock", checked ? 1 : 0)
@@ -1029,15 +992,20 @@ ContentPage {
 
             // Mouse & General Input
             ContentSubsection {
+                visible: page.settingsShow("devices|input-details");
                 title: Translation.tr("Mouse & Input")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("devices|input-details")
                     // Sensitivity
                     ConfigSlider {
+                        visible: page.settingsShow("devices");
+                        objectName: "HyprlandSettings.sensitivity";
                         text: Translation.tr("Sensitivity")
                         buttonIcon: "speed"
                         value: Math.round(Config.options.hyprland.input.sensitivity * 100)
                         from: -100; to: 100
-                        onValueChanged: {
+                        onEdited: {
                             const v = value / 100.0
                             if (v === Config.options.hyprland.input.sensitivity) return
                             Config.options.hyprland.input.sensitivity = v
@@ -1046,6 +1014,9 @@ ContentPage {
                     }
                     // Accel Profile
                     ConfigComboBox {
+                        objectName: "HyprlandSettings.accel-profile";
+                        visible: page.settingsShow("input-details");
+
                         Layout.fillWidth: true
                         buttonIcon: "speed"
                         text: Translation.tr("Accel Profile")
@@ -1063,10 +1034,12 @@ ContentPage {
                     }
                     // Force No Accel
                     ConfigSwitch {
+                        visible: page.settingsShow("input-details");
+                        objectName: "HyprlandSettings.force-no-accel";
                         buttonIcon: "speed"
                         text: Translation.tr("Force No Accel")
                         checked: Config.options.hyprland.input.forceNoAccel
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.input.forceNoAccel) return
                             Config.options.hyprland.input.forceNoAccel = checked
                             HyprlandConfig.set("input:force_no_accel", checked ? 1 : 0)
@@ -1074,11 +1047,13 @@ ContentPage {
                     }
                     // Scroll Factor
                     ConfigSpinBox {
+                        visible: page.settingsShow("input-details");
+                        objectName: "HyprlandSettings.scroll-factor-2";
                         icon: "swap_vert"
                         text: Translation.tr("Scroll Factor")
                         value: Math.round(Config.options.hyprland.input.scrollFactor * 10)
                         from: 1; to: 30; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             const v = value / 10.0
                             if (v === Config.options.hyprland.input.scrollFactor) return
                             Config.options.hyprland.input.scrollFactor = v
@@ -1087,11 +1062,13 @@ ContentPage {
                     }
                     // Scroll Button
                     ConfigSpinBox {
+                        visible: page.settingsShow("input-details");
+                        objectName: "HyprlandSettings.scroll-button";
                         icon: "mouse"
                         text: Translation.tr("Scroll Button")
                         value: Config.options.hyprland.input.scrollButton
                         from: 0; to: 12; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             if (value === Config.options.hyprland.input.scrollButton) return
                             Config.options.hyprland.input.scrollButton = value
                             HyprlandConfig.set("input:scroll_button", value)
@@ -1099,10 +1076,12 @@ ContentPage {
                     }
                     // Left Handed
                     ConfigSwitch {
+                        visible: page.settingsShow("devices");
+                        objectName: "HyprlandSettings.left-handed";
                         buttonIcon: "back_hand"
                         text: Translation.tr("Left Handed")
                         checked: Config.options.hyprland.input.leftHanded
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.input.leftHanded) return
                             Config.options.hyprland.input.leftHanded = checked
                             HyprlandConfig.set("input:left_handed", checked ? 1 : 0)
@@ -1114,28 +1093,35 @@ ContentPage {
 
         // Visual & Aesthetics
         ContentSection {
+            visible: page.settingsShow("effects");
             icon: "deblur"
             shape: MaterialShape.Shape.PixelCircle
             title: Translation.tr("Visual & Aesthetics")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("effects")
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.window-rounding";
                     icon: "rounded_corner"
                     text: Translation.tr("Window Rounding")
                     value: Config.options.hyprland.decoration.rounding
                     from: 0; to: 30; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.rounding) return
                         Config.options.hyprland.decoration.rounding = value
                         HyprlandConfig.set("decoration:rounding", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.rounding-power";
                     icon: "spline"
                     text: Translation.tr("Rounding Power")
                     value: Math.round(Config.options.hyprland.decoration.roundingPower * 10)
                     from: 10; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 10.0
                         if (v === Config.options.hyprland.decoration.roundingPower) return
                         Config.options.hyprland.decoration.roundingPower = v
@@ -1143,10 +1129,12 @@ ContentPage {
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.blur";
                     buttonIcon: "blur_on"
                     text: Translation.tr("Blur")
                     checked: Config.options.hyprland.decoration.blur.enabled
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.decoration.blur.enabled) return
                         // Blur, transparency and Liquid Glass are mutually exclusive
                         // (Settings > Interface > Visual Effect) — enabling blur here
@@ -1171,33 +1159,39 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.blur-size";
                     icon: "blur_circular"
                     text: Translation.tr("Blur Size")
                     value: Config.options.hyprland.decoration.blur.size
                     from: 1; to: 20; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.size) return
                         Config.options.hyprland.decoration.blur.size = value
                         HyprlandConfig.set("decoration:blur:size", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.blur-passes";
                     icon: "layers"
                     text: Translation.tr("Blur Passes")
                     value: Config.options.hyprland.decoration.blur.passes
                     from: 1; to: 6; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.passes) return
                         Config.options.hyprland.decoration.blur.passes = value
                         HyprlandConfig.set("decoration:blur:passes", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.blur-vibrancy";
                     icon: "water_drop"
                     text: Translation.tr("Blur Vibrancy")
                     value: Math.round(Config.options.hyprland.decoration.blur.vibrancy * 100)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value/100.0
                         if (v === Config.options.hyprland.decoration.blur.vibrancy) return
                         Config.options.hyprland.decoration.blur.vibrancy = v
@@ -1205,26 +1199,31 @@ ContentPage {
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.blur-xray";
                     buttonIcon: "visibility"
                     text: Translation.tr("Blur XRay")
                     checked: Config.options.hyprland.decoration.blur.xray
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.decoration.blur.xray) return
                         Config.options.hyprland.decoration.blur.xray = checked
                         HyprlandConfig.set("decoration:blur:xray", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.blur-new-optimizations";
                     buttonIcon: "bolt"
                     text: Translation.tr("Blur New Optimizations")
                     checked: Config.options.hyprland.decoration.blur.newOptimizations
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.decoration.blur.newOptimizations) return
                         Config.options.hyprland.decoration.blur.newOptimizations = checked
                         HyprlandConfig.set("decoration:blur:new_optimizations", checked ? 1 : 0)
                     }
                 }
                 StyledText {
+                    property bool groupDescription: true;
                     visible: !HyprlandData.blurVariantSupported
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
@@ -1233,6 +1232,8 @@ ContentPage {
                     text: Translation.tr("Your running Hyprland doesn't support blur styles yet (decoration:blur:variant needs hyprwm/Hyprland PR #15661, merged 2026-08-22 — not in any tagged release yet, only in a from-source/-git build past that commit). Picking one below will be silently ignored until Hyprland is updated to a build that includes it; plain blur still works normally.")
                 }
                 ConfigSelectionArray {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.blur-style";
                     icon: "blur_on"
                     text: Translation.tr("Blur Style")
                     // Picking a variant the running Hyprland doesn't have is a
@@ -1262,6 +1263,8 @@ ContentPage {
                     ]
                 }
                 StyledText {
+                    property bool groupDescription: true;
+                    visible: page.settingsShow("effects");
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     color: Appearance.colors.colSubtext
@@ -1269,36 +1272,39 @@ ContentPage {
                     text: Translation.tr("Native Hyprland blur variants (decoration:blur:variant, merged upstream Aug 2026) — applies to every window Hyprland blurs, not just this shell's panels. Fancier styles cost more GPU/CPU, especially the animated ones.")
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
+                    objectName: "HyprlandSettings.glass-refraction";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism")
                     icon: "water"
                     text: Translation.tr("Glass Refraction")
                     value: Config.options.hyprland.decoration.blur.glass.refraction
                     from: 0; to: 20; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.glass.refraction) return
                         Config.options.hyprland.decoration.blur.glass.refraction = value
                         HyprlandConfig.set("decoration:blur:glass:refraction", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
+                    objectName: "HyprlandSettings.glass-pattern-size";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism")
                     icon: "texture"
                     text: Translation.tr("Glass Pattern Size")
                     value: Config.options.hyprland.decoration.blur.glass.size
                     from: 4; to: 512; stepSize: 4
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.glass.size) return
                         Config.options.hyprland.decoration.blur.glass.size = value
                         HyprlandConfig.set("decoration:blur:glass:size", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism"
+                    objectName: "HyprlandSettings.glass-roughness";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic" || Config.options.hyprland.decoration.blur.variant === "prism")
                     icon: "grain"
                     text: Translation.tr("Glass Roughness")
                     value: Math.round(Config.options.hyprland.decoration.blur.glass.roughness * 100)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.glass.roughness) return
                         Config.options.hyprland.decoration.blur.glass.roughness = v
@@ -1306,36 +1312,39 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    objectName: "HyprlandSettings.liquid-glass-refraction";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic")
                     icon: "water_drop"
                     text: Translation.tr("Liquid Glass Refraction")
                     value: Config.options.hyprland.decoration.blur.acrylic.refraction
                     from: 0; to: 48; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.acrylic.refraction) return
                         Config.options.hyprland.decoration.blur.acrylic.refraction = value
                         HyprlandConfig.set("decoration:blur:acrylic:refraction", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    objectName: "HyprlandSettings.liquid-glass-edge-width";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic")
                     icon: "border_outer"
                     text: Translation.tr("Liquid Glass Edge Width")
                     value: Config.options.hyprland.decoration.blur.acrylic.bulb
                     from: 4; to: 256; stepSize: 4
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.acrylic.bulb) return
                         Config.options.hyprland.decoration.blur.acrylic.bulb = value
                         HyprlandConfig.set("decoration:blur:acrylic:bulb", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    objectName: "HyprlandSettings.liquid-glass-clarity";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic")
                     icon: "visibility"
                     text: Translation.tr("Liquid Glass Clarity")
                     value: Math.round(Config.options.hyprland.decoration.blur.acrylic.clarity * 100)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.acrylic.clarity) return
                         Config.options.hyprland.decoration.blur.acrylic.clarity = v
@@ -1343,12 +1352,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    objectName: "HyprlandSettings.liquid-glass-chromatic-aberration";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic")
                     icon: "palette"
                     text: Translation.tr("Liquid Glass Chromatic Aberration")
                     value: Math.round(Config.options.hyprland.decoration.blur.acrylic.aberration * 400)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 400.0
                         if (v === Config.options.hyprland.decoration.blur.acrylic.aberration) return
                         Config.options.hyprland.decoration.blur.acrylic.aberration = v
@@ -1356,12 +1366,13 @@ ContentPage {
                     }
                 }
                 ConfigTextArea {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic"
+                    objectName: "HyprlandSettings.liquid-glass-tint-0xaarrggbb";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "acrylic")
                     buttonIcon: "colorize"
                     text: Translation.tr("Liquid Glass Tint (0xAARRGGBB)")
                     value: Config.options.hyprland.decoration.blur.acrylic.tint
                     placeholderText: "0x14EEF5FF"
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.acrylic.tint) return
                         Config.options.hyprland.decoration.blur.acrylic.tint = value
                         HyprlandConfig.set("decoration:blur:acrylic:tint", value)
@@ -1369,48 +1380,52 @@ ContentPage {
                 }
                 // ── Ripple ──────────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple"
+                    objectName: "HyprlandSettings.ripple-strength";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple")
                     icon: "waves"
                     text: Translation.tr("Ripple Strength")
                     value: Config.options.hyprland.decoration.blur.ripple.strength
                     from: 0; to: 32; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.ripple.strength) return
                         Config.options.hyprland.decoration.blur.ripple.strength = value
                         HyprlandConfig.set("decoration:blur:ripple:strength", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple"
+                    objectName: "HyprlandSettings.ripple-radius";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple")
                     icon: "radio_button_unchecked"
                     text: Translation.tr("Ripple Radius")
                     value: Config.options.hyprland.decoration.blur.ripple.radius
                     from: 1; to: 1000; stepSize: 10
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.ripple.radius) return
                         Config.options.hyprland.decoration.blur.ripple.radius = value
                         HyprlandConfig.set("decoration:blur:ripple:radius", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple"
+                    objectName: "HyprlandSettings.ripple-wave-width";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple")
                     icon: "line_weight"
                     text: Translation.tr("Ripple Wave Width")
                     value: Config.options.hyprland.decoration.blur.ripple.width
                     from: 1; to: 200; stepSize: 2
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.ripple.width) return
                         Config.options.hyprland.decoration.blur.ripple.width = value
                         HyprlandConfig.set("decoration:blur:ripple:width", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple"
+                    objectName: "HyprlandSettings.ripple-duration";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "ripple")
                     icon: "timer"
                     text: Translation.tr("Ripple Duration")
                     value: Math.round(Config.options.hyprland.decoration.blur.ripple.duration * 100)
                     from: 5; to: 500; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.ripple.duration) return
                         Config.options.hyprland.decoration.blur.ripple.duration = v
@@ -1419,12 +1434,13 @@ ContentPage {
                 }
                 // ── Drops ───────────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "drops"
+                    objectName: "HyprlandSettings.drops-speed-0-still-costs-more-gpu-above-0";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "drops")
                     icon: "water_drop"
                     text: Translation.tr("Drops Speed (0 = still, costs more GPU above 0)")
                     value: Config.options.hyprland.decoration.blur.drops.speed
                     from: 0; to: 10; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.drops.speed) return
                         Config.options.hyprland.decoration.blur.drops.speed = value
                         HyprlandConfig.set("decoration:blur:drops:speed", value)
@@ -1432,36 +1448,39 @@ ContentPage {
                 }
                 // ── Water ───────────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water"
+                    objectName: "HyprlandSettings.water-strength";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water")
                     icon: "water"
                     text: Translation.tr("Water Strength")
                     value: Config.options.hyprland.decoration.blur.water.strength
                     from: 0; to: 32; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.water.strength) return
                         Config.options.hyprland.decoration.blur.water.strength = value
                         HyprlandConfig.set("decoration:blur:water:strength", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water"
+                    objectName: "HyprlandSettings.water-pointer-radius";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water")
                     icon: "radio_button_unchecked"
                     text: Translation.tr("Water Pointer Radius")
                     value: Config.options.hyprland.decoration.blur.water.radius
                     from: 1; to: 1000; stepSize: 10
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.water.radius) return
                         Config.options.hyprland.decoration.blur.water.radius = value
                         HyprlandConfig.set("decoration:blur:water:radius", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water"
+                    objectName: "HyprlandSettings.water-propagation-speed";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water")
                     icon: "speed"
                     text: Translation.tr("Water Propagation Speed")
                     value: Math.round(Config.options.hyprland.decoration.blur.water.speed * 100)
                     from: 0; to: 1000; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.water.speed) return
                         Config.options.hyprland.decoration.blur.water.speed = v
@@ -1469,12 +1488,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water"
+                    objectName: "HyprlandSettings.water-damping";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water")
                     icon: "trending_down"
                     text: Translation.tr("Water Damping")
                     value: Math.round(Config.options.hyprland.decoration.blur.water.damping * 100)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.water.damping) return
                         Config.options.hyprland.decoration.blur.water.damping = v
@@ -1482,12 +1502,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water"
+                    objectName: "HyprlandSettings.water-max-duration-s";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "water")
                     icon: "timer"
                     text: Translation.tr("Water Max Duration (s)")
                     value: Math.round(Config.options.hyprland.decoration.blur.water.duration * 10)
                     from: 5; to: 600; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 10.0
                         if (v === Config.options.hyprland.decoration.blur.water.duration) return
                         Config.options.hyprland.decoration.blur.water.duration = v
@@ -1496,24 +1517,26 @@ ContentPage {
                 }
                 // ── Fluid Jar ───────────────────────────────────────────────
                 ConfigTextArea {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    objectName: "HyprlandSettings.fluid-jar-color-0xaarrggbb";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar")
                     buttonIcon: "colorize"
                     text: Translation.tr("Fluid Jar Color (0xAARRGGBB)")
                     value: Config.options.hyprland.decoration.blur.fluidJar.color
                     placeholderText: "0xCC3399FF"
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.fluidJar.color) return
                         Config.options.hyprland.decoration.blur.fluidJar.color = value
                         HyprlandConfig.set("decoration:blur:fluid_jar:color", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    objectName: "HyprlandSettings.fluid-jar-speed";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar")
                     icon: "speed"
                     text: Translation.tr("Fluid Jar Speed")
                     value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.speed * 100)
                     from: 0; to: 1000; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.fluidJar.speed) return
                         Config.options.hyprland.decoration.blur.fluidJar.speed = v
@@ -1521,12 +1544,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    objectName: "HyprlandSettings.fluid-jar-fill-amount";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar")
                     icon: "opacity"
                     text: Translation.tr("Fluid Jar Fill Amount")
                     value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.fillAmount * 100)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.fluidJar.fillAmount) return
                         Config.options.hyprland.decoration.blur.fluidJar.fillAmount = v
@@ -1534,12 +1558,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    objectName: "HyprlandSettings.fluid-jar-mass";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar")
                     icon: "fitness_center"
                     text: Translation.tr("Fluid Jar Mass")
                     value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.mass * 100)
                     from: 10; to: 1000; stepSize: 10
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.fluidJar.mass) return
                         Config.options.hyprland.decoration.blur.fluidJar.mass = v
@@ -1547,12 +1572,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    objectName: "HyprlandSettings.fluid-jar-precision-2x-recommended-4x-expensive";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar")
                     icon: "grain"
                     text: Translation.tr("Fluid Jar Precision (2x recommended, 4x+ expensive)")
                     value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.precision * 100)
                     from: 50; to: 800; stepSize: 10
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.fluidJar.precision) return
                         Config.options.hyprland.decoration.blur.fluidJar.precision = v
@@ -1560,12 +1586,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    objectName: "HyprlandSettings.fluid-jar-turbulence";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar")
                     icon: "air"
                     text: Translation.tr("Fluid Jar Turbulence")
                     value: Math.round(Config.options.hyprland.decoration.blur.fluidJar.turbulence * 100)
                     from: 0; to: 500; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.fluidJar.turbulence) return
                         Config.options.hyprland.decoration.blur.fluidJar.turbulence = v
@@ -1573,12 +1600,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar"
+                    objectName: "HyprlandSettings.fluid-jar-distortion";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "fluid_jar")
                     icon: "water"
                     text: Translation.tr("Fluid Jar Distortion")
                     value: Config.options.hyprland.decoration.blur.fluidJar.distortion
                     from: 0; to: 10; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.fluidJar.distortion) return
                         Config.options.hyprland.decoration.blur.fluidJar.distortion = value
                         HyprlandConfig.set("decoration:blur:fluid_jar:distortion", value)
@@ -1586,12 +1614,13 @@ ContentPage {
                 }
                 // ── Heat Shimmer ────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "heat_shimmer"
+                    objectName: "HyprlandSettings.heat-shimmer-speed-0-still-costs-more-gpu-above-0";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "heat_shimmer")
                     icon: "thermostat"
                     text: Translation.tr("Heat Shimmer Speed (0 = still, costs more GPU above 0)")
                     value: Config.options.hyprland.decoration.blur.heatShimmer.speed
                     from: 0; to: 10; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.heatShimmer.speed) return
                         Config.options.hyprland.decoration.blur.heatShimmer.speed = value
                         HyprlandConfig.set("decoration:blur:heat_shimmer:speed", value)
@@ -1599,24 +1628,26 @@ ContentPage {
                 }
                 // ── Aurora ──────────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora"
+                    objectName: "HyprlandSettings.aurora-speed-0-frozen-costs-more-gpu-above-0";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora")
                     icon: "auto_awesome"
                     text: Translation.tr("Aurora Speed (0 = frozen, costs more GPU above 0)")
                     value: Config.options.hyprland.decoration.blur.aurora.speed
                     from: 0; to: 10; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.aurora.speed) return
                         Config.options.hyprland.decoration.blur.aurora.speed = value
                         HyprlandConfig.set("decoration:blur:aurora:speed", value)
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora"
+                    objectName: "HyprlandSettings.aurora-intensity";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora")
                     icon: "gradient"
                     text: Translation.tr("Aurora Intensity")
                     value: Math.round(Config.options.hyprland.decoration.blur.aurora.intensity * 100)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.aurora.intensity) return
                         Config.options.hyprland.decoration.blur.aurora.intensity = v
@@ -1624,24 +1655,26 @@ ContentPage {
                     }
                 }
                 ConfigTextArea {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora"
+                    objectName: "HyprlandSettings.aurora-color-1-0xaarrggbb";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora")
                     buttonIcon: "colorize"
                     text: Translation.tr("Aurora Color 1 (0xAARRGGBB)")
                     value: Config.options.hyprland.decoration.blur.aurora.color1
                     placeholderText: "0x29F0A0FF"
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.aurora.color1) return
                         Config.options.hyprland.decoration.blur.aurora.color1 = value
                         HyprlandConfig.set("decoration:blur:aurora:color1", value)
                     }
                 }
                 ConfigTextArea {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora"
+                    objectName: "HyprlandSettings.aurora-color-2-0xaarrggbb";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "aurora")
                     buttonIcon: "colorize"
                     text: Translation.tr("Aurora Color 2 (0xAARRGGBB)")
                     value: Config.options.hyprland.decoration.blur.aurora.color2
                     placeholderText: "0x7A4DFFFF"
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.blur.aurora.color2) return
                         Config.options.hyprland.decoration.blur.aurora.color2 = value
                         HyprlandConfig.set("decoration:blur:aurora:color2", value)
@@ -1649,12 +1682,13 @@ ContentPage {
                 }
                 // ── Haze ────────────────────────────────────────────────────
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "haze"
+                    objectName: "HyprlandSettings.haze-intensity";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "haze")
                     icon: "blur_circular"
                     text: Translation.tr("Haze Intensity")
                     value: Math.round(Config.options.hyprland.decoration.blur.haze.intensity * 100)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.haze.intensity) return
                         Config.options.hyprland.decoration.blur.haze.intensity = v
@@ -1662,12 +1696,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "haze"
+                    objectName: "HyprlandSettings.haze-iridescence";
+                    visible: page.settingsShow("effects") && (page.blurVariantSupported && Config.options.hyprland.decoration.blur.variant === "haze")
                     icon: "auto_awesome"
                     text: Translation.tr("Haze Iridescence")
                     value: Math.round(Config.options.hyprland.decoration.blur.haze.iridescence * 100)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value / 100.0
                         if (v === Config.options.hyprland.decoration.blur.haze.iridescence) return
                         Config.options.hyprland.decoration.blur.haze.iridescence = v
@@ -1675,55 +1710,65 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.border-size";
                     icon: "border_outer"
                     text: Translation.tr("Border Size")
                     value: Config.options.hyprland.general.borderSize
                     from: 0; to: 10; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.general.borderSize) return
                         Config.options.hyprland.general.borderSize = value
                         HyprlandConfig.set("general:border_size", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.gaps-in";
                     icon: "margin"
                     text: Translation.tr("Gaps In")
                     value: Config.options.hyprland.general.gapsIn
                     from: 0; to: 40; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.general.gapsIn) return
                         Config.options.hyprland.general.gapsIn = value
                         HyprlandConfig.set("general:gaps_in", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.gaps-out";
                     icon: "open_in_full"
                     text: Translation.tr("Gaps Out")
                     value: Config.options.hyprland.general.gapsOut
                     from: 0; to: 60; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.general.gapsOut) return
                         Config.options.hyprland.general.gapsOut = value
                         HyprlandConfig.set("general:gaps_out", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.gaps-workspaces";
                     icon: "view_agenda"
                     text: Translation.tr("Gaps Workspaces")
                     value: Config.options.hyprland.general.gapsWorkspaces
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.general.gapsWorkspaces) return
                         Config.options.hyprland.general.gapsWorkspaces = value
                         HyprlandConfig.set("general:gaps_workspaces", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.active-opacity";
                     icon: "opacity"
                     text: Translation.tr("Active Opacity")
                     value: Math.round(Config.options.hyprland.decoration.activeOpacity * 100)
                     from: 10; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const newVal = value / 100.0
                         if (newVal === Config.options.hyprland.decoration.activeOpacity) return
                         Config.options.hyprland.decoration.activeOpacity = newVal
@@ -1731,11 +1776,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.inactive-opacity";
                     icon: "opacity"
                     text: Translation.tr("Inactive Opacity")
                     value: Math.round(Config.options.hyprland.decoration.inactiveOpacity * 100)
                     from: 10; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const newVal = value / 100.0
                         if (newVal === Config.options.hyprland.decoration.inactiveOpacity) return
                         Config.options.hyprland.decoration.inactiveOpacity = newVal
@@ -1743,11 +1790,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.fullscreen-opacity";
                     icon: "opacity"
                     text: Translation.tr("Fullscreen Opacity")
                     value: Math.round(Config.options.hyprland.decoration.fullscreenOpacity * 100)
                     from: 10; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value/100.0
                         if (v === Config.options.hyprland.decoration.fullscreenOpacity) return
                         Config.options.hyprland.decoration.fullscreenOpacity = v
@@ -1755,22 +1804,26 @@ ContentPage {
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.dim-inactive";
                     buttonIcon: "contrast"
                     text: Translation.tr("Dim Inactive")
                     checked: Config.options.hyprland.decoration.dimInactive
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.decoration.dimInactive) return
                         Config.options.hyprland.decoration.dimInactive = checked
                         HyprlandConfig.set("decoration:dim_inactive", checked ? 1 : 0)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.dim-strength";
                     icon: "brightness_6"
                     text: Translation.tr("Dim Strength")
                     value: Math.round(Config.options.hyprland.decoration.dimStrength * 100)
                     from: 0; to: 100; stepSize: 5
                     enabled: Config.options.hyprland.decoration.dimInactive
-                    onValueChanged: {
+                    onEdited: {
                         const v = value/100.0
                         if (v === Config.options.hyprland.decoration.dimStrength) return
                         Config.options.hyprland.decoration.dimStrength = v
@@ -1778,11 +1831,13 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.dim-special";
                     icon: "dark_mode"
                     text: Translation.tr("Dim Special")
                     value: Math.round(Config.options.hyprland.decoration.dimSpecial * 100)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value/100.0
                         if (v === Config.options.hyprland.decoration.dimSpecial) return
                         Config.options.hyprland.decoration.dimSpecial = v
@@ -1790,10 +1845,12 @@ ContentPage {
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.border-part-of-window";
                     buttonIcon: "crop_5_4"
                     text: Translation.tr("Border Part Of Window")
                     checked: Config.options.hyprland.decoration.borderPartOfWindow
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.decoration.borderPartOfWindow) return
                         Config.options.hyprland.decoration.borderPartOfWindow = checked
                         HyprlandConfig.set("decoration:border_part_of_window", checked ? 1 : 0)
@@ -1801,81 +1858,95 @@ ContentPage {
                 }
                 // Shadow
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.shadow-enabled";
                     buttonIcon: "shadow"
                     text: Translation.tr("Shadow Enabled")
                     checked: Config.options.hyprland.decoration.shadow.enabled
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.decoration.shadow.enabled) return
                         Config.options.hyprland.decoration.shadow.enabled = checked
                         HyprlandConfig.set("decoration:shadow:enabled", checked ? 1 : 0)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.shadow-range";
                     icon: "expand"
                     text: Translation.tr("Shadow Range")
                     value: Config.options.hyprland.decoration.shadow.range
                     from: 0; to: 100; stepSize: 1
                     enabled: Config.options.hyprland.decoration.shadow.enabled
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.shadow.range) return
                         Config.options.hyprland.decoration.shadow.range = value
                         HyprlandConfig.set("decoration:shadow:range", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.shadow-render-power";
                     icon: "filter_b_and_w"
                     text: Translation.tr("Shadow Render Power")
                     value: Config.options.hyprland.decoration.shadow.renderPower
                     from: 1; to: 4; stepSize: 1
                     enabled: Config.options.hyprland.decoration.shadow.enabled
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.shadow.renderPower) return
                         Config.options.hyprland.decoration.shadow.renderPower = value
                         HyprlandConfig.set("decoration:shadow:render_power", value)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.shadow-sharp";
                     buttonIcon: "motion_photos_off"
                     text: Translation.tr("Shadow Sharp")
                     checked: Config.options.hyprland.decoration.shadow.sharp
                     enabled: Config.options.hyprland.decoration.shadow.enabled
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.decoration.shadow.sharp) return
                         Config.options.hyprland.decoration.shadow.sharp = checked
                         HyprlandConfig.set("decoration:shadow:sharp", checked ? 1 : 0)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.shadow-offset-x";
                     icon: "open_with"
                     text: Translation.tr("Shadow Offset X")
                     value: Config.options.hyprland.decoration.shadow.offsetX
                     from: -50; to: 50; stepSize: 1
                     enabled: Config.options.hyprland.decoration.shadow.enabled
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.shadow.offsetX) return
                         Config.options.hyprland.decoration.shadow.offsetX = value
                         HyprlandConfig.set("decoration:shadow:offset", `${value}, ${Config.options.hyprland.decoration.shadow.offsetY}`)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.shadow-offset-y";
                     icon: "open_with"
                     text: Translation.tr("Shadow Offset Y")
                     value: Config.options.hyprland.decoration.shadow.offsetY
                     from: -50; to: 50; stepSize: 1
                     enabled: Config.options.hyprland.decoration.shadow.enabled
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.decoration.shadow.offsetY) return
                         Config.options.hyprland.decoration.shadow.offsetY = value
                         HyprlandConfig.set("decoration:shadow:offset", `${Config.options.hyprland.decoration.shadow.offsetX}, ${value}`)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.shadow-scale";
                     icon: "zoom_out_map"
                     text: Translation.tr("Shadow Scale")
                     value: Math.round(Config.options.hyprland.decoration.shadow.scale * 100)
                     from: 5; to: 200; stepSize: 5
                     enabled: Config.options.hyprland.decoration.shadow.enabled
-                    onValueChanged: {
+                    onEdited: {
                         const v = value/100.0
                         if (v === Config.options.hyprland.decoration.shadow.scale) return
                         Config.options.hyprland.decoration.shadow.scale = v
@@ -1884,6 +1955,8 @@ ContentPage {
                 }
                 // Shadow inactive color
                 ConfigTextArea {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.shadow-inactive-color";
                     Layout.fillWidth: true
                     buttonIcon: "palette"
                     text: Translation.tr("Shadow Inactive Color")
@@ -1899,14 +1972,19 @@ ContentPage {
 
             // Advanced Decoration
             ContentSubsection {
+                visible: page.settingsShow("effects");
                 title: Translation.tr("Advanced Decoration")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("effects")
                     // Dim Modal
                     ConfigSwitch {
+                        visible: page.settingsShow("effects");
+                        objectName: "HyprlandSettings.dim-modal";
                         buttonIcon: "window"
                         text: Translation.tr("Dim Modal")
                         checked: Config.options.hyprland.decoration.dimModal
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.decoration.dimModal) return
                             Config.options.hyprland.decoration.dimModal = checked
                             HyprlandConfig.set("decoration:dim_modal", checked ? 1 : 0)
@@ -1914,10 +1992,12 @@ ContentPage {
                     }
                     // Dim Around
                     ConfigSwitch {
+                        visible: page.settingsShow("effects");
+                        objectName: "HyprlandSettings.dim-around";
                         buttonIcon: "center_focus_weak"
                         text: Translation.tr("Dim Around")
                         checked: Config.options.hyprland.decoration.dimAround
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.decoration.dimAround) return
                             Config.options.hyprland.decoration.dimAround = checked
                             HyprlandConfig.set("decoration:dim_around", checked ? 1 : 0)
@@ -1928,15 +2008,20 @@ ContentPage {
 
             // Advanced Blur
             ContentSubsection {
+                visible: page.settingsShow("effects");
                 title: Translation.tr("Advanced Blur")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("effects")
                     // Noise
                     ConfigSlider {
+                        visible: page.settingsShow("effects");
+                        objectName: "HyprlandSettings.noise";
                         text: Translation.tr("Noise")
                         buttonIcon: "grain"
                         value: Math.round(Config.options.hyprland.decoration.blur.noise * 100)
                         from: 0; to: 100
-                        onValueChanged: {
+                        onEdited: {
                             const v = value / 100.0
                             if (v === Config.options.hyprland.decoration.blur.noise) return
                             Config.options.hyprland.decoration.blur.noise = v
@@ -1945,11 +2030,13 @@ ContentPage {
                     }
                     // Contrast
                     ConfigSlider {
+                        visible: page.settingsShow("effects");
+                        objectName: "HyprlandSettings.contrast";
                         text: Translation.tr("Contrast")
                         buttonIcon: "contrast"
                         value: Math.round(Config.options.hyprland.decoration.blur.contrast * 100)
                         from: 0; to: 100
-                        onValueChanged: {
+                        onEdited: {
                             const v = value / 100.0
                             if (v === Config.options.hyprland.decoration.blur.contrast) return
                             Config.options.hyprland.decoration.blur.contrast = v
@@ -1958,11 +2045,13 @@ ContentPage {
                     }
                     // Brightness
                     ConfigSlider {
+                        visible: page.settingsShow("effects");
+                        objectName: "HyprlandSettings.brightness";
                         text: Translation.tr("Brightness")
                         buttonIcon: "brightness_6"
                         value: Math.round(Config.options.hyprland.decoration.blur.brightness * 100)
                         from: 0; to: 100
-                        onValueChanged: {
+                        onEdited: {
                             const v = value / 100.0
                             if (v === Config.options.hyprland.decoration.blur.brightness) return
                             Config.options.hyprland.decoration.blur.brightness = v
@@ -1971,11 +2060,13 @@ ContentPage {
                     }
                     // Vibrancy Darkness
                     ConfigSlider {
+                        visible: page.settingsShow("effects");
+                        objectName: "HyprlandSettings.vibrancy-darkness";
                         text: Translation.tr("Vibrancy Darkness")
                         buttonIcon: "dark_mode"
                         value: Math.round(Config.options.hyprland.decoration.blur.vibrancyDarkness * 100)
                         from: 0; to: 100
-                        onValueChanged: {
+                        onEdited: {
                             const v = value / 100.0
                             if (v === Config.options.hyprland.decoration.blur.vibrancyDarkness) return
                             Config.options.hyprland.decoration.blur.vibrancyDarkness = v
@@ -1984,10 +2075,12 @@ ContentPage {
                     }
                     // Blur Special
                     ConfigSwitch {
+                        visible: page.settingsShow("effects");
+                        objectName: "HyprlandSettings.blur-special";
                         buttonIcon: "blur_on"
                         text: Translation.tr("Blur Special")
                         checked: Config.options.hyprland.decoration.blur.special
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.decoration.blur.special) return
                             Config.options.hyprland.decoration.blur.special = checked
                             HyprlandConfig.set("decoration:blur:special", checked ? 1 : 0)
@@ -1995,10 +2088,12 @@ ContentPage {
                     }
                     // Blur Popups
                     ConfigSwitch {
+                        visible: page.settingsShow("effects");
+                        objectName: "HyprlandSettings.blur-popups";
                         buttonIcon: "web_asset"
                         text: Translation.tr("Blur Popups")
                         checked: Config.options.hyprland.decoration.blur.popups
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.decoration.blur.popups) return
                             Config.options.hyprland.decoration.blur.popups = checked
                             HyprlandConfig.set("decoration:blur:popups", checked ? 1 : 0)
@@ -2006,11 +2101,13 @@ ContentPage {
                     }
                     // Blur Popups Ignore Alpha
                     ConfigSwitch {
+                        visible: page.settingsShow("effects");
+                        objectName: "HyprlandSettings.popups-ignore-alpha";
                         buttonIcon: "visibility"
                         text: Translation.tr("Popups Ignore Alpha")
                         checked: Config.options.hyprland.decoration.blur.popupsIgnorealpha
                         enabled: Config.options.hyprland.decoration.blur.popups
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.decoration.blur.popupsIgnorealpha) return
                             Config.options.hyprland.decoration.blur.popupsIgnorealpha = checked
                             HyprlandConfig.set("decoration:blur:popups_ignorealpha", checked ? 1 : 0)
@@ -2022,81 +2119,98 @@ ContentPage {
 
         // General & Snap
         ContentSection {
+            visible: page.settingsShow("window-rules");
             icon: "tune"
             shape: MaterialShape.Shape.Cookie9Sided
             title: Translation.tr("General & Snap")
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("window-rules")
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.resize-on-border";
                     buttonIcon: "border_outer"
                     text: Translation.tr("Resize On Border")
                     checked: Config.options.hyprland.general.resizeOnBorder
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.general.resizeOnBorder) return
                         Config.options.hyprland.general.resizeOnBorder = checked
                         HyprlandConfig.set("general:resize_on_border", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.allow-tearing";
                     buttonIcon: "tear_off"
                     text: Translation.tr("Allow Tearing")
                     checked: Config.options.hyprland.general.allowTearing
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.general.allowTearing) return
                         Config.options.hyprland.general.allowTearing = checked
                         HyprlandConfig.set("general:allow_tearing", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.snap-enabled";
                     buttonIcon: "magnet"
                     text: Translation.tr("Snap Enabled")
                     checked: Config.options.hyprland.general.snapEnabled
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.general.snapEnabled) return
                         Config.options.hyprland.general.snapEnabled = checked
                         HyprlandConfig.set("general:snap:enabled", checked ? 1 : 0)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.snap-window-gap";
                     icon: "space_bar"
                     text: Translation.tr("Snap Window Gap")
                     value: Config.options.hyprland.general.snapWindowGap
                     from: 0; to: 100; stepSize: 1
                     enabled: Config.options.hyprland.general.snapEnabled
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.general.snapWindowGap) return
                         Config.options.hyprland.general.snapWindowGap = value
                         HyprlandConfig.set("general:snap:window_gap", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.snap-monitor-gap";
                     icon: "monitor"
                     text: Translation.tr("Snap Monitor Gap")
                     value: Config.options.hyprland.general.snapMonitorGap
                     from: 0; to: 100; stepSize: 1
                     enabled: Config.options.hyprland.general.snapEnabled
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.general.snapMonitorGap) return
                         Config.options.hyprland.general.snapMonitorGap = value
                         HyprlandConfig.set("general:snap:monitor_gap", value)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.snap-border-overlap";
                     buttonIcon: "overlap"
                     text: Translation.tr("Snap Border Overlap")
                     checked: Config.options.hyprland.general.snapBorderOverlap
                     enabled: Config.options.hyprland.general.snapEnabled
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.general.snapBorderOverlap) return
                         Config.options.hyprland.general.snapBorderOverlap = checked
                         HyprlandConfig.set("general:snap:border_overlap", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.snap-respect-gaps";
                     buttonIcon: "grid_on"
                     text: Translation.tr("Snap Respect Gaps")
                     checked: Config.options.hyprland.general.snapRespectGaps
                     enabled: Config.options.hyprland.general.snapEnabled
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.general.snapRespectGaps) return
                         Config.options.hyprland.general.snapRespectGaps = checked
                         HyprlandConfig.set("general:snap:respect_gaps", checked ? 1 : 0)
@@ -2106,10 +2220,15 @@ ContentPage {
 
             // Advanced General Settings
             ContentSubsection {
+                visible: page.settingsShow("window-rules");
                 title: Translation.tr("Advanced General Settings")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("window-rules")
                     // Active border color
                     ConfigTextArea {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.active-border-color";
                         Layout.fillWidth: true
                         buttonIcon: "palette"
                         text: Translation.tr("Active Border Color")
@@ -2123,6 +2242,8 @@ ContentPage {
                     }
                     // Inactive border color
                     ConfigTextArea {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.inactive-border-color";
                         Layout.fillWidth: true
                         buttonIcon: "palette"
                         text: Translation.tr("Inactive Border Color")
@@ -2136,6 +2257,8 @@ ContentPage {
                     }
                     // Nogroup border color
                     ConfigTextArea {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.nogroup-border-color";
                         Layout.fillWidth: true
                         buttonIcon: "palette"
                         text: Translation.tr("Nogroup Border Color")
@@ -2149,11 +2272,13 @@ ContentPage {
                     }
                     // Float gaps
                     ConfigSpinBox {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.float-gaps";
                         icon: "view_carousel"
                         text: Translation.tr("Float Gaps")
                         value: Config.options.hyprland.general.floatGaps
                         from: 0; to: 100; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             if (value === Config.options.hyprland.general.floatGaps) return
                             Config.options.hyprland.general.floatGaps = value
                             HyprlandConfig.set("general:float_gaps", value)
@@ -2161,10 +2286,12 @@ ContentPage {
                     }
                     // Extend border grab area
                     ConfigSwitch {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.extend-border-grab-area";
                         buttonIcon: "drag_indicator"
                         text: Translation.tr("Extend Border Grab Area")
                         checked: Config.options.hyprland.general.extendBorderGrabArea
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.general.extendBorderGrabArea) return
                             Config.options.hyprland.general.extendBorderGrabArea = checked
                             HyprlandConfig.set("general:extend_border_grab_area", checked ? 1 : 0)
@@ -2172,10 +2299,12 @@ ContentPage {
                     }
                     // Hover icon on border
                     ConfigSwitch {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.hover-icon-on-border";
                         buttonIcon: "cursor"
                         text: Translation.tr("Hover Icon On Border")
                         checked: Config.options.hyprland.general.hoverIconOnBorder
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.general.hoverIconOnBorder) return
                             Config.options.hyprland.general.hoverIconOnBorder = checked
                             HyprlandConfig.set("general:hover_icon_on_border", checked ? 1 : 0)
@@ -2183,10 +2312,12 @@ ContentPage {
                     }
                     // No focus fallback
                     ConfigSwitch {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.no-focus-fallback";
                         buttonIcon: "focus_disabled"
                         text: Translation.tr("No Focus Fallback")
                         checked: Config.options.hyprland.general.noFocusFallback
-                        onCheckedChanged: {
+                        onEdited: {
                             if (checked === Config.options.hyprland.general.noFocusFallback) return
                             Config.options.hyprland.general.noFocusFallback = checked
                             HyprlandConfig.set("general:no_focus_fallback", checked ? 1 : 0)
@@ -2198,31 +2329,40 @@ ContentPage {
 
         // Misc
         ContentSection {
+            visible: page.settingsShow("window-rules");
             icon: "settings"
             shape: MaterialShape.Shape.Sunny
             title: Translation.tr("Misc")
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("window-rules")
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.disable-hyprland-logo";
                     buttonIcon: "image_not_supported"
                     text: Translation.tr("Disable Hyprland Logo")
                     checked: Config.options.hyprland.misc.disableHyprlandLogo
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.misc.disableHyprlandLogo) return
                         Config.options.hyprland.misc.disableHyprlandLogo = checked
                         HyprlandConfig.set("misc:disable_hyprland_logo", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.disable-splash-rendering";
                     buttonIcon: "wallpaper"
                     text: Translation.tr("Disable Splash Rendering")
                     checked: Config.options.hyprland.misc.disableSplashRendering
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.misc.disableSplashRendering) return
                         Config.options.hyprland.misc.disableSplashRendering = checked
                         HyprlandConfig.set("misc:disable_splash_rendering", checked ? 1 : 0)
                     }
                 }
                 ConfigSelectionArray {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.vrr-2";
                     text: Translation.tr("VRR")
                     icon: "monitor"
                     currentValue: Config.options.hyprland.misc.vrr
@@ -2237,46 +2377,56 @@ ContentPage {
                     ]
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.mouse-move-enables-dpms";
                     buttonIcon: "mouse"
                     text: Translation.tr("Mouse Move Enables DPMS")
                     checked: Config.options.hyprland.misc.mouseMoveEnablesDpms
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.misc.mouseMoveEnablesDpms) return
                         Config.options.hyprland.misc.mouseMoveEnablesDpms = checked
                         HyprlandConfig.set("misc:mouse_move_enables_dpms", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.key-press-enables-dpms";
                     buttonIcon: "keyboard"
                     text: Translation.tr("Key Press Enables DPMS")
                     checked: Config.options.hyprland.misc.keyPressEnablesDpms
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.misc.keyPressEnablesDpms) return
                         Config.options.hyprland.misc.keyPressEnablesDpms = checked
                         HyprlandConfig.set("misc:key_press_enables_dpms", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.animate-manual-resizes";
                     buttonIcon: "open_with"
                     text: Translation.tr("Animate Manual Resizes")
                     checked: Config.options.hyprland.misc.animateManualResizes
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.misc.animateManualResizes) return
                         Config.options.hyprland.misc.animateManualResizes = checked
                         HyprlandConfig.set("misc:animate_manual_resizes", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.animate-mouse-window-dragging";
                     buttonIcon: "drag_indicator"
                     text: Translation.tr("Animate Mouse Window Dragging")
                     checked: Config.options.hyprland.misc.animateMouseWindowDragging
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.misc.animateMouseWindowDragging) return
                         Config.options.hyprland.misc.animateMouseWindowDragging = checked
                         HyprlandConfig.set("misc:animate_mouse_windowdragging", checked ? 1 : 0)
                     }
                 }
                 ConfigSelectionArray {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.focus-on-activate";
                     text: Translation.tr("Focus On Activate")
                     icon: "center_focus_strong"
                     currentValue: Config.options.hyprland.misc.focusOnActivate
@@ -2295,16 +2445,21 @@ ContentPage {
 
         // Cursor
         ContentSection {
+            visible: page.settingsShow("input-details");
             icon: "mouse"
             shape: MaterialShape.Shape.Oval
             title: Translation.tr("Cursor")
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("input-details")
                 ConfigSpinBox {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.zoom-factor";
                     icon: "zoom_in"
                     text: Translation.tr("Zoom Factor")
                     value: Math.round(Config.options.hyprland.cursor.zoomFactor * 10)
                     from: 10; to: 30; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         const v = value/10.0
                         if (v === Config.options.hyprland.cursor.zoomFactor) return
                         Config.options.hyprland.cursor.zoomFactor = v
@@ -2312,62 +2467,74 @@ ContentPage {
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.zoom-rigid";
                     buttonIcon: "open_with"
                     text: Translation.tr("Zoom Rigid")
                     checked: Config.options.hyprland.cursor.zoomRigid
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.cursor.zoomRigid) return
                         Config.options.hyprland.cursor.zoomRigid = checked
                         HyprlandConfig.set("cursor:zoom_rigid", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.hide-on-key-press";
                     buttonIcon: "keyboard_hide"
                     text: Translation.tr("Hide On Key Press")
                     checked: Config.options.hyprland.cursor.hideOnKeyPress
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.cursor.hideOnKeyPress) return
                         Config.options.hyprland.cursor.hideOnKeyPress = checked
                         HyprlandConfig.set("cursor:hide_on_key_press", checked ? 1 : 0)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.inactive-timeout-s";
                     icon: "timer"
                     text: Translation.tr("Inactive Timeout (s)")
                     value: Config.options.hyprland.cursor.inactiveTimeout
                     from: 0; to: 60; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.cursor.inactiveTimeout) return
                         Config.options.hyprland.cursor.inactiveTimeout = value
                         HyprlandConfig.set("cursor:inactive_timeout", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.hotspot-padding";
                     icon: "padding"
                     text: Translation.tr("Hotspot Padding")
                     value: Config.options.hyprland.cursor.hotspotPadding
                     from: 0; to: 10; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.cursor.hotspotPadding) return
                         Config.options.hyprland.cursor.hotspotPadding = value
                         HyprlandConfig.set("cursor:hotspot_padding", value)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.no-warps";
                     buttonIcon: "block"
                     text: Translation.tr("No Warps")
                     checked: Config.options.hyprland.cursor.noWarps
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.cursor.noWarps) return
                         Config.options.hyprland.cursor.noWarps = checked
                         HyprlandConfig.set("cursor:no_warps", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.persistent-warps";
                     buttonIcon: "repeat"
                     text: Translation.tr("Persistent Warps")
                     checked: Config.options.hyprland.cursor.persistentWarps
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.cursor.persistentWarps) return
                         Config.options.hyprland.cursor.persistentWarps = checked
                         HyprlandConfig.set("cursor:persistent_warps", checked ? 1 : 0)
@@ -2378,27 +2545,34 @@ ContentPage {
 
         // Gestures
         ContentSection {
+            visible: page.settingsShow("input-details");
             icon: "gesture"
             shape: MaterialShape.Shape.Diamond
             title: Translation.tr("Gestures")
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("input-details")
                 ConfigSpinBox {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.workspace-swipe-distance";
                     icon: "swipe"
                     text: Translation.tr("Workspace Swipe Distance")
                     value: Config.options.hyprland.gestures.workspaceSwipeDistance
                     from: 100; to: 1000; stepSize: 10
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.gestures.workspaceSwipeDistance) return
                         Config.options.hyprland.gestures.workspaceSwipeDistance = value
                         HyprlandConfig.set("gestures:workspace_swipe_distance", value)
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.swipe-cancel-ratio";
                     icon: "cancel"
                     text: Translation.tr("Swipe Cancel Ratio (%)")
                     value: Math.round(Config.options.hyprland.gestures.workspaceSwipeCancelRatio * 100)
                     from: 0; to: 100; stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         const v = value/100.0
                         if (v === Config.options.hyprland.gestures.workspaceSwipeCancelRatio) return
                         Config.options.hyprland.gestures.workspaceSwipeCancelRatio = v
@@ -2406,21 +2580,25 @@ ContentPage {
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.swipe-min-speed";
                     icon: "speed"
                     text: Translation.tr("Swipe Min Speed")
                     value: Config.options.hyprland.gestures.workspaceSwipeMinSpeedToForce
                     from: 0; to: 50; stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         if (value === Config.options.hyprland.gestures.workspaceSwipeMinSpeedToForce) return
                         Config.options.hyprland.gestures.workspaceSwipeMinSpeedToForce = value
                         HyprlandConfig.set("gestures:workspace_swipe_min_speed_to_force", value)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.swipe-direction-lock";
                     buttonIcon: "lock"
                     text: Translation.tr("Swipe Direction Lock")
                     checked: Config.options.hyprland.gestures.workspaceSwipeDirectionLock
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.gestures.workspaceSwipeDirectionLock) return
                         Config.options.hyprland.gestures.workspaceSwipeDirectionLock = checked
                         HyprlandConfig.set("gestures:workspace_swipe_direction_lock", checked ? 1 : 0)
@@ -2431,12 +2609,24 @@ ContentPage {
 
         // Custom Binds — power user (writes to ~/.config/hypr/custom/keybinds.lua)
         ContentSection {
+            visible: page.settingsShow("input-details");
             id: customBindsSection
+            property bool draftEdited: false
+            FileView {
+                id: bindsSourceFile
+                path: HyprlandConfig.customBindsPath
+                printErrors: false
+                watchChanges: true
+                onFileChanged: if (!customBindsSection.draftEdited) reload()
+                onLoaded: if (!customBindsSection.draftEdited) bindsArea.text = text()
+            }
             icon: "keyboard"
             shape: MaterialShape.Shape.Pill
             title: Translation.tr("Custom Binds (Advanced)")
             GroupedList {
+                compact: true;
                 StyledText {
+                    property bool groupDescription: true;
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     font.pixelSize: Appearance.font.pixelSize.small
@@ -2445,12 +2635,18 @@ ContentPage {
                 }
             }
             Rectangle {
+                visible: page.settingsShow("input-details");
+
                 Layout.fillWidth: true
                 implicitHeight: bindsArea.implicitHeight + 16
                 radius: Appearance.rounding.normal
                 color: Appearance.colors.colLayer1
                 TextArea {
+                    objectName: "HyprlandSettings.custom-shortcuts-lua";
+                    visible: page.settingsShow("input-details");
+
                     id: bindsArea
+                    onTextChanged: if (activeFocus) customBindsSection.draftEdited = true
                     anchors.fill: parent
                     anchors.margins: 8
                     text: Config.options.hyprland.customBindsLua
@@ -2461,18 +2657,23 @@ ContentPage {
                     font.pixelSize: Appearance.font.pixelSize.small
                     color: Appearance.colors.colOnLayer1
                     background: null
-                    onTextChanged: bindsDebounce.restart()
+
                 }
             }
             RowLayout {
+                visible: page.settingsShow("input-details");
                 Layout.fillWidth: true
                 RippleButtonWithIcon {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.save-binds";
                     materialIcon: "save"
                     mainText: Translation.tr("Save Binds")
                     onClicked: customBindsSection.saveBinds()
                     colBackground: Appearance.colors.colPrimaryContainer
                 }
                 RippleButtonWithIcon {
+                    visible: page.settingsShow("input-details");
+                    objectName: "HyprlandSettings.reload-hyprland";
                     materialIcon: "refresh"
                     mainText: Translation.tr("Reload Hyprland")
                     onClicked: reloadProc.running = true
@@ -2480,30 +2681,42 @@ ContentPage {
                 }
                 Item { Layout.fillWidth: true }
                 StyledText {
+                    visible: page.settingsShow("input-details");
                     id: bindsStatus
                     font.pixelSize: Appearance.font.pixelSize.small
                     color: Appearance.colors.colSubtext
                 }
             }
-            Timer { id: bindsDebounce; interval: 1500; onTriggered: customBindsSection.saveBinds() }
             function saveBinds() {
                 Config.options.hyprland.customBindsLua = bindsArea.text
                 saveBindsProc.command = ["python3", HyprlandConfig.configuratorScriptPath, "--custom-binds", bindsArea.text, "--custom-binds-file", HyprlandConfig.customBindsPath]
                 saveBindsProc.running = true
             }
-            Process { id: saveBindsProc; onExited: (code, status) => { bindsStatus.text = code===0 ? Translation.tr("Saved") : Translation.tr("Failed"); clearBindsStatus.restart() } }
+            Process { id: saveBindsProc; onExited: (code, status) => { if (code === 0) { customBindsSection.draftEdited = false; bindsSourceFile.reload() }; bindsStatus.text = code===0 ? Translation.tr("Saved") : Translation.tr("Failed"); clearBindsStatus.restart() } }
             Timer { id: clearBindsStatus; interval: 2000; onTriggered: bindsStatus.text = "" }
             Process { id: reloadProc; command: ["hyprctl", "reload"] }
         }
 
         // Custom Rules
         ContentSection {
+            visible: page.settingsShow("window-rules");
             id: customRulesSection
+            property bool draftEdited: false
+            FileView {
+                id: rulesSourceFile
+                path: HyprlandConfig.customRulesPath
+                printErrors: false
+                watchChanges: true
+                onFileChanged: if (!customRulesSection.draftEdited) reload()
+                onLoaded: if (!customRulesSection.draftEdited) rulesArea.text = text()
+            }
             icon: "rule"
             shape: MaterialShape.Shape.Square
             title: Translation.tr("Custom Window Rules (Advanced)")
             GroupedList {
+                compact: true;
                 StyledText {
+                    property bool groupDescription: true;
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     font.pixelSize: Appearance.font.pixelSize.small
@@ -2512,12 +2725,18 @@ ContentPage {
                 }
             }
             Rectangle {
+                visible: page.settingsShow("window-rules");
+
                 Layout.fillWidth: true
                 implicitHeight: rulesArea.implicitHeight + 16
                 radius: Appearance.rounding.normal
                 color: Appearance.colors.colLayer1
                 TextArea {
+                    objectName: "HyprlandSettings.custom-window-rules-lua";
+                    visible: page.settingsShow("window-rules");
+
                     id: rulesArea
+                    onTextChanged: if (activeFocus) customRulesSection.draftEdited = true
                     anchors.fill: parent
                     anchors.margins: 8
                     text: Config.options.hyprland.customRulesLua
@@ -2528,45 +2747,53 @@ ContentPage {
                     font.pixelSize: Appearance.font.pixelSize.small
                     color: Appearance.colors.colOnLayer1
                     background: null
-                    onTextChanged: rulesDebounce.restart()
+
                 }
             }
             RowLayout {
+                visible: page.settingsShow("window-rules");
                 Layout.fillWidth: true
                 RippleButtonWithIcon {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.save-rules";
                     materialIcon: "save"
                     mainText: Translation.tr("Save Rules")
                     onClicked: customRulesSection.saveRules()
                     colBackground: Appearance.colors.colPrimaryContainer
                 }
                 RippleButtonWithIcon {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.reload-hyprland-2";
                     materialIcon: "refresh"
                     mainText: Translation.tr("Reload Hyprland")
                     onClicked: reloadRulesProc.running = true
                     colBackground: Appearance.colors.colSecondaryContainer
                 }
                 Item { Layout.fillWidth: true }
-                StyledText { id: rulesStatus; font.pixelSize: Appearance.font.pixelSize.small; color: Appearance.colors.colSubtext }
+                StyledText {
+                    visible: page.settingsShow("window-rules"); id: rulesStatus; font.pixelSize: Appearance.font.pixelSize.small; color: Appearance.colors.colSubtext }
             }
-            Timer { id: rulesDebounce; interval: 1500; onTriggered: customRulesSection.saveRules() }
             function saveRules() {
                 Config.options.hyprland.customRulesLua = rulesArea.text
                 saveRulesProc.command = ["python3", HyprlandConfig.configuratorScriptPath, "--custom-rules", rulesArea.text, "--custom-rules-file", HyprlandConfig.customRulesPath]
                 saveRulesProc.running = true
             }
-            Process { id: saveRulesProc; onExited: (code, s) => { rulesStatus.text = code===0 ? Translation.tr("Saved") : Translation.tr("Failed"); clearRulesStatus.restart() } }
+            Process { id: saveRulesProc; onExited: (code, s) => { if (code === 0) { customRulesSection.draftEdited = false; rulesSourceFile.reload() }; rulesStatus.text = code===0 ? Translation.tr("Saved") : Translation.tr("Failed"); clearRulesStatus.restart() } }
             Timer { id: clearRulesStatus; interval: 2000; onTriggered: rulesStatus.text = "" }
             Process { id: reloadRulesProc; command: ["hyprctl", "reload"] }
         }
 
         // Workspace Rules (Structured)
         ContentSection {
+            visible: page.settingsShow("window-rules");
             id: workspaceRulesSection
             icon: "workspaces"
             shape: MaterialShape.Shape.Diamond
             title: Translation.tr("Workspace Rules")
             GroupedList {
+                compact: true;
                 StyledText {
+                    property bool groupDescription: true;
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     font.pixelSize: Appearance.font.pixelSize.small
@@ -2576,6 +2803,7 @@ ContentPage {
             }
             // List of workspace rules
             ColumnLayout {
+                visible: page.settingsShow("window-rules");
                 Layout.fillWidth: true
                 spacing: 4
                 Repeater {
@@ -2638,6 +2866,7 @@ ContentPage {
                 }
                 // Add new rule row
                 RowLayout {
+                    visible: page.settingsShow("window-rules");
                     Layout.fillWidth: true
                     spacing: 6
                     Rectangle {
@@ -2653,6 +2882,8 @@ ContentPage {
                         StyledText { visible: newWrMonitor.text.length===0; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 6; text: "monitor"; color: Appearance.colors.colSubtext; font.pixelSize: Appearance.font.pixelSize.small }
                     }
                     RippleButtonWithIcon {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.add-2";
                         materialIcon: "add"; mainText: Translation.tr("Add")
                         onClicked: {
                             let ws = newWrWorkspace.text.trim()
@@ -2667,22 +2898,27 @@ ContentPage {
                         colBackground: Appearance.colors.colPrimaryContainer
                     }
                 }
-                StyledText { Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Workspace: number/name/* for all. Monitor: output name or empty. Example: '1' on 'DP-1' binds workspace 1 to DP-1.") }
+                StyledText {
+                    visible: page.settingsShow("window-rules"); Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Workspace: number/name/* for all. Monitor: output name or empty. Example: '1' on 'DP-1' binds workspace 1 to DP-1.") }
             }
             // Save & reload
             Process { id: saveWrProc; onExited: (code) => { wrStatus.text = code===0 ? Translation.tr("Saved") : Translation.tr("Failed"); clearWrStatus.restart() } }
             Timer { id: clearWrStatus; interval: 2000; onTriggered: wrStatus.text = "" }
             Process { id: reloadWrProc; command: ["hyprctl", "reload"] }
             RowLayout {
+                visible: page.settingsShow("window-rules");
                 Layout.fillWidth: true
                 RippleButtonWithIcon {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.save";
                     materialIcon: "save"
                     mainText: Translation.tr("Save")
                     onClicked: workspaceRulesSection.saveWorkspaceRules()
                     colBackground: Appearance.colors.colPrimaryContainer
                 }
                 Item { Layout.fillWidth: true }
-                StyledText { id: wrStatus; font.pixelSize: Appearance.font.pixelSize.small; color: Appearance.colors.colSubtext }
+                StyledText {
+                    visible: page.settingsShow("window-rules"); id: wrStatus; font.pixelSize: Appearance.font.pixelSize.small; color: Appearance.colors.colSubtext }
             }
             function saveWorkspaceRules() {
                 const rules = Config.options.hyprland.general.workspaceRules
@@ -2717,12 +2953,15 @@ ContentPage {
 
         // Window Rules (Structured)
         ContentSection {
+            visible: page.settingsShow("window-rules");
             id: windowRulesSection
             icon: "select_window"
             shape: MaterialShape.Shape.Slanted
             title: Translation.tr("Window Rules (Structured)")
             GroupedList {
+                compact: true;
                 StyledText {
+                    property bool groupDescription: true;
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     font.pixelSize: Appearance.font.pixelSize.small
@@ -2731,6 +2970,7 @@ ContentPage {
                 }
             }
             ColumnLayout {
+                visible: page.settingsShow("window-rules");
                 Layout.fillWidth: true
                 spacing: 4
                 Repeater {
@@ -2788,6 +3028,7 @@ ContentPage {
                 }
                 // Add new window rule row
                 RowLayout {
+                    visible: page.settingsShow("window-rules");
                     Layout.fillWidth: true
                     spacing: 6
                     Rectangle {
@@ -2796,7 +3037,8 @@ ContentPage {
                         TextInput { id: newWrClass; anchors.fill: parent; anchors.margins: 6; verticalAlignment: TextInput.AlignVCenter; selectByMouse: true; color: Appearance.colors.colOnLayer1; font.pixelSize: Appearance.font.pixelSize.small }
                         StyledText { visible: newWrClass.text.length===0; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 6; text: "class"; color: Appearance.colors.colSubtext; font.pixelSize: Appearance.font.pixelSize.small }
                     }
-                    StyledText { text: Translation.tr("→"); color: Appearance.colors.colSubtext }
+                    StyledText {
+                        visible: page.settingsShow("window-rules"); text: Translation.tr("→"); color: Appearance.colors.colSubtext }
                     StyledComboBox {
                         id: newWrAction
                         Layout.preferredWidth: 90
@@ -2811,6 +3053,8 @@ ContentPage {
                         textRole: "displayName"
                     }
                     RippleButtonWithIcon {
+                        visible: page.settingsShow("window-rules");
+                        objectName: "HyprlandSettings.add-3";
                         materialIcon: "add"; mainText: Translation.tr("Add")
                         onClicked: {
                             let cls = newWrClass.text.trim()
@@ -2827,20 +3071,25 @@ ContentPage {
                         colBackground: Appearance.colors.colPrimaryContainer
                     }
                 }
-                StyledText { Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Match by class name. Actions: Float, Pin, No Focus, No Shadow, No Blur (per-window blur/glass opt-out — blur itself is configured globally under Settings > Hyprland > Blur Style). For advanced rules, use the Custom Rules textarea below.") }
+                StyledText {
+                    visible: page.settingsShow("window-rules"); Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Match by class name. Actions: Float, Pin, No Focus, No Shadow, No Blur (per-window blur/glass opt-out — blur itself is configured globally under Settings > Hyprland > Blur Style). For advanced rules, use the Custom Rules textarea below.") }
             }
             Process { id: saveWr2Proc; onExited: (code) => { wr2Status.text = code===0 ? Translation.tr("Saved") : Translation.tr("Failed"); clearWr2Status.restart() } }
             Timer { id: clearWr2Status; interval: 2000; onTriggered: wr2Status.text = "" }
             RowLayout {
+                visible: page.settingsShow("window-rules");
                 Layout.fillWidth: true
                 RippleButtonWithIcon {
+                    visible: page.settingsShow("window-rules");
+                    objectName: "HyprlandSettings.save-2";
                     materialIcon: "save"
                     mainText: Translation.tr("Save")
                     onClicked: windowRulesSection.saveWindowRules()
                     colBackground: Appearance.colors.colPrimaryContainer
                 }
                 Item { Layout.fillWidth: true }
-                StyledText { id: wr2Status; font.pixelSize: Appearance.font.pixelSize.small; color: Appearance.colors.colSubtext }
+                StyledText {
+                    visible: page.settingsShow("window-rules"); id: wr2Status; font.pixelSize: Appearance.font.pixelSize.small; color: Appearance.colors.colSubtext }
             }
             function saveWindowRules() {
                 const rules = Config.options.hyprland.general.windowRules
@@ -2875,45 +3124,57 @@ ContentPage {
 
         // Autostart Apps
         ContentSection {
+            visible: page.settingsShow("apps");
             icon: "app_registration"
             shape: MaterialShape.Shape.Sunny
             title: Translation.tr("Autostart Apps")
             Layout.fillWidth: true
 
-            AutostartApps {}
+            AutostartApps {
+                visible: page.settingsShow("apps");
+                objectName: "HyprlandSettings.startup-applications"}
         }
 
         // Animations — comprehensive editor (lua, bezier/spring, full tree)
         ContentSection {
+            visible: page.settingsShow("effects");
             icon: "animation"
             shape: MaterialShape.Shape.Oval
             title: Translation.tr("Animations")
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("effects")
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.enable";
                     buttonIcon: "check"
                     text: Translation.tr("Enable")
                     checked: Config.options.hyprland.animations.enable
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.animations.enable) return
                         Config.options.hyprland.animations.enable = checked
                         HyprlandConfig.set("animations:enabled", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.workspace-wraparound";
                     buttonIcon: "tune"
                     text: Translation.tr("Workspace Wraparound")
                     checked: Config.options.hyprland.animations.workspaceWraparound
-                    onCheckedChanged: {
+                    onEdited: {
                         if (checked === Config.options.hyprland.animations.workspaceWraparound) return
                         Config.options.hyprland.animations.workspaceWraparound = checked
                         HyprlandConfig.set("animations:workspace_wraparound", checked ? 1 : 0)
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.custom-editor-advanced";
                     buttonIcon: "edit"
                     text: Translation.tr("Custom Editor (advanced)")
                     checked: Config.options.hyprland.animations.customEnabled
-                    onCheckedChanged: {
+                    onEdited: {
                         Config.options.hyprland.animations.customEnabled = checked
                         if (!checked) {
                             // revert to preset handling
@@ -2925,7 +3186,8 @@ ContentPage {
                 }
                 // Preset mode (when customEnabled false)
                 ConfigSelectionArray {
-                    visible: !Config.options.hyprland.animations.customEnabled
+                    objectName: "HyprlandSettings.presets";
+                    visible: page.settingsShow("effects") && (!Config.options.hyprland.animations.customEnabled)
                     text: Translation.tr("Presets")
                     icon: "present_to_all"
                     currentValue: Config.options.hyprland.animations.animation
@@ -2947,6 +3209,7 @@ ContentPage {
                     ]
                 }
                 StyledText {
+                    property bool groupDescription: true;
                     visible: !Config.options.hyprland.animations.customEnabled
                     Layout.fillWidth: true
                     Layout.leftMargin: 8
@@ -2969,7 +3232,7 @@ ContentPage {
 
             // Custom editor visible only when enabled
             ColumnLayout {
-                visible: Config.options.hyprland.animations.customEnabled
+                visible: page.settingsShow("effects") && (Config.options.hyprland.animations.customEnabled)
                 Layout.fillWidth: true
                 spacing: 12
                 Layout.topMargin: 8
@@ -2986,9 +3249,13 @@ ContentPage {
 
                 // Curves editor
                 ContentSubsection {
+                    visible: page.settingsShow("effects");
                     title: Translation.tr("Curves (bezier / spring)")
                     GroupedList {
+                        compact: true;
+                        visible: page.settingsShow("effects")
                         ColumnLayout {
+                            visible: page.settingsShow("effects");
                             Layout.fillWidth: true
                             spacing: 6
                             Repeater {
@@ -3033,6 +3300,7 @@ ContentPage {
                             }
                             // Add curve row
                             RowLayout {
+                                visible: page.settingsShow("effects");
                                 Layout.fillWidth: true
                                 spacing: 6
                                 Rectangle {
@@ -3047,6 +3315,8 @@ ContentPage {
                                     id: newCurveType; Layout.preferredWidth: 110; model: [{displayName:"bezier", value:"bezier"}, {displayName:"spring", value:"spring"}]; textRole: "displayName"
                                 }
                                 RippleButtonWithIcon {
+                                    visible: page.settingsShow("effects");
+                                    objectName: "HyprlandSettings.add-4";
                                     materialIcon: "add"; mainText: Translation.tr("Add")
                                     onClicked: {
                                         const n = newCurveName.text.trim()
@@ -3063,9 +3333,13 @@ ContentPage {
                                     colBackground: Appearance.colors.colPrimaryContainer
                                 }
                             }
-                            StyledText { Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Bezier: points {x0,y0} {x1,y1} (0-1+) — Spring: mass 1, stiffness 50-500, damping 5-50. Example presets imported from hyprland.lua: easeOutQuint, easy (spring).") }
+                            StyledText {
+                                visible: page.settingsShow("effects"); Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Bezier: points {x0,y0} {x1,y1} (0-1+) — Spring: mass 1, stiffness 50-500, damping 5-50. Example presets imported from hyprland.lua: easeOutQuint, easy (spring).") }
                             RowLayout {
+                                visible: page.settingsShow("effects")
                                 RippleButtonWithIcon {
+                                    visible: page.settingsShow("effects");
+                                    objectName: "HyprlandSettings.load-preset-into-custom";
                                     materialIcon: "download"; mainText: Translation.tr("Load Preset Into Custom")
                                     onClicked: {
                                         // Seed the custom editor with the Material 3 emphasized curves
@@ -3093,6 +3367,8 @@ ContentPage {
                                     colBackground: Appearance.colors.colSecondaryContainer
                                 }
                                 RippleButtonWithIcon {
+                                    visible: page.settingsShow("effects");
+                                    objectName: "HyprlandSettings.apply-custom";
                                     materialIcon: "save"; mainText: Translation.tr("Apply Custom")
                                     onClicked: page.applyCustomAnims()
                                     colBackground: Appearance.colors.colPrimaryContainer
@@ -3104,9 +3380,13 @@ ContentPage {
 
                 // Animations tree editor
                 ContentSubsection {
+                    visible: page.settingsShow("effects");
                     title: Translation.tr("Animation Tree (inherits parent if unset)")
                     GroupedList {
+                        compact: true;
+                        visible: page.settingsShow("effects")
                         ColumnLayout {
+                            visible: page.settingsShow("effects");
                             Layout.fillWidth: true
                             spacing: 4
                             // Header
@@ -3135,7 +3415,7 @@ ContentPage {
                                         StyledSwitch {
                                             Layout.preferredWidth: 70
                                             checked: modelData.enabled
-                                            onCheckedChanged: {
+                                            onToggled: {
                                                 let arr = Config.options.hyprland.animations.customAnims.slice()
                                                 arr[index].enabled = checked
                                                 Config.options.hyprland.animations.customAnims = arr
@@ -3213,6 +3493,7 @@ ContentPage {
                             }
                             // Add leaf row
                             RowLayout {
+                                visible: page.settingsShow("effects");
                                 Layout.fillWidth: true; spacing: 6
                                 StyledComboBox {
                                     id: newLeafCombo; Layout.fillWidth: true
@@ -3224,6 +3505,8 @@ ContentPage {
                                     ]; textRole: "displayName"
                                 }
                                 RippleButtonWithIcon {
+                                    visible: page.settingsShow("effects");
+                                    objectName: "HyprlandSettings.add-leaf";
                                     materialIcon: "add"; mainText: Translation.tr("Add leaf")
                                     onClicked: {
                                         const leaf = newLeafCombo.model[newLeafCombo.currentIndex].value
@@ -3236,13 +3519,15 @@ ContentPage {
                                     colBackground: Appearance.colors.colPrimaryContainer
                                 }
                             }
-                            StyledText { Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Speed: 1ds=100ms. Styles: windows/layers → slide/popin/gnomed, workspaces → slide/slidevert/fade/slidefade, borderangle → once/loop, popin needs % e.g. popin 80%. Leave empty to inherit parent.") }
+                            StyledText {
+                                visible: page.settingsShow("effects"); Layout.fillWidth: true; wrapMode: Text.Wrap; font.pixelSize: Appearance.font.pixelSize.smaller; color: Appearance.colors.colSubtext; text: Translation.tr("Speed: 1ds=100ms. Styles: windows/layers → slide/popin/gnomed, workspaces → slide/slidevert/fade/slidefade, borderangle → once/loop, popin needs % e.g. popin 80%. Leave empty to inherit parent.") }
                         }
                     }
                 }
             }
 
             NoticeBox {
+                visible: page.settingsShow("effects");
                 Layout.fillWidth: true
                 Layout.topMargin: 15
                 text: Translation.tr("New installs load this file automatically. If nothing changes when you pick a preset, your hyprland.lua predates that and needs this line added manually:") + '\n\nrequire("hyprland/shellOverrides/animations")'
@@ -3250,6 +3535,8 @@ ContentPage {
                 Item { Layout.fillWidth: true }
 
                 RippleButtonWithIcon {
+                    visible: page.settingsShow("effects");
+                    objectName: "HyprlandSettings.animations";
                     id: copySourceButton
                     property bool justCopied: false
                     Layout.fillWidth: false

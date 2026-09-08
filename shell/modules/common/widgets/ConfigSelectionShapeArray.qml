@@ -59,6 +59,7 @@ Flow {
     }
 
     Repeater {
+        id: shapesRepeater
         model: root.options
         delegate: GroupButton {
             id: shapeButton
@@ -82,10 +83,10 @@ Flow {
                 if (index === 0) {
                     shapeButton.leftmost = true
                 } else {
-                    var prev = root.children[index - 1]
-                    var thisIsOnNewLine = prev && prev.y !== shapeButton.y
+                    var prev = shapesRepeater.itemAt(index - 1)
+                    var thisIsOnNewLine = !prev || prev.y !== shapeButton.y
                     shapeButton.leftmost = thisIsOnNewLine
-                    prev.rightmost = thisIsOnNewLine
+                    if (prev) prev.rightmost = thisIsOnNewLine
                 }
             }
 

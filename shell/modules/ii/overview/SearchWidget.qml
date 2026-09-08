@@ -22,6 +22,7 @@ Item { // Wrapper
     property string launcherPosition: "top" // top | bottom | center
     property string searchingText: LauncherSearch.query
     property bool showResults: searchingText != ""
+    readonly property bool resultsActive: GlobalStates.overviewOpen && Config.options.bar.barMode !== "m3Island"
     readonly property real searchBarHeight: searchBar.implicitHeight + searchBar.verticalPadding * 2
     implicitWidth: searchWidgetContent.implicitWidth + Appearance.sizes.elevationMargin * 2
     implicitHeight: searchWidgetContent.implicitHeight + searchBar.verticalPadding * 2 + Appearance.sizes.elevationMargin * 2
@@ -173,8 +174,8 @@ Item { // Wrapper
                 Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedDecel } }
                 onFocusChanged: { if (focus) currentIndex = 1; }
                 Connections { target: root; function onSearchingTextChanged() { if (appResultsBottom.count > 0) appResultsBottom.currentIndex = 0; } }
-                Timer { id: debounceBottom; interval: root.typingDebounceInterval; onTriggered: resultModelBottom.values = LauncherSearch.results ?? []; }
-                Connections { target: LauncherSearch; function onResultsChanged() { resultModelBottom.values = LauncherSearch.results.slice(0, root.typingResultLimit); if (root.launcherPosition === "bottom") root.focusFirstItem(); debounceBottom.restart(); } }
+                Timer { id: debounceBottom; interval: root.typingDebounceInterval; onTriggered: resultModelBottom.values = root.resultsActive && root.launcherPosition === "bottom" ? LauncherSearch.results : []; }
+                Connections { target: LauncherSearch; function onResultsChanged() { if (!root.resultsActive || root.launcherPosition !== "bottom") { resultModelBottom.values = []; return } resultModelBottom.values = LauncherSearch.results.slice(0, root.typingResultLimit); if (root.launcherPosition === "bottom") root.focusFirstItem(); debounceBottom.restart(); } }
                 model: ScriptModel { id: resultModelBottom; objectProp: "key" }
                 delegate: SearchItem {
                     required property var modelData
@@ -233,8 +234,8 @@ Item { // Wrapper
                 Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.emphasizedDecel } }
                 onFocusChanged: { if (focus) currentIndex = 1; }
                 Connections { target: root; function onSearchingTextChanged() { if (appResultsTop.count > 0) appResultsTop.currentIndex = 0; } }
-                Timer { id: debounceTop; interval: root.typingDebounceInterval; onTriggered: resultModelTop.values = LauncherSearch.results ?? []; }
-                Connections { target: LauncherSearch; function onResultsChanged() { resultModelTop.values = LauncherSearch.results.slice(0, root.typingResultLimit); if (root.launcherPosition !== "bottom") root.focusFirstItem(); debounceTop.restart(); } }
+                Timer { id: debounceTop; interval: root.typingDebounceInterval; onTriggered: resultModelTop.values = root.resultsActive && root.launcherPosition !== "bottom" ? LauncherSearch.results : []; }
+                Connections { target: LauncherSearch; function onResultsChanged() { if (!root.resultsActive || root.launcherPosition === "bottom") { resultModelTop.values = []; return } resultModelTop.values = LauncherSearch.results.slice(0, root.typingResultLimit); if (root.launcherPosition !== "bottom") root.focusFirstItem(); debounceTop.restart(); } }
                 model: ScriptModel { id: resultModelTop; objectProp: "key" }
                 delegate: SearchItem {
                     required property var modelData

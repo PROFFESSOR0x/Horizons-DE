@@ -203,7 +203,7 @@ Item {
         if (fromWs === toWs) {
             if (toPos !== fromPos && toPos < toWsWindows.length) {
                 var targetAddr = toWsWindows[toPos].address
-                Hyprland.dispatch(`hl.dsp.focus({ window = "address:${targetAddr}" })`)
+                GlobalStates.focusWindowInUnifiedSet(targetAddr)
                 Hyprland.dispatch(`hl.dsp.window.swap({ window = "address:${addr}" })`)
             }
         } else {
@@ -358,7 +358,7 @@ Item {
                             enabled: !root.isDragging && rowItem.wsWindows.length === 0
                             onClicked: {
                                 GlobalStates.overviewOpen = false
-                                Hyprland.dispatch(`hl.dsp.focus({ workspace = ${rowItem.wsId} })`)
+                                GlobalStates.activateWorkspace(rowItem.wsId, root.monitorData?.name ?? "")
                             }
                         }
                     }
@@ -511,7 +511,7 @@ Item {
                                     if (!winContainer.win) return
                                     if (event.button === Qt.LeftButton) {
                                         GlobalStates.overviewOpen = false
-                                        Hyprland.dispatch(`hl.dsp.focus({ window = "address:${winContainer.win.address}" })`)
+                                        GlobalStates.focusWindowInUnifiedSet(winContainer.win.address)
                                         event.accepted = true
                                     } else if (event.button === Qt.MiddleButton) {
                                         Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${winContainer.win.address}" })`)

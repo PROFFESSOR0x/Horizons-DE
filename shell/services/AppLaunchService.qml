@@ -172,7 +172,7 @@ Singleton {
     }
 
     function startExternal(appIdValue, addressValue, appNameValue) {
-        if (!Config.options.appLaunch.showIndicator || !appIdValue) return
+        if (!Config.options.appLaunch.showIndicator || !(Config.options.appLaunch?.trackExternal ?? false) || !appIdValue) return
         // Keep compositor event handling free of desktop-entry and icon index
         // lookups. Those indexes can be busy while a file opener starts.
         root.begin(appIdValue, root.iconForExternalApp(appIdValue), appNameValue, addressValue, true)
@@ -232,7 +232,7 @@ Singleton {
             // workspace id was previously treated as the app id, forcing the
             // generic dark fallback icon for files launched from a file
             // manager (and every other externally-created window).
-            if (fields.length >= 3 && !root.active)
+            if (fields.length >= 3 && !root.active && Boolean(Config.options.appLaunch?.trackExternal ?? false))
                 root.startExternal(fields[2], fields[0], fields[3] || fields[2])
         }
     }

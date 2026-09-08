@@ -50,25 +50,31 @@ ContentPage {
     }
 
     ColumnLayout {
+        visible: page.settingsShow("personal|system");
         id: mainLayout
         Layout.fillWidth: true
         Layout.fillHeight: true
         spacing: 20
 
         ContentSection {
+            visible: page.settingsShow("personal|system");
             icon: "person"
             shape: MaterialShape.Shape.Circle
             title: Translation.tr("Avatar")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("personal")
                 ConfigTextArea {
+                    visible: page.settingsShow("personal");
+                    objectName: "Profile.avatar-path";
                     id: avatarField
                     Layout.fillWidth: true
                     buttonIcon: "folder_open"
                     text: Translation.tr("Avatar path")
                     placeholderText: Translation.tr("Leave empty to use ~/.face, e.g. /home/youruser/Pictures/avatar")
                     value: Config.options.profile.avatarPath
-                    onValueChanged: {
+                    onEdited: {
                         avatarDebounceTimer.restart()
                     }
 
@@ -128,7 +134,7 @@ ContentPage {
                                     layer.enabled: true
                                     layer.effect: OpacityMask {
                                         maskSource: Rectangle {
-                                            width: 64; height: width; radius: width / 2 
+                                            width: 64; height: width; radius: width / 2
                                         }
                                     }
                                 }
@@ -185,10 +191,15 @@ ContentPage {
             }
 
             ContentSubsection {
+                visible: page.settingsShow("personal|system");
                 title: Translation.tr("Identity")
 
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("personal|system")
                     ConfigTextArea {
+                        visible: page.settingsShow("personal");
+                        objectName: "Profile.display-name";
                         id: displayNameField
                         buttonIcon: "badge"
                         placeholderText: SystemInfo.username
@@ -203,10 +214,12 @@ ContentPage {
                                 Config.options.profile.displayName = displayNameField.value
                             }
                         }
-                        onValueChanged: displayNameDebounceTimer.restart()
+                        onEdited: displayNameDebounceTimer.restart()
                     }
 
                     ConfigTextArea {
+                        visible: page.settingsShow("system");
+                        objectName: "Profile.hostname";
                         id: hostnameField
                         Layout.fillWidth: true
                         buttonIcon: "dns"
@@ -214,7 +227,7 @@ ContentPage {
                         text: Translation.tr("Hostname")
                         description: Translation.tr("Requires authentication to change")
                         value: page.hostnameInput
-                        onValueChanged: page.hostnameInput = value
+                        onEdited: page.hostnameInput = value
 
                         confirmButtonVisible: page.hostnameInput.trim() !== "" && page.hostnameInput.trim() !== SystemInfo.hostname
                         onConfirmClicked: {
@@ -223,6 +236,8 @@ ContentPage {
                     }
 
                     ConfigSelectionArray {
+                        visible: page.settingsShow("personal");
+                        objectName: "Profile.description-text";
                         text: Translation.tr("Description text")
                         icon: "subtitles"
                         currentValue: page.descriptionMode
@@ -241,12 +256,17 @@ ContentPage {
         }
 
         ContentSection {
+            visible: page.settingsShow("personal");
             icon: "wall_art"
             shape: MaterialShape.Shape.Pentagon
             title: Translation.tr("Presets")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("personal")
                 ConfigTextArea {
+                    visible: page.settingsShow("personal");
+                    objectName: "Profile.save-as";
                     id: presetNameField
                     Layout.fillWidth: true
                     fieldWidth: 300

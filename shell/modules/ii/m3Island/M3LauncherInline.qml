@@ -219,10 +219,20 @@ Item {
                     Loader {
                         active: true
                         sourceComponent: {
+                            if (Cliphist.entryIsImage(delButton.entry.rawValue)) return clipboardImage
                             if (delButton.entry.iconType === LauncherSearchResult.IconType.System) return sysIcon
                             if (delButton.entry.iconType === LauncherSearchResult.IconType.Material) return matIcon
                             if (delButton.entry.iconType === LauncherSearchResult.IconType.Text) return txtIcon
                             return matIcon
+                        }
+                    }
+                    Component {
+                        id: clipboardImage
+                        CliphistImage {
+                            entry: delButton.entry.rawValue
+                            maxWidth: 96
+                            maxHeight: 64
+                            blur: delButton.entry.blurImage
                         }
                     }
                     Component { id: sysIcon; IconImage { source: Quickshell.iconPath(delButton.entry.iconName, "image-missing"); width: 28; height: 28 } }

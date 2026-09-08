@@ -574,13 +574,7 @@ Variants {
             WidgetCanvas {
                 id: widgetCanvas
                 anchors.fill: parent
-                // The clock is the one intentional exception to the private
-                // desktop-widget rule: it remains the lock-screen anchor even
-                // when notes, media, and every other desktop widget are hidden.
-                // Individual widgets still decide their own lock visibility.
-                visible: !bgRoot.lockPresentationActive
-                    || Config.options.lock.showWidgets
-                    || Config.options.background.widgets.clock.enable
+                visible: !bgRoot.lockPresentationActive || Config.options.lock.showWidgets
 
                 transitions: Transition {
                     PropertyAnimation {
@@ -635,8 +629,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.customImage.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("customImage", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: CustomImage {
                         screenWidth:        bgRoot.screen.width
@@ -647,8 +641,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.calendar.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("calendar", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: CalendarWidget {
                         screenWidth: bgRoot.screen.width
@@ -659,8 +653,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.weather.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("weather", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: WeatherWidget {
                         screenWidth: bgRoot.screen.width
@@ -671,7 +665,7 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.clock.enable
+                    shown: GlobalStates.widgetShown("clock", bgRoot.lockPresentationActive)
                         && (bgRoot.lockPresentationActive
                             || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
@@ -685,8 +679,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.notes.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("notes", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: NotesWidget {
                         screenWidth: bgRoot.screen.width
@@ -699,8 +693,8 @@ Variants {
                 FadeLoader {
                     id: mediaLoader
                     property bool enableLoading: true
-                    shown: Config.options.background.widgets.media.enable && enableLoading
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("media", bgRoot.lockPresentationActive) && enableLoading
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: MediaWidget {
                         screenWidth: bgRoot.screen.width
@@ -719,8 +713,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.images.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("images", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: ImageConverterWidget {
                         screenWidth:        bgRoot.screen.width
@@ -731,8 +725,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.resources.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("resources", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: ResourcesWidget {
                         screenWidth:        bgRoot.screen.width
@@ -743,8 +737,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.networkInfo.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("networkInfo", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: NetworkInfoWidget {
                         screenWidth:        bgRoot.screen.width
@@ -755,8 +749,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.systemHistory.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("systemHistory", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: SystemHistoryWidget {
                         screenWidth:        bgRoot.screen.width
@@ -767,8 +761,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.uptime.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("uptime", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: UptimeWidget {
                         screenWidth:        bgRoot.screen.width
@@ -779,8 +773,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.worldClock.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("worldClock", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: WorldClockWidget {
                         screenWidth: bgRoot.screen.width
@@ -791,8 +785,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.userCard.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("userCard", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: UserCardWidget {
                         screenWidth: bgRoot.screen.width
@@ -803,8 +797,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.todo.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("todo", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: TodoWidget {
                         screenWidth: bgRoot.screen.width
@@ -815,8 +809,8 @@ Variants {
                     }
                 }
                 FadeLoader {
-                    shown: Config.options.background.widgets.timers.enable
-                        && (Config.options.background.screenList.length === 0
+                    shown: GlobalStates.widgetShown("timers", bgRoot.lockPresentationActive)
+                        && (bgRoot.lockPresentationActive || Config.options.background.screenList.length === 0
                             || Config.options.background.screenList.includes(bgRoot.screen.name))
                     sourceComponent: TimerWidget {
                         screenWidth:        bgRoot.screen.width
@@ -1304,9 +1298,6 @@ Variants {
                 visible: GlobalStates.lockPreviewOpen
                 implicitWidth: previewButtons.implicitWidth + 16
                 implicitHeight: previewButtons.implicitHeight + 12
-                property bool applyTargetMenuOpen: false
-                readonly property var otherOutputs: GlobalStates.lockOutputNames()
-                    .filter(name => name !== bgRoot.screen.name)
                 radius: Appearance.rounding.full
                 color: Appearance.colors.colLayer0
                 border.width: 1
@@ -1333,60 +1324,45 @@ Variants {
                         onClicked: GlobalStates.resetLockWidgetLayout()
                     }
                     IconAndTextToolbarButton {
-                        // Always show the action when another real output is
-                        // available. Pressing it upgrades a shared layout to
-                        // independent layouts without losing the design.
-                        visible: lockPreviewToolbar.otherOutputs.length > 0
-                        iconText: "content_copy"
-                        text: Translation.tr("Apply other screen")
-                        onClicked: {
-                            GlobalStates.ensurePerScreenLockLayout(bgRoot.screen.name)
-                            if (lockPreviewToolbar.otherOutputs.length === 1) {
-                                GlobalStates.applyLockDesignToOutput(
-                                    bgRoot.screen.name, lockPreviewToolbar.otherOutputs[0])
-                            } else if (lockPreviewToolbar.otherOutputs.length > 1) {
-                                lockPreviewToolbar.applyTargetMenuOpen = !lockPreviewToolbar.applyTargetMenuOpen
-                            }
-                        }
+                        iconText: "widgets"
+                        text: Translation.tr("Widgets")
+                        onClicked: widgetSelection.visible = !widgetSelection.visible
                     }
                 }
+            }
 
-                Rectangle {
-                    id: applyTargetMenu
-                    visible: lockPreviewToolbar.applyTargetMenuOpen
-                    anchors.top: parent.bottom
-                    anchors.topMargin: 8
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    implicitWidth: targetMenuColumn.implicitWidth + 16
-                    implicitHeight: targetMenuColumn.implicitHeight + 16
-                    radius: Appearance.rounding.normal
-                    color: Appearance.colors.colLayer0
-                    border.width: 1
-                    border.color: Appearance.colors.colLayer0Border
-                    z: 120
-                    Column {
-                        id: targetMenuColumn
-                        anchors.centerIn: parent
-                        spacing: 4
-                        Repeater {
-                            model: lockPreviewToolbar.otherOutputs
-                            delegate: RippleButton {
-                                required property string modelData
-                                implicitWidth: targetText.implicitWidth + 20
-                                implicitHeight: 34
-                                buttonRadius: Appearance.rounding.small
-                                contentItem: StyledText {
-                                    id: targetText
-                                    anchors.centerIn: parent
-                                    text: modelData
-                                    color: Appearance.colors.colOnLayer0
-                                }
-                                onClicked: {
-                                    GlobalStates.applyLockDesignToOutput(bgRoot.screen.name, modelData)
-                                    lockPreviewToolbar.applyTargetMenuOpen = false
-                                }
-                            }
-                        }
+            Rectangle {
+                id: widgetSelection
+                z: 110
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 20
+                anchors.topMargin: GlobalStates.lockPreviewOpen ? 86 : 20
+                width: Math.min(440, parent.width - 40)
+                height: Math.min(parent.height - anchors.topMargin - 20, widgetSelectionContent.implicitHeight + 16)
+                visible: false
+                color: Appearance.colors.colLayer0
+                radius: Appearance.rounding.normal
+                Flickable {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    contentHeight: widgetSelectionContent.implicitHeight
+                    clip: true
+                    WidgetsSubmenu {
+                        id: widgetSelectionContent
+                        width: parent.width
+                    }
+                }
+                Connections {
+                    target: GlobalStates
+                    function onLockPreviewOpenChanged() {
+                        widgetSelection.visible = GlobalStates.lockPreviewOpen
+                    }
+                }
+                Connections {
+                    target: Config.options.background
+                    function onWidgetsLockedChanged() {
+                        widgetSelection.visible = !Config.options.background.widgetsLocked
                     }
                 }
             }

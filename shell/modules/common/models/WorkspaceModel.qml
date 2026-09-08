@@ -33,7 +33,7 @@ NestableObject {
     }
     // In the all-screens mode the visible bar uses logical positions while
     // actions still receive the distinct, real workspace id for this output.
-    readonly property int activeNumber: C.Config.options.workspaceLinking.unifiedMultiMonitor
+    readonly property int activeNumber: GlobalStates.unifiedWorkspacesEnabled
         ? GlobalStates.logicalWorkspaceNumber(activeWorkspaceId, monitorName)
         : activeWorkspaceId
 
@@ -56,7 +56,7 @@ NestableObject {
 
     function getWorkspaceId(group, index) {
         const logicalNumber = group * root.shownCount + index + 1
-        if (C.Config.options.workspaceLinking.unifiedMultiMonitor)
+        if (GlobalStates.unifiedWorkspacesEnabled)
             return GlobalStates.peekUnifiedWorkspaceIdForSlot(logicalNumber, root.monitorName)
         return logicalNumber
     }
@@ -122,6 +122,12 @@ NestableObject {
         function onFocusedWorkspaceChanged() {
             root.updateWorkspaceOccupied()
         }
+    }
+
+    Connections {
+        target: C.Config.options.workspaceLinking
+        function onUnifiedSetsChanged() { root.updateWorkspaceOccupied() }
+        function onUnifiedMultiMonitorChanged() { root.updateWorkspaceOccupied() }
     }
 
     // Niri

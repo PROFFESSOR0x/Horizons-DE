@@ -36,22 +36,27 @@ ContentPage {
     }
 
     ColumnLayout {
-        id: mainLayout 
-        Layout.fillWidth: true   
+        visible: page.settingsShow("about|apps|capture|capture-details|integrations|system");
+        id: mainLayout
+        Layout.fillWidth: true
         Layout.fillHeight: true
         spacing: 20
 
         ContentSection {
+            visible: page.settingsShow("integrations");
             icon: "neurology"
             shape: MaterialShape.Shape.Ghostish
             title: Translation.tr("AI")
 
             MaterialTextArea {
+                visible: page.settingsShow("integrations");
+                objectName: "ServicesConfig.system-prompt";
                 Layout.fillWidth: true
                 placeholderText: Translation.tr("System prompt")
                 text: Config.options.ai.systemPrompt
                 wrapMode: TextEdit.Wrap
                 onTextChanged: {
+                    if (!activeFocus) return
                     Qt.callLater(() => {
                         Config.options.ai.systemPrompt = text;
                     });
@@ -60,46 +65,57 @@ ContentPage {
         }
 
         ContentSection {
+            visible: page.settingsShow("integrations");
             icon: "cell_tower"
             shape: MaterialShape.Shape.PixelCircle
             title: Translation.tr("Networking")
 
             MaterialTextArea {
+                visible: page.settingsShow("integrations");
+                objectName: "ServicesConfig.user-agent-for-services-that-require-it";
                 Layout.fillWidth: true
                 placeholderText: Translation.tr("User agent (for services that require it)")
                 text: Config.options.networking.userAgent
                 wrapMode: TextEdit.Wrap
                 onTextChanged: {
+                    if (!activeFocus) return
                     Config.options.networking.userAgent = text;
                 }
             }
         }
 
         ContentSection {
+            visible: page.settingsShow("integrations");
             icon: "music_cast"
             shape: MaterialShape.Shape.Oval
             title: Translation.tr("Music Recognition")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("integrations")
                 ConfigSpinBox {
+                    visible: page.settingsShow("integrations");
+                    objectName: "ServicesConfig.total-duration-timeout-s";
                     icon: "timer_off"
                     text: Translation.tr("Total duration timeout (s)")
                     value: Config.options.musicRecognition.timeout
                     from: 10
                     to: 100
                     stepSize: 2
-                    onValueChanged: {
+                    onEdited: {
                         Config.options.musicRecognition.timeout = value;
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("integrations");
+                    objectName: "ServicesConfig.polling-interval-s";
                     icon: "av_timer"
                     text: Translation.tr("Polling interval (s)")
                     value: Config.options.musicRecognition.interval
                     from: 2
                     to: 10
                     stepSize: 1
-                    onValueChanged: {
+                    onEdited: {
                         Config.options.musicRecognition.interval = value;
                     }
                 }
@@ -107,19 +123,24 @@ ContentPage {
         }
 
         ContentSection {
+            visible: page.settingsShow("capture");
             icon: "file_open"
             shape: MaterialShape.Shape.Slanted
             title: Translation.tr("Save paths")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("capture")
                 ConfigTextArea {
+                    visible: page.settingsShow("capture");
+                    objectName: "ServicesConfig.video-recording-path";
                     id: videoRecordPathField
                     Layout.fillWidth: true
                     fieldWidth: 250
                     buttonIcon: "video_file"
                     text: Translation.tr("Video Recording Path")
                     value: Config.options.screenRecord.savePath
-                    onValueChanged: {
+                    onEdited: {
                         videoRecordPathDebounceTimer.restart();
                     }
 
@@ -134,13 +155,15 @@ ContentPage {
                 }
 
                 ConfigTextArea {
+                    visible: page.settingsShow("capture");
+                    objectName: "ServicesConfig.screenshot-path-leave-empty-to-just-copy";
                     id: screenshotPathField
                     Layout.fillWidth: true
                     fieldWidth: 250
                     buttonIcon: "screenshot_monitor"
                     text: Translation.tr("Screenshot Path (leave empty to just copy)")
                     value: Config.options.screenSnip.savePath
-                    onValueChanged: {
+                    onEdited: {
                         screenshotPathDebounceTimer.restart();
                     }
 
@@ -157,21 +180,29 @@ ContentPage {
         }
 
         ContentSection {
+            visible: page.settingsShow("capture|capture-details");
             icon: "screenshot_monitor"
             shape: MaterialShape.Shape.PixelCircle
             title: Translation.tr("Capture quality")
 
             ContentSubsection {
+                visible: page.settingsShow("capture-details");
                 title: Translation.tr("Screenshots")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("capture-details")
                     ConfigSpinBox {
+                        visible: page.settingsShow("capture-details");
+                        objectName: "ServicesConfig.image-scale";
                         icon: "zoom_out_map"
                         text: Translation.tr("Image scale (%)")
                         value: Config.options.screenSnip.scalePercent
                         from: 25; to: 200; stepSize: 5
-                        onValueChanged: Config.options.screenSnip.scalePercent = value
+                        onEdited: Config.options.screenSnip.scalePercent = value
                     }
                     ConfigSelectionArray {
+                        visible: page.settingsShow("capture-details");
+                        objectName: "ServicesConfig.screenshot-format";
                         icon: "image"
                         text: Translation.tr("Screenshot format")
                         currentValue: Config.options.screenSnip.format
@@ -182,29 +213,40 @@ ContentPage {
                         ]
                     }
                     ConfigSpinBox {
+                        visible: page.settingsShow("capture-details");
+                        objectName: "ServicesConfig.jpeg-quality";
                         icon: "high_quality"
                         text: Translation.tr("JPEG quality")
                         enabled: Config.options.screenSnip.format === "jpg"
                         value: Config.options.screenSnip.jpegQuality
                         from: 50; to: 100; stepSize: 1
-                        onValueChanged: Config.options.screenSnip.jpegQuality = value
+                        onEdited: Config.options.screenSnip.jpegQuality = value
                     }
                 }
             }
 
             ContentSubsection {
+                visible: page.settingsShow("capture|capture-details");
                 title: Translation.tr("Screen recording")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("capture|capture-details")
                     ConfigRow {
+                        visible: page.settingsShow("capture-details");
                         uniform: true
                         ConfigSpinBox {
+                            visible: page.settingsShow("capture-details");
+                            objectName: "ServicesConfig.frame-rate";
                             icon: "speed"
                             text: Translation.tr("Frame rate")
                             value: Config.options.screenRecord.frameRate
                             from: 15; to: 120; stepSize: 5
-                            onValueChanged: Config.options.screenRecord.frameRate = value
+                            onEdited: Config.options.screenRecord.frameRate = value
                         }
                         ConfigComboBox {
+                            objectName: "ServicesConfig.codec";
+                            visible: page.settingsShow("capture-details");
+
                             buttonIcon: "video_settings"
                             text: Translation.tr("Codec")
                             currentValue: Config.options.screenRecord.codec
@@ -217,6 +259,8 @@ ContentPage {
                         }
                     }
                     ConfigSelectionArray {
+                        visible: page.settingsShow("capture-details");
+                        objectName: "ServicesConfig.recording-quality";
                         icon: "equalizer"
                         text: Translation.tr("Recording quality")
                         currentValue: Config.options.screenRecord.quality
@@ -228,6 +272,8 @@ ContentPage {
                         ]
                     }
                     ConfigSelectionArray {
+                        visible: page.settingsShow("capture");
+                        objectName: "ServicesConfig.audio-capture";
                         icon: "graphic_eq"
                         text: Translation.tr("Audio capture")
                         currentValue: Config.options.screenRecord.audioMode
@@ -240,34 +286,43 @@ ContentPage {
                         ]
                     }
                     ConfigTextArea {
+                        visible: page.settingsShow("capture-details");
+                        objectName: "ServicesConfig.output-source-override";
                         Layout.fillWidth: true
                         fieldWidth: 300
                         buttonIcon: "speaker"
                         text: Translation.tr("Output source override")
                         description: Translation.tr("Optional PipeWire/Pulse source name. For mixed audio, use a pre-mixed PipeWire source here.")
                         value: Config.options.screenRecord.outputSource
-                        onValueChanged: Config.options.screenRecord.outputSource = value
+                        onEdited: Config.options.screenRecord.outputSource = value
                     }
                     ConfigTextArea {
+                        visible: page.settingsShow("capture-details");
+                        objectName: "ServicesConfig.microphone-source-override";
                         Layout.fillWidth: true
                         fieldWidth: 300
                         buttonIcon: "mic"
                         text: Translation.tr("Microphone source override")
                         description: Translation.tr("Optional source name. Leave empty for the default microphone.")
                         value: Config.options.screenRecord.microphoneSource
-                        onValueChanged: Config.options.screenRecord.microphoneSource = value
+                        onEdited: Config.options.screenRecord.microphoneSource = value
                     }
                 }
             }
         }
 
         ContentSection {
+            visible: page.settingsShow("apps|integrations");
             icon: "search"
             shape: MaterialShape.Shape.Cookie6Sided
             title: Translation.tr("Search")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("apps|integrations")
                 ConfigSelectionArray {
+                    visible: page.settingsShow("apps");
+                    objectName: "ServicesConfig.launcher";
                     icon: "rocket_launch"
                     text: Translation.tr("Launcher")
                     currentValue: Config.options.apps.launcher
@@ -280,6 +335,8 @@ ContentPage {
                     ]
                 }
                 StyledText {
+                    property bool groupDescription: true;
+                    visible: page.settingsShow("apps");
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     color: Appearance.colors.colSubtext
@@ -291,174 +348,214 @@ ContentPage {
                         + "Re-run installer.sh any time to add Walker/Vicinae later — it never changes this setting for you, so come back here and pick one once it's installed.")
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("integrations");
+                    objectName: "ServicesConfig.use-levenshtein-distance-based-algorithm-instead-of-fuzzy";
                     text: Translation.tr("Use Levenshtein distance-based algorithm instead of fuzzy")
                     checked: Config.options.search.sloppy
-                    onCheckedChanged: {
+                    onEdited: {
                         Config.options.search.sloppy = checked;
                     }
                 }
             }
 
             ContentSubsection {
+                visible: page.settingsShow("integrations");
                 title: Translation.tr("Prefixes")
 
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("integrations")
                     ConfigRow {
+                        visible: page.settingsShow("integrations");
                         uniform: true
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.action";
                             Layout.fillWidth: true
                             buttonIcon: "bolt"
                             fieldWidth: 100
                             text: Translation.tr("Action")
                             value: Config.options.search.prefix.action
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.action = value;
                             }
                         }
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.clipboard";
                             Layout.fillWidth: true
                             buttonIcon: "content_paste"
                             fieldWidth: 100
                             text: Translation.tr("Clipboard")
                             value: Config.options.search.prefix.clipboard
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.clipboard = value;
                             }
                         }
                     }
 
                     ConfigRow {
+                        visible: page.settingsShow("integrations");
                         uniform: true
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.emojis";
                             Layout.fillWidth: true
                             buttonIcon: "mood"
                             fieldWidth: 100
                             text: Translation.tr("Emojis")
                             value: Config.options.search.prefix.emojis
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.emojis = value;
                             }
                         }
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.icons";
                             Layout.fillWidth: true
                             buttonIcon: "emoji_symbols"
                             fieldWidth: 100
                             text: Translation.tr("Icons")
                             value: Config.options.search.prefix.symbols
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.symbols = value;
                             }
                         }
                     }
 
                     ConfigRow {
+                        visible: page.settingsShow("integrations");
                         uniform: true
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.shell-command";
                             Layout.fillWidth: true
                             buttonIcon: "terminal"
                             fieldWidth: 100
                             text: Translation.tr("Shell command")
                             value: Config.options.search.prefix.shellCommand
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.shellCommand = value;
                             }
                         }
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.web-search";
                             Layout.fillWidth: true
                             fieldWidth: 100
                             buttonIcon: "travel_explore"
                             text: Translation.tr("Web search")
                             value: Config.options.search.prefix.webSearch
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.webSearch = value;
                             }
                         }
                     }
 
                     ConfigRow {
+                        visible: page.settingsShow("integrations");
                         uniform: true
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.apps";
                             Layout.fillWidth: true
                             buttonIcon: "apps"
                             fieldWidth: 100
                             text: Translation.tr("Apps")
                             value: Config.options.search.prefix.app
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.app = value;
                             }
                         }
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.keybinds";
                             Layout.fillWidth: true
                             buttonIcon: "keyboard_command_key"
                             fieldWidth: 100
                             text: Translation.tr("Keybinds")
                             value: Config.options.search.prefix.keybinds
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.keybinds = value;
                             }
                         }
                     }
 
                     ConfigRow {
+                        visible: page.settingsShow("integrations");
                         uniform: true
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.files";
                             Layout.fillWidth: true
                             buttonIcon: "description"
                             fieldWidth: 100
                             text: Translation.tr("Files")
                             value: Config.options.search.prefix.files
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.files = value;
                             }
                         }
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.ssh-hosts";
                             Layout.fillWidth: true
                             buttonIcon: "dns"
                             fieldWidth: 100
                             text: Translation.tr("SSH hosts")
                             value: Config.options.search.prefix.sshHosts
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.sshHosts = value;
                             }
                         }
                     }
                     ConfigRow {
+                        visible: page.settingsShow("integrations");
                         uniform: true
                         ConfigTextArea {
+                            visible: page.settingsShow("integrations");
+                            objectName: "ServicesConfig.system-services";
                             Layout.fillWidth: true
                             buttonIcon: "settings_applications"
                             fieldWidth: 100
                             text: Translation.tr("System services")
                             value: Config.options.search.prefix.systemServices
-                            onValueChanged: {
+                            onEdited: {
                                 Config.options.search.prefix.systemServices = value;
                             }
                         }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("integrations");
+                        objectName: "ServicesConfig.show-actions-without-typing-their-prefix";
                         buttonIcon: "bolt"
                         text: Translation.tr("Show actions without typing their prefix")
                         checked: Config.options.search.prefix.showActionsWithoutPrefix
-                        onCheckedChanged: { Config.options.search.prefix.showActionsWithoutPrefix = checked }
+                        onEdited: { Config.options.search.prefix.showActionsWithoutPrefix = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("integrations");
+                        objectName: "ServicesConfig.show-files-without-typing-their-prefix";
                         buttonIcon: "description"
                         text: Translation.tr("Show files without typing their prefix")
                         checked: Config.options.search.prefix.showFilesWithoutPrefix
-                        onCheckedChanged: { Config.options.search.prefix.showFilesWithoutPrefix = checked }
+                        onEdited: { Config.options.search.prefix.showFilesWithoutPrefix = checked }
                     }
                     ConfigSpinBox {
-                        visible: Config.options.search.prefix.showFilesWithoutPrefix
+                        objectName: "ServicesConfig.minimum-characters-before-searching-files";
+                        visible: page.settingsShow("integrations") && (Config.options.search.prefix.showFilesWithoutPrefix)
                         icon: "text_fields"
                         text: Translation.tr("Minimum characters before searching files")
                         value: Config.options.search.prefix.filesWithoutPrefixMinLength
                         from: 1; to: 8; stepSize: 1
-                        onValueChanged: {
+                        onEdited: {
                             if (value === Config.options.search.prefix.filesWithoutPrefixMinLength) return
                             Config.options.search.prefix.filesWithoutPrefixMinLength = value
                         }
                     }
                     StyledText {
+                        property bool groupDescription: true;
+                        visible: page.settingsShow("integrations");
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         color: Appearance.colors.colSubtext
@@ -466,6 +563,8 @@ ContentPage {
                         text: Translation.tr("With these on, actions and files also appear in an ordinary search, after the app results, instead of only behind their prefix character. Each new file search term runs one plocate query, which is why there's a minimum length.")
                     }
                     StyledText {
+                        property bool groupDescription: true;
+                        visible: page.settingsShow("integrations");
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         color: Appearance.colors.colSubtext
@@ -475,6 +574,7 @@ ContentPage {
                 }
             }
             ContentSubsection {
+                visible: page.settingsShow("apps");
                 id: defaultApplicationsSection
                 title: Translation.tr("Default applications by file type")
                 property string pendingDesktopFile: ""
@@ -496,77 +596,95 @@ ContentPage {
                 }
 
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("apps")
                     ConfigTextArea {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.web-links";
                         buttonIcon: "language"
                         text: Translation.tr("Web links")
                         description: Translation.tr("Desktop-entry ID, e.g. firefox.desktop")
                         value: Config.options.apps.defaultApplications.browser
-                        onValueChanged: {
+                        onEdited: {
                             Config.options.apps.defaultApplications.browser = value
                             defaultApplicationsSection.scheduleDefaultApplication(value, ["x-scheme-handler/http", "x-scheme-handler/https", "text/html"])
                         }
                     }
                     ConfigTextArea {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.folders";
                         buttonIcon: "folder"
                         text: Translation.tr("Folders")
                         description: Translation.tr("Desktop-entry ID for opening directories")
                         value: Config.options.apps.defaultApplications.folders
-                        onValueChanged: {
+                        onEdited: {
                             Config.options.apps.defaultApplications.folders = value
                             defaultApplicationsSection.scheduleDefaultApplication(value, ["inode/directory"])
                         }
                     }
                     ConfigTextArea {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.documents-and-text";
                         buttonIcon: "description"
                         text: Translation.tr("Documents and text")
                         description: Translation.tr("PDF, plain text, and common office documents")
                         value: Config.options.apps.defaultApplications.documents
-                        onValueChanged: {
+                        onEdited: {
                             Config.options.apps.defaultApplications.documents = value
                             defaultApplicationsSection.scheduleDefaultApplication(value, ["application/pdf", "text/plain", "application/rtf", "application/vnd.oasis.opendocument.text", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"])
                         }
                     }
                     ConfigTextArea {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.images";
                         buttonIcon: "image"
                         text: Translation.tr("Images")
                         description: Translation.tr("JPEG, PNG, WebP, GIF, SVG, and AVIF")
                         value: Config.options.apps.defaultApplications.images
-                        onValueChanged: {
+                        onEdited: {
                             Config.options.apps.defaultApplications.images = value
                             defaultApplicationsSection.scheduleDefaultApplication(value, ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml", "image/avif"])
                         }
                     }
                     ConfigTextArea {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.audio";
                         buttonIcon: "audio_file"
                         text: Translation.tr("Audio")
                         description: Translation.tr("MP3, FLAC, OGG, WAV, and M4A")
                         value: Config.options.apps.defaultApplications.audio
-                        onValueChanged: {
+                        onEdited: {
                             Config.options.apps.defaultApplications.audio = value
                             defaultApplicationsSection.scheduleDefaultApplication(value, ["audio/mpeg", "audio/flac", "audio/ogg", "audio/wav", "audio/mp4"])
                         }
                     }
                     ConfigTextArea {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.video";
                         buttonIcon: "video_file"
                         text: Translation.tr("Video")
                         description: Translation.tr("MP4, Matroska, WebM, and AVI")
                         value: Config.options.apps.defaultApplications.video
-                        onValueChanged: {
+                        onEdited: {
                             Config.options.apps.defaultApplications.video = value
                             defaultApplicationsSection.scheduleDefaultApplication(value, ["video/mp4", "video/x-matroska", "video/webm", "video/x-msvideo"])
                         }
                     }
                     ConfigTextArea {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.archives";
                         buttonIcon: "inventory_2"
                         text: Translation.tr("Archives")
                         description: Translation.tr("ZIP, 7z, RAR, tar, and gzip archives")
                         value: Config.options.apps.defaultApplications.archives
-                        onValueChanged: {
+                        onEdited: {
                             Config.options.apps.defaultApplications.archives = value
                             defaultApplicationsSection.scheduleDefaultApplication(value, ["application/zip", "application/x-7z-compressed", "application/vnd.rar", "application/x-rar", "application/x-tar", "application/gzip"])
                         }
                     }
                     StyledText {
+                        property bool groupDescription: true;
+                        visible: page.settingsShow("apps");
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         color: Appearance.colors.colSubtext
@@ -576,16 +694,23 @@ ContentPage {
                 }
             }
             ContentSubsection {
+                visible: page.settingsShow("apps|integrations");
                 title: Translation.tr("Files, SSH & services")
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("apps|integrations")
                     ConfigTextArea {
+                        visible: page.settingsShow("integrations");
+                        objectName: "ServicesConfig.open-files-with";
                         buttonIcon: "open_in_new"
                         text: Translation.tr("Open files with")
                         value: Config.options.apps.fileOpener
                         placeholderText: "xdg-open"
-                        onValueChanged: { Config.options.apps.fileOpener = value }
+                        onEdited: { Config.options.apps.fileOpener = value }
                     }
                     StyledText {
+                        property bool groupDescription: true;
+                        visible: page.settingsShow("integrations");
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         color: Appearance.colors.colSubtext
@@ -593,14 +718,18 @@ ContentPage {
                         text: Translation.tr("Left empty, opening a file result hands it to xdg-open, i.e. whatever ~/.config/mimeapps.list says. An editor that registered itself as the handler for every text-like MIME type will therefore claim most files - if everything keeps opening in the same app, that file is why (`xdg-mime query default text/plain` shows the current winner). Put a command here to bypass it entirely; the path is appended as one quoted argument.")
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.enable-file-search";
                         buttonIcon: "folder"
                         text: Translation.tr("Enable file search")
                         checked: Config.options.search.extras.filesEnable
-                        onCheckedChanged: {
+                        onEdited: {
                             Config.options.search.extras.filesEnable = checked;
                         }
                     }
                     ConfigSpinBox {
+                        visible: page.settingsShow("integrations");
+                        objectName: "ServicesConfig.max-file-results";
                         icon: "format_list_numbered"
                         text: Translation.tr("Max file results")
                         value: Config.options.search.extras.filesMaxResults
@@ -608,27 +737,33 @@ ContentPage {
                         to: 200
                         stepSize: 5
                         enabled: Config.options.search.extras.filesEnable
-                        onValueChanged: {
+                        onEdited: {
                             Config.options.search.extras.filesMaxResults = value;
                         }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.enable-ssh-quick-connect";
                         buttonIcon: "lan"
                         text: Translation.tr("Enable SSH quick-connect")
                         checked: Config.options.search.extras.sshHostsEnable
-                        onCheckedChanged: {
+                        onEdited: {
                             Config.options.search.extras.sshHostsEnable = checked;
                         }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.enable-systemd-service-search";
                         buttonIcon: "settings_applications"
                         text: Translation.tr("Enable systemd service search")
                         checked: Config.options.search.extras.systemServicesEnable
-                        onCheckedChanged: {
+                        onEdited: {
                             Config.options.search.extras.systemServicesEnable = checked;
                         }
                     }
                     ConfigSpinBox {
+                        visible: page.settingsShow("integrations");
+                        objectName: "ServicesConfig.max-service-results";
                         icon: "format_list_numbered"
                         text: Translation.tr("Max service results")
                         value: Config.options.search.extras.systemServicesMaxResults
@@ -636,20 +771,24 @@ ContentPage {
                         to: 200
                         stepSize: 5
                         enabled: Config.options.search.extras.systemServicesEnable
-                        onValueChanged: {
+                        onEdited: {
                             Config.options.search.extras.systemServicesMaxResults = value;
                         }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.include-system-wide-services-needs-pkexec-to-control";
                         buttonIcon: "shield_lock"
                         text: Translation.tr("Include system-wide services (needs pkexec to control)")
                         checked: Config.options.search.extras.systemServicesIncludeSystemScope
                         enabled: Config.options.search.extras.systemServicesEnable
-                        onCheckedChanged: {
+                        onEdited: {
                             Config.options.search.extras.systemServicesIncludeSystemScope = checked;
                         }
                     }
                     StyledText {
+                        property bool groupDescription: true;
+                        visible: page.settingsShow("apps");
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         color: Appearance.colors.colSubtext
@@ -659,17 +798,22 @@ ContentPage {
                 }
             }
             ContentSubsection {
+                visible: page.settingsShow("integrations");
                 title: Translation.tr("Web search")
 
                 GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("integrations")
                     ConfigTextArea {
+                        visible: page.settingsShow("integrations");
+                        objectName: "ServicesConfig.base-url";
                         id: baseUrlField
                         Layout.fillWidth: true
                         fieldWidth: 320
                         buttonIcon: "travel_explore"
                         text: Translation.tr("Base URL")
                         value: Config.options.search.engineBaseUrl
-                        onValueChanged: {
+                        onEdited: {
                             baseUrlDebounceTimer.restart();
                         }
 
@@ -687,27 +831,34 @@ ContentPage {
         }
 
         ContentSection {
+            visible: page.settingsShow("about|system");
             icon: "deployed_code_update"
             title: Translation.tr("System updates (Arch only)")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("about|system")
                 ConfigSwitch {
+                    visible: page.settingsShow("about");
+                    objectName: "ServicesConfig.enable-update-checks";
                     buttonIcon: "update"
                     text: Translation.tr("Enable update checks")
                     checked: Config.options.updates.enableCheck
-                    onCheckedChanged: {
+                    onEdited: {
                         Config.options.updates.enableCheck = checked;
                     }
                 }
 
                 ConfigSpinBox {
+                    visible: page.settingsShow("system");
+                    objectName: "ServicesConfig.check-interval-mins";
                     icon: "av_timer"
                     text: Translation.tr("Check interval (mins)")
                     value: Config.options.updates.checkInterval
                     from: 60
                     to: 1440
                     stepSize: 60
-                    onValueChanged: {
+                    onEdited: {
                         Config.options.updates.checkInterval = value;
                     }
                 }
@@ -715,44 +866,55 @@ ContentPage {
         }
 
         ContentSection {
+            visible: page.settingsShow("apps|integrations");
             icon: "weather_mix"
             shape: MaterialShape.Shape.Pill
             title: Translation.tr("Weather")
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("apps|integrations")
                 ConfigSwitch {
+                    visible: page.settingsShow("apps");
+                    objectName: "ServicesConfig.enable-gps-based-location";
                     buttonIcon: "assistant_navigation"
                     text: Translation.tr("Enable GPS based location")
                     checked: Config.options.bar.weather.enableGPS
-                    onCheckedChanged: {
+                    onEdited: {
                         Config.options.bar.weather.enableGPS = checked;
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("apps");
+                    objectName: "ServicesConfig.fahrenheit-unit";
                     buttonIcon: "thermometer"
                     text: Translation.tr("Fahrenheit unit")
                     checked: Config.options.bar.weather.useUSCS
-                    onCheckedChanged: {
+                    onEdited: {
                         Config.options.bar.weather.useUSCS = checked;
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("integrations");
+                    objectName: "ServicesConfig.polling-interval-m";
                     icon: "av_timer"
                     text: Translation.tr("Polling interval (m)")
                     value: Config.options.bar.weather.fetchInterval
                     from: 5
                     to: 50
                     stepSize: 5
-                    onValueChanged: {
+                    onEdited: {
                         Config.options.bar.weather.fetchInterval = value;
                     }
                 }
                 ConfigTextArea {
+                    visible: page.settingsShow("apps");
+                    objectName: "ServicesConfig.city-name";
                     id: cityField
                     Layout.fillWidth: true
                     buttonIcon: "location_city"
                     text: Translation.tr("City name")
                     value: Config.options.bar.weather.city
-                    onValueChanged: cityDebounceTimer.restart()
+                    onEdited: cityDebounceTimer.restart()
 
                     Timer {
                         id: cityDebounceTimer
@@ -764,6 +926,8 @@ ContentPage {
             }
         }
         WorldMap {
+            visible: page.settingsShow("apps");
+            objectName: "ServicesConfig.weather-map";
             Layout.fillWidth: true
             Layout.preferredHeight: 300
         }

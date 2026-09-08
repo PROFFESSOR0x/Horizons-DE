@@ -2,535 +2,357 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
-import Qt5Compat.GraphicalEffects
 import qs
 import qs.services
 import qs.modules.common
-import qs.modules.ii.settings.pages
 import qs.modules.common.widgets
-import qs.modules.common.functions as CF
 
 Item {
     id: root
     property real contentPadding: 8
-    property int currentPage: 0
-    property bool showingProfile: false
+    readonly property bool rightToLeft: /^(ar|he|fa|ur)(_|$)/.test(Translation.languageCode)
+    LayoutMirroring.enabled: rightToLeft
+    LayoutMirroring.childrenInherit: true
+    property int currentPage: Math.max(0, registry.pages.findIndex(page => page.id === Config.options.settings.lastPage))
     property bool showingSearch: false
-    // Flat {pageName, pageIcon, sectionTitle, settingLabels, haystack} list,
-    // one entry per
-    // ContentSection/ContentSubsection across every settings page - built
-    // once (all pages are already eagerly loaded shortly after Settings
-    // opens, see Component.onCompleted below) rather than re-walking every
-    // page's whole item tree on each keystroke. SettingsSearch.qml matches
-    // against `haystack` (the section's own title plus every descendant
-    // ConfigRow/ConfigSwitch/etc. `text` under it) so a hit on any
-    // individual setting's label still surfaces its containing section -
-    // navigation always lands on a real section title, which is exactly
-    // what every page's own goTo(term) already knows how to scroll to.
-    property var searchIndex: []
+    property bool showingProfile: false
+    readonly property bool isMinimal: Config.options.settings.style === "minimal"
+    readonly property var pages: registry.pages
+    readonly property var searchIndex: registry.searchIndex
+    readonly property var selectedPage: pages[currentPage] ?? pages[0]
+    readonly property string route: selectedPage.id
+    property var pendingTarget: null
+    property string navigationNotice: ""
 
-    // Rebuilt (not cached-once) every time search opens rather than gated
-    // behind a one-shot "already built" flag: pages load asynchronously
-    // (see pageLoader.asynchronous below), so a search opened in the brief
-    // window before a heavier page like HyprlandSettings.qml finishes loading
-    // would otherwise permanently miss everything in it for the rest of the
-    // session. Opening search isn't a hot path, so re-walking on every open
-    // (never on keystrokes - SettingsSearch.qml only re-filters the cached
-    // list it's handed) is the safe trade to make here.
-    function buildSearchIndex() {
-        const index = []
-        function collectSearchData(sectionItem) {
-            let parts = [sectionItem.title ?? ""]
-            let settingLabels = []
-            function append(value, includeAsSetting) {
-                if (typeof value !== "string" || value.length === 0) return
-                parts.push(value)
-                if (includeAsSetting && !settingLabels.includes(value)) settingLabels.push(value)
+    SettingsRegistry { id: registry }
+
+    // Preserve the public hooks used by Settings.qml and existing callers.
+    onShowingProfileChanged: if (showingProfile) { navigate("personal"); showingProfile = false }
+    onCurrentPageChanged: {
+        navigationNotice = ""
+        Qt.callLater(() => { GlobalStates.currentPageInstance = routedPage })
+    }
+    function navigate(id, target) {
+        const index = pages.findIndex(page => page.id === id)
+        if (index < 0) return
+        pendingTarget = target ?? null
+        currentPage = index
+        showingSearch = false
+        if (selectedPage.advanced) Config.options.settings.advancedExpanded = true
+        Config.options.settings.lastPage = id
+        Qt.callLater(revealTarget)
+        if (id === "about") { SystemInfo.refresh(); Updates.refresh() }
+    }
+    function stepPage(direction) {
+        const available = pages.filter(page => !page.advanced || Config.options.settings.advancedExpanded)
+        const index = available.findIndex(page => page.id === route)
+        navigate(available[(Math.max(0, index) + direction + available.length) % available.length].id)
+    }
+    Shortcut {
+        sequence: "Ctrl+F"
+        enabled: root.visible
+        onActivated: root.showingSearch = true
+    }
+    function navigateToSearchResult(entry) { navigate(entry.route, entry) }
+    function buildSearchIndex() {} // The catalogue exists before any source view loads.
+    function findTarget(item, name) {
+        if (!item) return null
+        if (item.objectName === name) return item
+        for (const child of item.children ?? []) {
+            const found = findTarget(child, name)
+            if (found) return found
+        }
+        return null
+    }
+    function revealTarget() {
+        if (!pendingTarget?.id) return
+        for (let i = 0; i < sourceRepeater.count; ++i) {
+            const loader = sourceRepeater.itemAt(i)
+            if (loader.modelData !== pendingTarget.source || !loader.item) continue
+            const target = findTarget(loader.item, pendingTarget.id)
+            if (!target) continue
+            if (!target.visible) {
+                navigationNotice = Translation.tr("This option is available when its feature or layout is active.")
+                pendingTarget = null
+                return
             }
-            function walk(it) {
-                if (!it || !it.children) return
-                for (let i = 0; i < it.children.length; i++) {
-                    const child = it.children[i]
-                    if (child !== sectionItem) {
-                        // Config controls expose their user-facing name as
-                        // `text`; nested groups use `title`. Retain both so a
-                        // result can show the exact matching option below its
-                        // parent section.
-                        append(child.text, true)
-                        append(child.title, true)
-                    }
-                    walk(child)
-                }
-            }
-            walk(sectionItem)
-            return { haystack: parts.join(" • "), settingLabels: settingLabels }
-        }
-        function walkForSections(item, pageName, pageIcon) {
-            if (!item || !item.children) return
-            for (let i = 0; i < item.children.length; i++) {
-                const child = item.children[i]
-                if (typeof child.title === "string" && child.title.length > 0) {
-                    const searchData = collectSearchData(child)
-                    index.push({
-                        pageName: pageName,
-                        pageIcon: pageIcon,
-                        sectionTitle: child.title,
-                        settingLabels: searchData.settingLabels,
-                        haystack: searchData.haystack
-                    })
-                }
-                walkForSections(child, pageName, pageIcon)
-            }
-        }
-        for (let i = 0; i < root.pages.length; i++) {
-            const loader = pagesRepeater.itemAt(i)
-            if (loader && loader.item) walkForSections(loader.item, root.pages[i].name, root.pages[i].icon)
-        }
-        root.searchIndex = index
-    }
-
-    function navigateToSearchResult(entry) {
-        root.showingSearch = false
-        GlobalStates.settingsPage = entry.pageName + ":" + entry.sectionTitle
-    }
-
-    onShowingSearchChanged: {
-        if (showingSearch) Qt.callLater(root.buildSearchIndex)
-    }
-    property bool isMinimal: Config.options.settings.style === "minimal"
-    // Remembers the active page by name so that if the pages list itself
-    // changes shape while it's open (e.g. a conditionally-shown tab
-    // disappearing because its feature just got turned off from within that
-    // very page), currentPage can be re-pointed at whatever the same logical page's new
-    // index is instead of landing on whichever unrelated page shifted into
-    // the old numeric slot.
-    property string _currentPageName: ""
-
-    onPagesChanged: {
-        if (root._currentPageName === "") return
-        const idx = root.pages.findIndex(p => p.name === root._currentPageName)
-        if (idx >= 0) {
-            root.currentPage = idx
-        } else if (root.currentPage >= root.pages.length) {
-            // The active page itself vanished (e.g. a conditional tab got hidden
-            // while open) — fall back to a page that always exists.
-            const fallback = root.pages.findIndex(p => p.name === Translation.tr("Interface"))
-            root.currentPage = fallback >= 0 ? fallback : 0
+            const point = target.mapToItem(routedPage.contentItem, 0, 0)
+            routedPage.contentY = Math.max(0, Math.min(point.y - 24, routedPage.contentHeight - routedPage.height))
+            focusOutline.targetItem = target
+            highlightTimer.restart()
+            pendingTarget = null
+            return
         }
     }
-
     Connections {
         target: GlobalStates
         function onSettingsPageChanged() {
-            if (GlobalStates.settingsPage === "") return
-            
-            let parts = GlobalStates.settingsPage.split(":");
-            let pageName = parts[0];
-            let searchTerm = parts.length > 1 ? parts[1] : "";
+            if (!GlobalStates.settingsPage) return
+            const target = registry.resolveLegacy(GlobalStates.settingsPage)
+            root.navigate(target.route, target)
+            GlobalStates.settingsPage = ""
+        }
+    }
+    Component.onCompleted: {
+        GlobalStates.currentPageInstance = routedPage
+        if (GlobalStates.settingsPage) {
+            const target = registry.resolveLegacy(GlobalStates.settingsPage)
+            navigate(target.route, target)
+            GlobalStates.settingsPage = ""
+        }
+    }
 
-            const idx = root.pages.findIndex(p => p.name.toLowerCase() === pageName.toLowerCase());
-            
-            if (idx >= 0) {
-                root.currentPage = idx;
-                root.showingProfile = false;
-                
-                if (searchTerm !== "") {
-                    let loader = pagesRepeater.itemAt(idx);
-                    if (loader && loader.item && typeof loader.item.goTo === "function") {
-                        loader.item.goTo(searchTerm);
-                    } else if (loader) {
-                        loader.onLoaded.connect(function() {
-                            if (loader.item && typeof loader.item.goTo === "function") {
-                                loader.item.goTo(searchTerm);
+    RowLayout {
+        id: windowHeader
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: 14
+        height: 36
+        spacing: 10
+        MaterialSymbol {
+            text: "settings"
+            iconSize: 22
+            color: Appearance.colors.colPrimary
+        }
+        StyledText {
+            text: Translation.tr("Settings")
+            font.pixelSize: Appearance.font.pixelSize.large
+            font.weight: Font.Medium
+            color: Appearance.colors.colOnLayer0
+        }
+        Item { Layout.fillWidth: true }
+        IconToolbarButton {
+            text: "language"
+            implicitHeight: 34
+            Accessible.name: Translation.tr("Arabic mode")
+            toggled: (Config.options.language.ui ?? "auto").indexOf("ar") === 0
+            onClicked: {
+                const current = Config.options.language.ui ?? "auto";
+                if (current.indexOf("ar") === 0) {
+                    const prev = Config.options.settings.prevLanguage ?? "auto";
+                    Config.options.language.ui = (prev.indexOf("ar") === 0) ? "auto" : prev;
+                } else {
+                    Config.options.settings.prevLanguage = current;
+                    Config.options.language.ui = "ar_EG";
+                }
+            }
+            StyledToolTip { text: Translation.tr("Arabic mode") }
+        }
+        IconToolbarButton {
+            text: "close"
+            implicitHeight: 34
+            Accessible.name: Translation.tr("Close settings")
+            onClicked: GlobalStates.settingsOpen = false
+            StyledToolTip { text: Translation.tr("Close settings") }
+        }
+    }
+    RowLayout {
+        anchors.top: windowHeader.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: root.contentPadding
+        spacing: 14
+        Rectangle {
+            Layout.fillHeight: true
+            Layout.preferredWidth: root.width < 780 ? 174 : 208
+            color: Appearance.colors.colLayer1
+            radius: Appearance.rounding.large
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 8
+                RippleButtonWithIcon {
+                    Layout.fillWidth: true
+                    materialIcon: "search"
+                    mainText: Translation.tr("Search settings")
+                    onClicked: root.showingSearch = !root.showingSearch
+                }
+                ScrollView {
+                    id: navigationScroll
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    contentWidth: availableWidth
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ColumnLayout {
+                        id: navigationColumn
+                        width: navigationScroll.availableWidth
+                        spacing: 3
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: Translation.tr("Customize")
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            Layout.leftMargin: 10
+                            Layout.topMargin: 6
+                            Layout.bottomMargin: 4
+                            wrapMode: Text.WordWrap
+                            color: Appearance.colors.colSubtext
+                        }
+                        Repeater {
+                            model: registry.pages.filter(page => !page.advanced && page.id !== "about")
+                            delegate: SettingsNavigationButton {
+                                required property var modelData
+                                objectName: "settings-nav-" + modelData.id
+                                text: modelData.name
+                                iconName: modelData.icon
+                                selected: root.route === modelData.id && !root.showingSearch
+                                onClicked: root.navigate(modelData.id)
                             }
-                        });
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            visible: Config.options.settings.advancedExpanded
+                            implicitHeight: 1
+                            Layout.topMargin: 8
+                            Layout.bottomMargin: 8
+                            color: Appearance.colors.colLayer0Border
+                        }
+                        Repeater {
+                            model: registry.pages.filter(page => page.advanced)
+                            delegate: SettingsNavigationButton {
+                                required property var modelData
+                                visible: Config.options.settings.advancedExpanded
+                                Layout.leftMargin: 0
+                                objectName: "settings-nav-" + modelData.id
+                                text: modelData.name
+                                iconName: modelData.icon
+                                selected: root.route === modelData.id && !root.showingSearch
+                                onClicked: root.navigate(modelData.id)
+                            }
+                        }
+                        SettingsNavigationButton {
+                            text: registry.pageFor("about").name
+                            iconName: "info"
+                            selected: root.route === "about" && !root.showingSearch
+                            onClicked: root.navigate("about")
+                        }
                     }
                 }
+                        SettingsNavigationButton {
+                            text: Translation.tr("Advanced")
+                            iconName: Config.options.settings.advancedExpanded ? "expand_more" : (root.rightToLeft ? "chevron_left" : "chevron_right")
+                            Accessible.role: Accessible.Button
+                            Accessible.name: text
+                            Accessible.description: Config.options.settings.advancedExpanded ? Translation.tr("Expanded") : Translation.tr("Collapsed")
+                            onClicked: {
+                                Config.options.settings.advancedExpanded = !Config.options.settings.advancedExpanded
+
+                            }
+                        }
             }
-            GlobalStates.settingsPage = "";
         }
-    }
-
-    onCurrentPageChanged: {
-        const pageName = root.pages[currentPage]?.name ?? ""
-        root._currentPageName = pageName
-        if (pageName === Translation.tr("About")) {
-            if (SystemInfo.cpu === "") SystemInfo.refresh()
-            Updates.refresh()
-        }
-    }
-    
-    property var pages: {
-        let list = [
-            { name: Translation.tr("Quick"),      icon: "instant_mix",    component: Qt.resolvedUrl("pages/QuickConfig.qml") },
-            { name: Translation.tr("General"),    icon: "browse",         component: Qt.resolvedUrl("pages/GeneralConfig.qml") },
-            { name: Translation.tr("Bar"),        icon: "toast",          iconRotation: 180, component: Qt.resolvedUrl("pages/BarConfig.qml") },
-            { name: Translation.tr("Desktop"),    icon: "texture",        component: Qt.resolvedUrl("pages/BackgroundConfig.qml") },
-            { name: Translation.tr("Interface"),  icon: "bottom_app_bar", component: Qt.resolvedUrl("pages/InterfaceConfig.qml") },
-            { name: Translation.tr("Experience"), icon: "tune",           component: Qt.resolvedUrl("pages/ExperienceConfig.qml") },
-            { name: Translation.tr("Services"),   icon: "settings",       component: Qt.resolvedUrl("pages/ServicesConfig.qml") },
-        ]
-        if (WM.compositor === "hyprland") {
-                    list.push({ name: Translation.tr("Hyprland"), icon: "select_window_2", component: Qt.resolvedUrl("pages/HyprlandSettings.qml") })
-                    list.push({ name: Translation.tr("Keybinds"), icon: "keyboard", component: Qt.resolvedUrl("pages/KeybindsConfig.qml") })
-                }
-        if (WM.compositor === "niri") {
-                    list.push({ name: Translation.tr("Niri"), icon: "select_window_2", component: Qt.resolvedUrl("pages/NiriSettings.qml") })
-                }
-        list.push({ name: Translation.tr("About"), icon: "info", component: Qt.resolvedUrl("pages/About.qml") })
-        return list
-    }
-
-    Component.onCompleted: {
-        Config.readWriteDelay = 0
-        Qt.callLater(() => {
-            for (let i = 0; i < root.pages.length; i++) {
-                let loader = pagesRepeater.itemAt(i)
-                if (loader) loader.active = true
-            }
-            if (profileLoader) profileLoader.active = true
-        })
-    }
-
-    ColumnLayout {
-        anchors {
-            fill: parent
-            margins: contentPadding
-        }
-
-        RowLayout {
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: contentPadding
-
-            Rectangle {
-                id: navRailWrapper
-                Layout.fillHeight: true
-                Layout.margins: 0
-                implicitWidth: navRail.expanded ? 195 : fab.baseSize
-                color: isMinimal ? "transparent" : Appearance.m3colors.m3surfaceContainerLow
-                radius: Appearance.rounding.normal
-
-                Behavior on implicitWidth {
-                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+            ColumnLayout {
+                anchors.fill: parent
+                visible: !root.showingSearch
+                spacing: 8
+                StyledText {
+                    Layout.fillWidth: true
+                    text: root.selectedPage.name
+                    Layout.topMargin: 12
+                    Layout.leftMargin: 12
+                    Layout.rightMargin: 12
+                    Layout.bottomMargin: 2
+                    font.weight: Font.Medium
+                    font.pixelSize: Appearance.font.pixelSize.larger
+                    wrapMode: Text.WordWrap
                 }
-
-                NavigationRail {
-                    id: navRail
-                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom; leftMargin: 20 }
-                    spacing: 10
-                    expanded: root.width > 900
-
-                    Item {
-                        id: profileHeader
-                        Layout.fillWidth: true
-                        Layout.margins: isMinimal ? 0 : 5
-                        Layout.topMargin: 15
-                        Layout.bottomMargin: isMinimal ? -30 : 0
-                        implicitHeight: profileRow.implicitHeight
-
-                        RowLayout {
-                            id: profileRow
-                            anchors.fill: parent
-                            visible: true
-                            spacing: 10
-
-                        Rectangle {
-                            id: avatarRect
-                            width: 48
-                            height: 48
-                            radius: width / 2
-                            color: Appearance.colors.colPrimaryContainer
-
-                            Image {
-                                id: avatarImage
-                                // Decode off the UI thread - a synchronous load of an arbitrarily
-                                // large user/theme image stalls the whole shell (one QML thread).
-                                asynchronous: true
-                                anchors.fill: parent
-                                source: Config.options.profile.avatarPath !== "" 
-                                    ? "file://" + Config.options.profile.avatarPicture 
-                                    : "file:///home/" + (Quickshell.env("USER") ?? "user") + "/.face"
-                                sourceSize.width: avatarImage.width * 2
-                                sourceSize.height: avatarImage.height * 2
-                                fillMode: Image.PreserveAspectCrop
-                                layer.enabled: true
-                                layer.effect: OpacityMask {
-                                    maskSource: Rectangle {
-                                        width: avatarRect.width
-                                        height: avatarRect.height
-                                        radius: avatarRect.radius
-                                    }
-                                }
-                                onStatusChanged: {
-                                    if (status === Image.Error)
-                                        visible = false
-                                }
-                            }
-
-                            MaterialSymbol {
-                                anchors.centerIn: parent
-                                text: "account_circle"
-                                iconSize: 32
-                                color: Appearance.colors.colOnPrimaryContainer
-                                visible: avatarImage.status === Image.Error
-                            }
-                        }
-
-                        ColumnLayout {
-                            spacing: 2
+                StyledText {
+                    Layout.fillWidth: true
+                    visible: root.navigationNotice !== ""
+                    text: root.navigationNotice
+                    wrapMode: Text.WordWrap
+                }
+                ContentPage {
+                    id: routedPage
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    forceWidth: true
+                    // Source views are loaded once, on demand, and retained so
+                    // routing never discards a Lua/JSON editor's draft.
+                    Repeater {
+                        id: sourceRepeater
+                        model: registry.sources
+                        delegate: Loader {
+                            id: sourceLoader
+                            objectName: "settings-source-" + modelData
+                            required property string modelData
+                            readonly property bool contributes: registry.contributes(modelData, root.route)
+                            property bool requested: false
                             Layout.fillWidth: true
-                            visible: !isMinimal
-
-                            StyledText {
-                                text: Config.options.profile.displayName === "" ? SystemInfo.username : Config.options.profile.displayName
-                                font.pixelSize: Appearance.font.pixelSize.normal
-                                color: Appearance.colors.colOnLayer1
-                                font.weight: Font.Medium
-                                elide: Text.ElideRight
-                                Layout.maximumWidth: 100
+                            Layout.preferredHeight: visible && item ? item.contentHeight : 0
+                            visible: contributes && status === Loader.Ready
+                            active: Config.ready && requested
+                            asynchronous: true
+                            function requestIfNeeded() {
+                                if (!contributes || requested || !Config.ready) return
+                                requested = true
+                                setSource(Qt.resolvedUrl("pages/" + modelData + ".qml"), {
+                                    embedded: true,
+                                    settingsRoute: Qt.binding(() => root.route),
+                                    bottomContentPadding: 0,
+                                    sidePadding: 0,
+                                })
                             }
-
-                            StyledText {
-                                id: distroText
-                                font.pixelSize: Appearance.font.pixelSize.smaller
-                                color: Appearance.colors.colSubtext
-                                elide: Text.ElideRight
-                                Layout.maximumWidth: 100
-
-                                text: {
-                                    const d = Config.options.profile.descriptionText
-                                    if (d === "::uptime::") return Translation.tr("Up • %1").arg(DateTime.uptime)
-                                    return SystemInfo.distroName
-                                }
+                            onContributesChanged: requestIfNeeded()
+                            Component.onCompleted: requestIfNeeded()
+                            Connections {
+                                target: Config
+                                function onReadyChanged() { sourceLoader.requestIfNeeded() }
                             }
-                        }
-
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.showingProfile = !root.showingProfile
+                            onLoaded: Qt.callLater(() => Qt.callLater(root.revealTarget))
                         }
                     }
-
-                    Rectangle {
-                        Layout.preferredWidth: isMinimal ? 50 : 160
-                        Layout.topMargin: isMinimal ? 30 : -5
-                        Layout.bottomMargin: isMinimal ? -30 : 0
-                        height: 2
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: "transparent" }
-                            GradientStop { position: 0.2; color: Appearance.colors.colOutline }
-                            GradientStop { position: 0.8; color: Appearance.colors.colOutline }
-                            GradientStop { position: 1.0; color: "transparent" }
-                        }
-                        opacity: 0.15
+                    RippleButtonWithIcon {
+                        Layout.fillWidth: true
+                        visible: !!root.selectedPage.details
+                        materialIcon: "tune"
+                        mainText: Translation.tr("Advanced options for this section")
+                        onClicked: root.navigate(root.selectedPage.details)
                     }
-
-                    // Both FABs sit on one row as plain icon buttons. They
-                    // used to be two full-width pills stacked vertically,
-                    // which is a lot of rail height for two actions whose
-                    // icons (edit / search) already say what they do - the
-                    // labels move into the tooltips instead.
-                    GridLayout {
-                        // Side by side while the rail is expanded; stacked when
-                        // it collapses to a single icon column (its width is
-                        // one FAB wide - see navRailWrapper.implicitWidth).
-                        columns: navRail.expanded ? 2 : 1
-                        Layout.alignment: Qt.AlignHCenter
-                        Layout.bottomMargin: -25
-                        visible: !isMinimal
-                        rowSpacing: 8
-                        columnSpacing: 8
-
-                        FloatingActionButton {
-                            id: fab
-                            property bool justCopied: false
-                            iconText: justCopied ? "check" : "edit"
-                            // Icon-only: `expanded` false keeps the pill at
-                            // baseSize instead of growing to fit buttonText.
-                            expanded: false
-                            downAction: () => {
-                                Qt.openUrlExternally(`${Directories.config}/horizons/config.json`);
-                            }
-                            altAction: () => {
-                                Quickshell.clipboardText = CF.FileUtils.trimFileProtocol(`${Directories.config}/horizons/config.json`);
-                                fab.justCopied = true;
-                                revertTextTimer.restart()
-                            }
-                            Timer {
-                                id: revertTextTimer
-                                interval: 1500
-                                onTriggered: fab.justCopied = false
-                            }
-                            StyledToolTip {
-                                text: fab.justCopied
-                                    ? Translation.tr("Path copied")
-                                    : Translation.tr("Config file\nOpen the shell config file\nAlternatively right-click to copy path")
-                            }
-                        }
-
-                        FloatingActionButton {
-                            id: searchFab
-                            iconText: "search"
-                            expanded: false
-                            downAction: () => { root.showingSearch = !root.showingSearch }
-                            StyledToolTip {
-                                text: Translation.tr("Search settings\nSearch every setting (title, description, regex supported)")
-                            }
-                        }
+                    RippleButtonWithIcon {
+                        Layout.fillWidth: true
+                        visible: root.route === "system"
+                        materialIcon: "code"
+                        mainText: Translation.tr("Open shell configuration file")
+                        onClicked: Qt.openUrlExternally(Directories.config + "/horizons/config.json")
                     }
-
-                    NavigationRailTabArray {
-                        currentIndex: root.currentPage
-                        expanded: navRail.expanded
-                        colToggled: root.showingProfile ? "transparent" : Appearance.colors.colSecondaryContainer
-                        Repeater {
-                            model: root.pages
-                            NavigationRailButton {
-                                required property var index
-                                required property var modelData
-                                toggled: root.currentPage === index && !root.showingProfile && !root.showingSearch
-                                onPressed: {
-                                    root.currentPage = index
-                                    root.showingProfile = false
-                                    root.showingSearch = false
-                                }
-                                expanded: navRail.expanded
-                                buttonIcon: modelData.icon
-                                buttonIconRotation: modelData.iconRotation || 0
-                                buttonText: modelData.name
-                                showToggledHighlight: false
-                            }
-                        }
+                    RippleButtonWithIcon {
+                        Layout.fillWidth: true
+                        visible: root.route === "session"
+                        materialIcon: "widgets"
+                        mainText: Translation.tr("Choose lock screen widgets")
+                        onClicked: root.navigate("widgets")
                     }
                 }
             }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                color: "transparent"
-                radius: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut
-
-                Item {
-                    anchors.fill: parent
-
-                    Repeater {
-                        id: pagesRepeater
-                        model: root.pages
-                        Loader {
-                            id: pageLoader
-                            required property var modelData
-                            required property var index
-                            source: modelData.component
-                            // Settings pages can be large (HyprlandSettings.qml
-                            // especially) - loading one synchronously on first
-                            // visit was a real, if brief, main-thread hitch
-                            // every time Settings opened onto a heavy page.
-                            // Async moves the parse/compile/instantiate off
-                            // the UI thread; the opacity fade already covers
-                            // the short gap before `item` exists.
-                            asynchronous: true
-
-                            active: Config.ready && (root.currentPage === index || item !== null)
-
-                            anchors.fill: parent
-
-                            property bool isActive: root.currentPage === index && !root.showingProfile && !root.showingSearch
-                            opacity: isActive ? 1 : 0
-                            enabled: isActive
-                            visible: isActive
-                            anchors.topMargin: isActive ? 0 : 12
-
-                            onLoaded: {
-                                if (root.currentPage === index) {
-                                    GlobalStates.currentPageInstance = item;
-                                }
-                            }
-
-                            onIsActiveChanged: {
-                                if (isActive && item) {
-                                    GlobalStates.currentPageInstance = item;
-                                } else if (!isActive && GlobalStates.currentPageInstance === item) {
-                                    GlobalStates.currentPageInstance = null;
-                                }
-                            }
-
-                            Behavior on opacity {
-                                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-                            }
-                            Behavior on anchors.topMargin {
-                                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-                            }
-                        }
-                    }
-
-                    Loader {
-                        id: profileLoader
-                        active: false
-                        anchors.fill: parent
-                        source: Qt.resolvedUrl("pages/Profile.qml")
-                        asynchronous: true
-
-                        property bool isActive: root.showingProfile && !root.showingSearch
-                        opacity: isActive ? 1 : 0
-                        enabled: isActive
-                        visible: isActive
-                        anchors.topMargin: isActive ? 0 : 12
-
-                        onIsActiveChanged: {
-                            if (isActive && item) {
-                                GlobalStates.currentPageInstance = item;
-                            } else if (!isActive && GlobalStates.currentPageInstance === item) {
-                                GlobalStates.currentPageInstance = null;
-                            }
-                        }
-
-                        Behavior on opacity {
-                            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-                        }
-                        Behavior on anchors.topMargin {
-                            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-                        }
-                    }
-
-                    Loader {
-                        id: searchLoader
-                        active: root.showingSearch
-                        anchors.fill: parent
-                        source: Qt.resolvedUrl("pages/SettingsSearch.qml")
-                        asynchronous: true
-
-                        property bool isActive: root.showingSearch
-                        opacity: isActive ? 1 : 0
-                        enabled: isActive
-                        visible: isActive
-                        anchors.topMargin: isActive ? 0 : 12
-
-                        onLoaded: {
-                            if (item) {
-                                item.settingsContent = root
-                                if (isActive) item.forceFocus()
-                            }
-                        }
-                        onIsActiveChanged: {
-                            if (isActive && item) item.forceFocus()
-                        }
-
-                        Behavior on opacity {
-                            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-                        }
-                        Behavior on anchors.topMargin {
-                            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-                        }
-                    }
-                }
+            Loader {
+                anchors.fill: parent
+                active: root.showingSearch
+                visible: active
+                source: Qt.resolvedUrl("pages/SettingsSearch.qml")
+                onLoaded: { item.settingsContent = root; item.forceFocus() }
             }
         }
     }
+    Rectangle {
+        id: focusOutline
+        property Item targetItem: null
+        parent: routedPage.contentItem
+        visible: targetItem !== null && highlightTimer.running
+        x: targetItem ? targetItem.mapToItem(parent, 0, 0).x - 3 : 0
+        y: targetItem ? targetItem.mapToItem(parent, 0, 0).y - 3 : 0
+        width: targetItem ? targetItem.width + 6 : 0
+        height: targetItem ? targetItem.height + 6 : 0
+        color: "transparent"
+        border.color: Appearance.colors.colPrimary
+        border.width: 2
+        radius: Appearance.rounding.small
+        z: 100
+    }
+    Timer { id: highlightTimer; interval: 2200; onTriggered: focusOutline.targetItem = null }
 }

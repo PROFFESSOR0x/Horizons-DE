@@ -11,6 +11,23 @@ import Quickshell.Io
  */
 Singleton {
     id: root
+    property int activeConsumers: 0
+    function acquire() {
+        activeConsumers++
+        if (activeConsumers !== 1) return
+        // Paused time is not a CPU sample. Establish a fresh baseline.
+        previousCpuStats = undefined
+        fileMeminfo.reload()
+        fileStat.reload()
+        requestHardware()
+        if (!diskProc.running) diskProc.running = true
+    }
+    function release() {
+        activeConsumers = Math.max(0, activeConsumers - 1)
+        if (activeConsumers !== 0) return
+        hardwareWatchdog.stop()
+        hardwareProc.running = false
+    }
     property real memoryTotal: 1
     property real memoryFree: 0
     property real memoryUsed: memoryTotal - memoryFree
@@ -26,7 +43,7 @@ Singleton {
     property string maxAvailableSwapString: kbToGbString(ResourceUsage.swapTotal)
     property string maxAvailableCpuString: "--"
 
-    readonly property int historyLength: Config?.options.resources.historyLength ?? 60
+    readonly property int historyLength: Math.max(1, Config?.options.resources.historyLength ?? 60)
     property list<real> cpuUsageHistory: []
     property list<real> memoryUsageHistory: []
     property list<real> swapUsageHistory: []
@@ -51,72 +68,75 @@ Singleton {
     property list<real> diskUsageHistory: []
     property string maxAvailableDiskString: kbToGbString(diskTotal)
 
+    property bool hardwarePending: false
+    function requestHardware() {
+        if (activeConsumers === 0 || hardwarePending) return
+        if (!hardwareProc.running) { hardwareProc.running = true; return }
+        hardwarePending = true
+        hardwareWatchdog.start()
+        hardwareProc.write("sample\n")
+    }
+    Timer {
+        id: hardwareWatchdog
+        interval: 2500
+        onTriggered: hardwareProc.signal(9)
+    }
     Process {
-        id: tempProc
-        command: ["bash", "-c", "sensors 2>/dev/null | grep -E 'Package id 0|Tctl|Tdie' | grep -oP '\\+\\K[0-9.]+(?=°C)' | head -1"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.cpuTemp = parseFloat(text.trim())
+        id: hardwareProc
+        command: ["python3", Directories.scriptPath + "/system/hardware_sample.py", "--serve"]
+        stdinEnabled: true
+        onStarted: root.requestHardware()
+        onExited: {
+            hardwareWatchdog.stop()
+            root.hardwarePending = false
+            root.gpuAvailable = false
+            // The sampling timer retries; do not create a crash/restart loop.
+        }
+        stdout: SplitParser {
+            onRead: text => {
+                hardwareWatchdog.stop()
+                root.hardwarePending = false
+                try {
+                    const data = JSON.parse(text)
+                    if (Number.isFinite(data.cpuTemp)) root.cpuTemp = data.cpuTemp
+                    root.gpuAvailable = Number.isFinite(data.gpuUsage)
+                    if (root.gpuAvailable) {
+                        root.gpuUsage = data.gpuUsage
+                        root.gpuTemp = Number.isFinite(data.gpuTemp) ? data.gpuTemp : 0
+                        root.updateGpuUsageHistory()
+                    }
+                } catch (error) { console.warn("[ResourceUsage] Invalid hardware sample") }
             }
         }
     }
-
     Process {
         id: diskProc
-        command: ["bash", "-c", "df -k / | awk 'NR==2{print $2,$3,$4}'"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const parts = text.trim().split(" ").map(Number)
-                if (parts.length >= 3) {
-                    root.diskTotal = parts[0]
-                    root.diskUsed  = parts[1]
-                    root.diskFree  = parts[2]
-                }
+        command: ["df", "-k", "--output=size,used,avail", "/"]
+        environment: ({ LC_ALL: "C" })
+        stdout: StdioCollector { id: diskOutput }
+        onExited: (code, status) => {
+            if (code !== 0 || status !== 0) return
+            const parts = diskOutput.text.trim().split("\n").pop().trim().split(/\s+/).map(Number)
+            if (parts.length === 3 && parts.every(Number.isFinite) && parts[0] > 0) {
+                root.diskTotal = parts[0]
+                root.diskUsed = parts[1]
+                root.diskFree = parts[2]
+                root.updateDiskUsageHistory()
             }
         }
     }
-
-    Process {
-        id: gpuProc
-        command: ["bash", "-c",
-            "if command -v nvidia-smi >/dev/null 2>&1; then" +
-            "   nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -1;" +
-            "else" +
-            "   busy=$(cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | head -1);" +
-            "   traw=$(cat /sys/class/drm/card*/device/hwmon/hwmon*/temp1_input 2>/dev/null | head -1);" +
-            "   [ -n \"$busy\" ] && echo \"$busy, $(( ${traw:-0} / 1000 ))\";" +
-            "fi"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const parts = text.trim().split(",").map(s => parseFloat(s.trim()))
-                if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                    root.gpuAvailable = true
-                    root.gpuUsage = Math.max(0, Math.min(1, parts[0] / 100))
-                    root.gpuTemp = parts[1]
-                } else {
-                    root.gpuAvailable = false
-                }
-                // Recorded here rather than right after restarting the
-                // process below: gpuProc is async, so the fresh reading
-                // only actually exists once this handler runs, not at the
-                // point .running was flipped back on.
-                if (root.gpuAvailable) root.updateGpuUsageHistory()
-            }
-        }
-    }
-
     Timer {
-        interval: Config?.options.resources.updateInterval ?? 3000
-        running: true
+        interval: Math.max(1000, Config?.options.resources.updateInterval ?? 3000)
+        running: root.activeConsumers > 0
         repeat: true
-        onTriggered: {
-            tempProc.running = false
-            tempProc.running = true
-            diskProc.running = false
-            diskProc.running = true
-            gpuProc.running = false
-            gpuProc.running = true
-        }
+        onTriggered: root.requestHardware()
+    }
+    // Capacity is slow-changing; CPU's refresh rate should not drive df.
+    Timer {
+        interval: 60000
+        running: root.activeConsumers > 0
+        repeat: true
+        onTriggered: if (!diskProc.running) diskProc.running = true
     }
 
     function kbToGbString(kb) {
@@ -124,67 +144,71 @@ Singleton {
     }
 
     function updateMemoryUsageHistory() {
-        memoryUsageHistory = [...memoryUsageHistory, memoryUsedPercentage]
-        if (memoryUsageHistory.length > historyLength) memoryUsageHistory.shift()
+        memoryUsageHistory = [...memoryUsageHistory, memoryUsedPercentage].slice(-historyLength)
     }
     function updateSwapUsageHistory() {
-        swapUsageHistory = [...swapUsageHistory, swapUsedPercentage]
-        if (swapUsageHistory.length > historyLength) swapUsageHistory.shift()
+        swapUsageHistory = [...swapUsageHistory, swapUsedPercentage].slice(-historyLength)
     }
     function updateCpuUsageHistory() {
-        cpuUsageHistory = [...cpuUsageHistory, cpuUsage]
-        if (cpuUsageHistory.length > historyLength) cpuUsageHistory.shift()
+        cpuUsageHistory = [...cpuUsageHistory, cpuUsage].slice(-historyLength)
     }
     function updateDiskUsageHistory() {
-        diskUsageHistory = [...diskUsageHistory, diskUsedPercentage]
-        if (diskUsageHistory.length > historyLength) diskUsageHistory.shift()
+        diskUsageHistory = [...diskUsageHistory, diskUsedPercentage].slice(-historyLength)
     }
     function updateGpuUsageHistory() {
-        gpuUsageHistory = [...gpuUsageHistory, gpuUsage]
-        if (gpuUsageHistory.length > historyLength) gpuUsageHistory.shift()
+        gpuUsageHistory = [...gpuUsageHistory, gpuUsage].slice(-historyLength)
     }
-    function updateHistories() {
+    function acceptMemory(text) {
+        const total = Number(text.match(/MemTotal: *(\d+)/)?.[1] ?? 0)
+        const available = Number(text.match(/MemAvailable: *(\d+)/)?.[1] ?? NaN)
+        if (total <= 0 || !Number.isFinite(available)) return
+        memoryTotal = total
+        memoryFree = available
+        swapTotal = Number(text.match(/SwapTotal: *(\d+)/)?.[1] ?? 0)
+        swapFree = Number(text.match(/SwapFree: *(\d+)/)?.[1] ?? 0)
         updateMemoryUsageHistory()
         updateSwapUsageHistory()
-        updateCpuUsageHistory()
-        updateDiskUsageHistory()
     }
-
-    Timer {
-        interval: Config?.options.resources.updateInterval ?? 3000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            fileMeminfo.reload()
-            fileStat.reload()
-
-            const textMeminfo = fileMeminfo.text()
-            memoryTotal = Number(textMeminfo.match(/MemTotal: *(\d+)/)?.[1] ?? 1)
-            memoryFree  = Number(textMeminfo.match(/MemAvailable: *(\d+)/)?.[1] ?? 0)
-            swapTotal   = Number(textMeminfo.match(/SwapTotal: *(\d+)/)?.[1] ?? 1)
-            swapFree    = Number(textMeminfo.match(/SwapFree: *(\d+)/)?.[1] ?? 0)
-
-            const textStat = fileStat.text()
-            const cpuLine  = textStat.match(/^cpu\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/)
-            if (cpuLine) {
-                const stats = cpuLine.slice(1).map(Number)
-                const total = stats.reduce((a, b) => a + b, 0)
-                const idle  = stats[3]
-                if (previousCpuStats) {
-                    const totalDiff = total - previousCpuStats.total
-                    const idleDiff  = idle  - previousCpuStats.idle
-                    cpuUsage = totalDiff > 0 ? (1 - idleDiff / totalDiff) : 0
-                }
-                previousCpuStats = { total, idle }
+    function acceptCpu(text) {
+        const line = text.match(/^cpu\s+(.+)$/m)
+        if (!line) return
+        // guest/guest_nice are already included in user/nice. Include steal,
+        // and count iowait as idle instead of reporting it as CPU execution.
+        const stats = line[1].trim().split(/\s+/).slice(0, 8).map(Number)
+        if (stats.length < 8 || !stats.every(Number.isFinite)) return
+        const total = stats.reduce((a, b) => a + b, 0)
+        const idle = stats[3] + stats[4]
+        if (previousCpuStats) {
+            const delta = total - previousCpuStats.total
+            const idleDelta = idle - previousCpuStats.idle
+            if (delta > 0 && idleDelta >= 0) {
+                cpuUsage = Math.max(0, Math.min(1, 1 - idleDelta / delta))
+                updateCpuUsageHistory()
             }
-
-            root.updateHistories()
         }
+        previousCpuStats = { total, idle }
     }
-
-    FileView { id: fileMeminfo; path: "/proc/meminfo" }
-    FileView { id: fileStat;    path: "/proc/stat" }
+    Timer {
+        interval: Math.max(1000, Config?.options.resources.updateInterval ?? 3000)
+        running: root.activeConsumers > 0
+        repeat: true
+        // preload performs the first read. Parse only completed async loads.
+        onTriggered: { fileMeminfo.reload(); fileStat.reload() }
+    }
+    FileView {
+        id: fileMeminfo
+        path: "/proc/meminfo"
+        preload: root.activeConsumers > 0
+        blockLoading: false
+        onLoaded: root.acceptMemory(text())
+    }
+    FileView {
+        id: fileStat
+        path: "/proc/stat"
+        preload: root.activeConsumers > 0
+        blockLoading: false
+        onLoaded: root.acceptCpu(text())
+    }
 
     Process {
         id: findCpuMaxFreqProc

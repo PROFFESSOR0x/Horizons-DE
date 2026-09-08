@@ -48,14 +48,16 @@ Singleton {
         return !!(/^\d+\t\[\[.*binary data.*\d+x\d+.*\]\]$/.test(entry))
     }
 
+    property bool refreshPending: false
     function refresh() {
-        readProc.buffer = []
+        if (readProc.running) { root.refreshPending = true; return }
+        root.refreshPending = false
         readProc.running = true
     }
 
     function copy(entry) {
         if (root.cliphistBinary.includes("cliphist")) // Classic cliphist
-            Quickshell.execDetached(["bash", "-c", `printf '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode | wl-copy`]);
+            Quickshell.execDetached(["bash", "-c", `printf '%s\\n' '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode | wl-copy`]);
         else { // Stash
             const entryNumber = entry.split("\t")[0];
             Quickshell.execDetached(["bash", "-c", `${root.cliphistBinary} decode ${entryNumber} | wl-copy`]);
@@ -64,7 +66,7 @@ Singleton {
 
     function paste(entry) {
         if (root.cliphistBinary.includes("cliphist")) // Classic cliphist
-            Quickshell.execDetached(["bash", "-c", `printf '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode | wl-copy && wl-paste`]);
+            Quickshell.execDetached(["bash", "-c", `printf '%s\\n' '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode | wl-copy && wl-paste`]);
         else { // Stash
             const entryNumber = entry.split("\t")[0];
             Quickshell.execDetached(["bash", "-c", `${root.cliphistBinary} decode ${entryNumber} | wl-copy; ${root.pressPasteCommand}`]);
@@ -77,7 +79,7 @@ Singleton {
             if (!isImage) return true;
             return entryIsImage(entry);
         }).slice(0, count)
-        const pasteCommands = [...targetEntries].reverse().map(entry => `printf '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode | wl-copy && sleep ${root.pasteDelay} && ${root.pressPasteCommand}`)
+        const pasteCommands = [...targetEntries].reverse().map(entry => `printf '%s\\n' '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode | wl-copy && sleep ${root.pasteDelay} && ${root.pressPasteCommand}`)
         // Act
         Quickshell.execDetached(["bash", "-c", pasteCommands.join(` && sleep ${root.pasteDelay} && `)]);
     }
@@ -102,7 +104,7 @@ Singleton {
 
     Process {
         id: wipeProc
-        command: ["bash", "-c", `${root.cliphistBinary} wipe; rm -rf ~/.cache/cliphist/db`]
+        command: ["bash", "-c", '"$1" wipe && rm -rf -- "$2"', "cliphist-wipe", root.cliphistBinary, Directories.cliphistDecode]
         onExited: (exitCode, exitStatus) => {
             root.entries = [];
             root.refresh();
@@ -132,23 +134,20 @@ Singleton {
 
     Process {
         id: readProc
-        property list<string> buffer: []
 
         command: [root.cliphistBinary, "list"]
 
-        stdout: SplitParser {
-            onRead: (line) => {
-                readProc.buffer.push(line)
-            }
+        stdout: StdioCollector {
+            id: listOutput
         }
-
         onExited: (exitCode, exitStatus) => {
             if (exitCode === 0) {
-                root.entries = readProc.buffer
-            } else {
-                root.entries = []
+                const next = listOutput.text.split("\n").filter(line => line.length > 0)
+                if (next.length !== root.entries.length || next.some((entry, index) => entry !== root.entries[index]))
+                    root.entries = next
+            } else
                 console.error("[Cliphist] Failed to refresh with code", exitCode, "and status", exitStatus)
-            }
+            if (root.refreshPending) Qt.callLater(root.refresh)
         }
     }
 

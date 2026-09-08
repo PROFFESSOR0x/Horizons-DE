@@ -1,3 +1,4 @@
+import Quickshell
 import QtQuick
 import QtQuick.Layouts
 import qs
@@ -10,6 +11,9 @@ import qs.modules.ii.background.widgets
 
 AbstractBackgroundWidget {
     id: root
+    property QtObject resourceUsageLease: ResourceUsageLease {
+        active: root.visible && (root.QsWindow.window?.visible ?? false)
+    }
     configEntryName: "resources"
     hoverEnabled: true
 

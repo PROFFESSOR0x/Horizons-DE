@@ -26,7 +26,7 @@ Item {
     property int tabCount: swipeView.count
 
     function focusActiveItem() {
-        swipeView.currentItem.forceActiveFocus()
+        swipeView.currentItem?.item?.forceActiveFocus()
     }
 
     Keys.onPressed: (event) => {
@@ -73,7 +73,7 @@ Item {
                 id: swipeView
                 anchors.fill: parent
                 spacing: 10
-                currentIndex: tabBar.currentIndex
+                currentIndex: 0
 
                 clip: true
                 layer.enabled: true
@@ -85,13 +85,27 @@ Item {
                     }
                 }
 
-                contentChildren: [
-                    ...(root.aiChatEnabled ? [aiChat.createObject()] : []),
-                    ...(root.translatorEnabled ? [translator.createObject()] : []),
-                    ...(root.mediaEnabled ? [media.createObject()] : []),
-                    ...((root.tabButtonList.length === 0 || (!root.aiChatEnabled && !root.translatorEnabled && root.animeCloset)) ? [placeholder.createObject()] : []),
-                    ...(root.animeEnabled ? [anime.createObject()] : []),
-                ]
+                // Each visited page remains alive to preserve drafts and media
+                // controls. Unvisited pages never allocate their full UI tree.
+                Repeater {
+                    model: [
+                        ...(root.aiChatEnabled ? [aiChat] : []),
+                        ...(root.translatorEnabled ? [translator] : []),
+                        ...(root.mediaEnabled ? [media] : []),
+                        ...((root.tabButtonList.length === 0 || (!root.aiChatEnabled && !root.translatorEnabled && root.animeCloset)) ? [placeholder] : []),
+                        ...(root.animeEnabled ? [anime] : []),
+                    ]
+                    delegate: Loader {
+                        required property var modelData
+                        property bool visited: false
+                        active: visited
+                        sourceComponent: modelData
+                        Component.onCompleted: visited = SwipeView.isCurrentItem
+                        SwipeView.onIsCurrentItemChanged: {
+                            if (SwipeView.isCurrentItem) visited = true
+                        }
+                    }
+                }
             }
         }
 

@@ -1,3 +1,4 @@
+import Quickshell
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -6,6 +7,9 @@ import QtQuick.Layouts
 
 BarWidgetSwitcherArea {
     id: root
+    property QtObject resourceUsageLease: ResourceUsageLease {
+        active: root.visible && (root.QsWindow.window?.visible ?? false)
+    }
     property bool alwaysShowAllResources: false
     horizontalExtraPadding: 12
 

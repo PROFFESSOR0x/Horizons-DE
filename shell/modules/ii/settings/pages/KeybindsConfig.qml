@@ -222,8 +222,9 @@ ContentPage {
     }
 
     Rectangle {
+        objectName: "KeybindsConfig.actions-and-shortcuts";
         id: captureOverlay
-        visible: false
+        visible: page.settingsShow("devices|input-details") && (false)
         width: page.width
         height: page.height
         color: ColorUtils.transparentize(Appearance.colors.colScrim, 0.55)
@@ -523,6 +524,8 @@ ContentPage {
     }
 
     ColumnLayout {
+        visible: page.settingsShow("devices|input-details");
+        objectName: "KeybindsConfig.actions-and-shortcuts-2";
         id: mainLayout
         Layout.fillWidth: true
         spacing: 20

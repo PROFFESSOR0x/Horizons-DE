@@ -6,11 +6,11 @@ import Quickshell.Hyprland
 
 Scope {
     id: root
-    property var windowList: []
-    property var workspaces: []
-    property var workspaceById: ({})
-    property var activeWorkspace: null
-    property var monitors: []
+    property var windowList: HyprlandData.windowList.map(normalizeWindow)
+    property var workspaces: HyprlandData.workspaces
+    property var workspaceById: HyprlandData.workspaceById
+    property var activeWorkspace: HyprlandData.activeWorkspace
+    property var monitors: HyprlandData.monitors
     property var focusedMonitor: Hyprland.focusedMonitor
 
     function switchWorkspaceRelative(direction) {
@@ -23,7 +23,7 @@ Scope {
             title: w.title,
             appId: w.class,
             workspaceId: w.workspace?.id ?? -1,
-            monitorName: w.monitor ?? "",
+            monitorName: HyprlandData.monitors.find(m => m.id === w.monitor || m.name === w.monitor)?.name ?? "",
             pid: w.pid ?? 0,
             focused: w.address === HyprlandData.activeWorkspace?.lastwindow
         };
@@ -167,20 +167,4 @@ Scope {
         return { x: m.x, y: m.y, scale: m.scale };
     }
 
-    Component.onCompleted: refresh()
-
-    function refresh() {
-        windowList = HyprlandData.windowList.map(normalizeWindow);
-        workspaces = HyprlandData.workspaces;
-        workspaceById = HyprlandData.workspaceById;
-        activeWorkspace = HyprlandData.activeWorkspace;
-        monitors = HyprlandData.monitors;
-    }
-
-    Connections {
-        target: HyprlandData
-        function onWindowListChanged() { root.refresh() }
-        function onWorkspacesChanged() { root.refresh() }
-        function onMonitorsChanged() { root.refresh() }
-    }
 }

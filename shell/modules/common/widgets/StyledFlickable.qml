@@ -16,7 +16,7 @@ Flickable {
     ScrollBar.vertical: StyledScrollBar {}
 
     MouseArea {
-        visible: Config?.options.interactions.scrolling.fasterTouchpadScroll
+        visible: root.interactive && Config?.options.interactions.scrolling.fasterTouchpadScroll
         anchors.fill: parent
         acceptedButtons: Qt.NoButton
         onWheel: function(wheelEvent) {

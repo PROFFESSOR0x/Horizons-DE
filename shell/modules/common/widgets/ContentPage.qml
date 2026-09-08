@@ -1,10 +1,19 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import qs.modules.common
 import qs.modules.common.widgets
 
 StyledFlickable {
     id: root
+    // A source view can contribute groups to a topic without nested scrolling.
+    property bool embedded: false
+    property string settingsRoute: ""
+    interactive: !embedded
+    ScrollBar.vertical.policy: embedded ? ScrollBar.AlwaysOff : ScrollBar.AsNeeded
+    function settingsShow(routes) {
+        return settingsRoute === "" || routes.split("|").includes(settingsRoute)
+    }
     // The settings window itself (Settings.qml) was widened to make room for
     // wider content; this default is the corresponding "sensible increase"
     // for the per-page content column so pages actually use that space
@@ -27,13 +36,13 @@ StyledFlickable {
 
     ColumnLayout {
         id: contentColumn
-        width: root.forceWidth
+        width: root.embedded ? root.width : root.forceWidth
             ? Math.min(root.baseWidth, Math.max(0, root.width - root.sidePadding))
             : Math.max(root.baseWidth, implicitWidth)
         anchors {
             top: parent.top
             horizontalCenter: parent.horizontalCenter
-            margins: 20
+            margins: root.embedded ? 0 : 20
         }
         spacing: 30
     }

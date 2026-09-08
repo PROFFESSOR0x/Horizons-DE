@@ -11,6 +11,9 @@ import qs.modules.common.functions
 
 Item {
     id: root
+    property QtObject resourceUsageLease: ResourceUsageLease {
+        active: root.visible && (root.QsWindow.window?.visible ?? false)
+    }
     implicitHeight: Appearance.sizes.barHeight
     width: parent.width
 

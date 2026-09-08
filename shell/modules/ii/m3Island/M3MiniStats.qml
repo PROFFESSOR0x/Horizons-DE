@@ -1,3 +1,4 @@
+import Quickshell
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
@@ -10,6 +11,9 @@ import QtQuick.Layouts
 // the same data source the bar and sysmonitorBar widgets use.
 Item {
     id: root
+    property QtObject resourceUsageLease: ResourceUsageLease {
+        active: root.visible && (root.QsWindow.window?.visible ?? false)
+    }
     // Accepted for API parity with bar/ widgets loaded through the same
     // configureM3Widget() path; this widget only ever renders one way.
     property bool useM3IslandConfig: false
@@ -40,6 +44,7 @@ Item {
                 color: Appearance.colors.colOnLayer1
             }
             StyledText {
+                textFormat: Text.PlainText
                 text: Math.round(root.cpu * 100) + "%"
                 font.pixelSize: Appearance.font.pixelSize.smallest
                 font.features: { "tnum": 1 }
@@ -57,6 +62,7 @@ Item {
                 color: Appearance.colors.colOnLayer1
             }
             StyledText {
+                textFormat: Text.PlainText
                 text: Math.round(root.mem * 100) + "%"
                 font.pixelSize: Appearance.font.pixelSize.smallest
                 font.features: { "tnum": 1 }

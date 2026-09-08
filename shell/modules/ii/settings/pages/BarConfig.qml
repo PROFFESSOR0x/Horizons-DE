@@ -178,6 +178,7 @@ ContentPage {
     }
 
     ColumnLayout {
+        visible: page.settingsShow("integrations|notification-rules|notifications|panel-details|panels");
         id: mainLayout
         Layout.fillWidth: true
         Layout.fillHeight: true
@@ -185,12 +186,17 @@ ContentPage {
 
         // ── 1. Bar Mode ───────────────────────────────────────────────────────
         ContentSection {
+            visible: page.settingsShow("panels");
             icon: "dashboard_customize"
             shape: MaterialShape.Shape.Gem
             title: Translation.tr("Bar Mode")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panels")
                 ConfigSelectionArray {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.active-bar";
                     text: Translation.tr("Active bar")
                     icon: "view_quilt"
                     currentValue: Config.options.bar.barMode
@@ -212,17 +218,20 @@ ContentPage {
         ContentSection {
             icon: "monitor"
             shape: MaterialShape.Shape.ClamShell
-            visible: Hyprland.monitors.values.length > 1
+            visible: page.settingsShow("panels") && (Hyprland.monitors.values.length > 1)
             title: Translation.tr("Screens")
             ContentSubsection {
+                visible: page.settingsShow("panels");
                 title: Translation.tr("Show bar on")
 
                 ColumnLayout {
+                    visible: page.settingsShow("panels");
                     id: monitorsCol
                     Layout.fillWidth: true
                     spacing: 2
 
                     Rectangle {
+                        visible: page.settingsShow("panels");
                         id: allRow
                         Layout.fillWidth: true
                         implicitHeight: allSwitchItem.implicitHeight + 16 + 8
@@ -233,11 +242,13 @@ ContentPage {
                         bottomRightRadius: Appearance.rounding.unsharpenmore
 
                         ConfigSwitch {
+                            visible: page.settingsShow("panels");
+                            objectName: "BarConfig.all";
                             id: allSwitchItem
                             anchors { fill: parent; margins: 8 }
                             buttonIcon: "tv_displays"
                             text: Translation.tr("All")
-                            onCheckedChanged: {
+                            onEdited: {
                                 if (checked) Config.options.bar.screenList = []
                             }
                             Binding {
@@ -252,6 +263,7 @@ ContentPage {
                     Repeater {
                         model: Hyprland.monitors
                         delegate: Rectangle {
+                                      visible: page.settingsShow("panels");
                             id: monitorRow
                             required property var modelData
                             required property int index
@@ -266,11 +278,13 @@ ContentPage {
                             bottomRightRadius: isLast ? Appearance.rounding.normal : Appearance.rounding.unsharpenmore
 
                             ConfigSwitch {
+                                visible: page.settingsShow("panels");
+                                objectName: "BarConfig.show-bar-on";
                                 id: switchItem
                                 anchors { fill: parent; margins: 8 }
                                 buttonIcon: "monitor"
                                 text: monitorRow.modelData.name
-                                onCheckedChanged: {
+                                onEdited: {
                                     const allNames = Hyprland.monitors.values.map(m => m.name)
                                     let list = Config.options.bar.screenList.length === 0 ? allNames.slice() : Config.options.bar.screenList.slice()
                                     if (checked) {
@@ -301,6 +315,7 @@ ContentPage {
             title: Translation.tr("Bar Layout")
 
             GroupedList {
+                compact: true;
                 LayoutSection {
                     sectionTitle: Config.options.bar.vertical ? Translation.tr("Top") : Translation.tr("Left")
                     layout: Config.options.bar.layouts.leftLayout
@@ -333,6 +348,7 @@ ContentPage {
             title: Translation.tr("Mesobar Layout")
 
             GroupedList {
+                compact: true;
                 LayoutSection {
                     sectionTitle: Translation.tr("Left")
                     layout: Config.options.mesoBar.layouts.leftLayout
@@ -362,9 +378,10 @@ ContentPage {
             icon: "interests"
             shape: MaterialShape.Shape.Cookie6Sided
             visible: page.barMode === "m3Island"
-            title: Translation.tr("M3 Island Layout")
+            title: Translation.tr("Island layout")
 
             GroupedList {
+                compact: true;
                 LayoutSection {
                     sectionTitle: Translation.tr("Resting (idle pill)")
                     layout: Config.options.m3Island.layouts.restingLayout
@@ -373,6 +390,7 @@ ContentPage {
                     onUpdate: list => Config.options.m3Island.layouts.restingLayout = list
                 }
                 StyledText {
+                    property bool groupDescription: true;
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     color: Appearance.colors.colSubtext
@@ -400,11 +418,15 @@ ContentPage {
         ContentSection {
             icon: "tune"
             shape: MaterialShape.Shape.SoftBurst
-            visible: page.barMode === "m3Island"
-            title: Translation.tr("M3 Island Options")
+            visible: page.settingsShow("notification-rules|panel-details|panels") && (page.barMode === "m3Island")
+            title: Translation.tr("Island behavior")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("notification-rules|panel-details|panels")
                 ConfigSelectionArray {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.clock-style";
                     text: Translation.tr("Clock style")
                     icon: "schedule"
                     currentValue: Config.options.m3Island.clockStyle
@@ -416,73 +438,96 @@ ContentPage {
                     ]
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.show-date";
                         buttonIcon: "calendar_today"
                         text: Translation.tr("Show date")
                         checked: Config.options.m3Island.clockShowDate
-                        onCheckedChanged: { Config.options.m3Island.clockShowDate = checked }
+                        onEdited: { Config.options.m3Island.clockShowDate = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.hover-peek";
                         buttonIcon: "timelapse"
                         text: Translation.tr("Hover peek")
                         checked: Config.options.m3Island.hoverPeek
-                        onCheckedChanged: { Config.options.m3Island.hoverPeek = checked }
+                        onEdited: { Config.options.m3Island.hoverPeek = checked }
                     }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.show-seconds";
                         buttonIcon: "timer"
                         text: Translation.tr("Show seconds")
                         checked: Config.options.m3Island.clockShowSeconds
-                        onCheckedChanged: { Config.options.m3Island.clockShowSeconds = checked }
+                        onEdited: { Config.options.m3Island.clockShowSeconds = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.use-24-hour-clock";
                         buttonIcon: "schedule"
                         text: Translation.tr("Use 24-hour clock")
                         checked: Config.options.m3Island.clockUse24h
-                        onCheckedChanged: { Config.options.m3Island.clockUse24h = checked }
+                        onEdited: { Config.options.m3Island.clockUse24h = checked }
                     }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panel-details|panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panel-details");
+                        objectName: "BarConfig.reserve-screen-space";
                         buttonIcon: "vertical_align_center"
                         text: Translation.tr("Reserve screen space")
                         checked: Config.options.m3Island.reserveScreenSpace ?? false
-                        onCheckedChanged: {
+                        onEdited: {
                             if (!Config.ready || checked === (Config.options.m3Island.reserveScreenSpace ?? false)) return
                             Config.setNestedValue("m3Island.reserveScreenSpace", checked)
                         }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.click-to-expand";
                         buttonIcon: "open_in_full"
                         text: Translation.tr("Click to expand")
                         checked: Config.options.m3Island.clickToExpand
-                        onCheckedChanged: { Config.options.m3Island.clickToExpand = checked }
+                        onEdited: { Config.options.m3Island.clickToExpand = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panel-details");
+                        objectName: "BarConfig.launcher-hug";
                         buttonIcon: "search"
                         text: Translation.tr("Launcher hug")
                         checked: Config.options.m3Island.launcherHug
-                        onCheckedChanged: { Config.options.m3Island.launcherHug = checked }
+                        onEdited: { Config.options.m3Island.launcherHug = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panel-details");
+                        objectName: "BarConfig.show-expanded-details";
                         buttonIcon: "more_horiz"
                         text: Translation.tr("Show expanded details")
                         checked: Config.options.m3Island.verbose
-                        onCheckedChanged: { Config.options.m3Island.verbose = checked }
+                        onEdited: { Config.options.m3Island.verbose = checked }
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.launcher-maximum-visible-results";
                     icon: "format_list_numbered"
                     text: Translation.tr("Launcher maximum visible results")
                     value: Config.options.m3Island.launcherMaxResults
                     from: 1; to: 10; stepSize: 1
-                    onValueChanged: { Config.options.m3Island.launcherMaxResults = value }
+                    onEdited: { Config.options.m3Island.launcherMaxResults = value }
                 }
                 ConfigSelectionArray {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.scroll-over-island";
                     text: Translation.tr("Scroll over island")
                     icon: "mouse"
                     currentValue: Config.options.m3Island.scrollAction
@@ -495,13 +540,17 @@ ContentPage {
                     ]
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.expanded-height";
                     icon: "height"
                     text: Translation.tr("Expanded height")
                     value: Config.options.m3Island.expandedHeight
                     from: 48; to: 160; stepSize: 4
-                    onValueChanged: { Config.options.m3Island.expandedHeight = value }
+                    onEdited: { Config.options.m3Island.expandedHeight = value }
                 }
                 ConfigSelectionArray {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.animation-speed";
                     text: Translation.tr("Animation speed")
                     icon: "speed"
                     currentValue: Config.options.m3Island.animationSpeed
@@ -513,14 +562,17 @@ ContentPage {
                     ]
                 }
                 ConfigSpinBox {
+                    objectName: "BarConfig.hug-corner-size";
                     icon: "line_curve"
                     text: Translation.tr("Hug corner size")
-                    visible: Config.options.m3Island.cornerStyle === 0
+                    visible: page.settingsShow("panel-details") && (Config.options.m3Island.cornerStyle === 0)
                     value: Config.options.m3Island.hugCornerSize
                     from: 0; to: 48; stepSize: 2
-                    onValueChanged: { Config.options.m3Island.hugCornerSize = value }
+                    onEdited: { Config.options.m3Island.hugCornerSize = value }
                 }
                 ConfigSelectionArray {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.corner-style";
                     text: Translation.tr("Corner style")
                     icon: "style"
                     currentValue: Config.options.m3Island.cornerStyle
@@ -531,53 +583,65 @@ ContentPage {
                     ]
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("notification-rules");
+                    objectName: "BarConfig.notification-display-time-ms-0-global";
                     icon: "timer"
                     text: Translation.tr("Notification display time (ms, 0 = global)")
                     value: Config.options.m3Island.notificationTimeout
                     from: 0; to: 30000; stepSize: 500
-                    onValueChanged: { Config.options.m3Island.notificationTimeout = value }
+                    onEdited: { Config.options.m3Island.notificationTimeout = value }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.show-background";
                         buttonIcon: "panorama_wide_angle"
                         text: Translation.tr("Show Background")
                         checked: Config.options.m3Island.showBackground
-                        onCheckedChanged: { Config.options.m3Island.showBackground = checked }
+                        onEdited: { Config.options.m3Island.showBackground = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.show-frame";
                         buttonIcon: "border_all"
                         text: Translation.tr("Show Frame")
                         checked: Config.options.m3Island.showFrame
-                        onCheckedChanged: { Config.options.m3Island.showFrame = checked }
+                        onEdited: { Config.options.m3Island.showFrame = checked }
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.blend-the-wallpaper-into-the-island";
                     buttonIcon: "wallpaper"
                     enabled: Config.options.m3Island.showBackground
                     text: Translation.tr("Blend the wallpaper into the island")
                     checked: Config.options.m3Island.wallpaperBackground.enable
-                    onCheckedChanged: { Config.options.m3Island.wallpaperBackground.enable = checked }
+                    onEdited: { Config.options.m3Island.wallpaperBackground.enable = checked }
                 }
                 ConfigSlider {
-                    visible: Config.options.m3Island.wallpaperBackground.enable
+                    objectName: "BarConfig.wallpaper-strength";
+                    visible: page.settingsShow("panel-details") && (Config.options.m3Island.wallpaperBackground.enable)
                     text: Translation.tr("Wallpaper strength")
                     textWidth: 130
                     buttonIcon: "opacity"
                     value: Config.options.m3Island.wallpaperBackground.opacity * 100
                     from: 0; to: 100
-                    onValueChanged: { Config.options.m3Island.wallpaperBackground.opacity = value / 100 }
+                    onEdited: { Config.options.m3Island.wallpaperBackground.opacity = value / 100 }
                 }
                 ConfigSlider {
-                    visible: Config.options.m3Island.wallpaperBackground.enable
+                    objectName: "BarConfig.readability-scrim";
+                    visible: page.settingsShow("panel-details") && (Config.options.m3Island.wallpaperBackground.enable)
                     text: Translation.tr("Readability scrim")
                     textWidth: 130
                     buttonIcon: "contrast"
                     value: Config.options.m3Island.wallpaperBackground.scrim * 100
                     from: 0; to: 100
-                    onValueChanged: { Config.options.m3Island.wallpaperBackground.scrim = value / 100 }
+                    onEdited: { Config.options.m3Island.wallpaperBackground.scrim = value / 100 }
                 }
                 StyledText {
+                    property bool groupDescription: true;
                     visible: Config.options.m3Island.wallpaperBackground.enable
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
@@ -586,21 +650,27 @@ ContentPage {
                     text: Translation.tr("The island shows the exact piece of wallpaper it is sitting on, lined up with the desktop behind it, so it reads as carved out of the wallpaper instead of floating on top of it. The scrim lays the island's normal colour back over that image - drop it to 0 for a pure window onto the wallpaper, raise it if the pill's text gets lost over a busy one.")
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.use-frame-color-as-background";
                     buttonIcon: "colors"
                     enabled: Config.options.m3Island.showFrame
                     text: Translation.tr("Use Frame Color as Background")
                     checked: Config.options.m3Island.followFrameColor
-                    onCheckedChanged: { Config.options.m3Island.followFrameColor = checked }
+                    onEdited: { Config.options.m3Island.followFrameColor = checked }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.frame-thickness";
                     icon: "eraser_size_1"
                     text: Translation.tr("Frame thickness")
                     enabled: Config.options.m3Island.showFrame
                     value: Config.options.m3Island.frameThickness
                     from: 1; to: 10; stepSize: 1
-                    onValueChanged: { Config.options.m3Island.frameThickness = value }
+                    onEdited: { Config.options.m3Island.frameThickness = value }
                 }
                 ColorSelectionArray {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.frame-color";
                     icon: "imagesearch_roller"
                     text: Translation.tr("Frame Color")
                     options: ["primaryContainer", "secondaryContainer", "tertiaryContainer", "layer0", "black"]
@@ -612,16 +682,20 @@ ContentPage {
 
         // ── 5. Positioning & Shared Styles (all modes) ────────────────────────
         ContentSection {
+            visible: page.settingsShow("panel-details|panels");
             icon: "pivot_table_chart"
             shape: MaterialShape.Shape.Gem
             title: Translation.tr("Positioning & Style")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panel-details|panels")
                 // Position — classic uses all 4 directions; others top/bottom only
                 ConfigSelectionArray {
+                    objectName: "BarConfig.bar-position";
                     text: Translation.tr("Bar position")
                     icon: "swap_vert"
-                    visible: page.barMode === "classic"
+                    visible: page.settingsShow("panels") && (page.barMode === "classic")
                     currentValue: (Config.options.bar.bottom ? 1 : 0) | (Config.options.bar.vertical ? 2 : 0)
                     onSelected: newValue => {
                         Config.options.bar.bottom   = (newValue & 1) !== 0
@@ -635,9 +709,10 @@ ContentPage {
                     ]
                 }
                 ConfigSelectionArray {
+                    objectName: "BarConfig.bar-position-2";
                     text: Translation.tr("Bar position")
                     icon: "swap_vert"
-                    visible: page.barMode !== "classic"
+                    visible: page.settingsShow("panels") && (page.barMode !== "classic")
                     currentValue: Config.options.bar.bottom ? 1 : 0
                     onSelected: newValue => { Config.options.bar.bottom = newValue === 1 }
                     options: [
@@ -648,9 +723,10 @@ ContentPage {
 
                 // Mesobar-specific corner style
                 ConfigSelectionArray {
+                    objectName: "BarConfig.mesobar-style";
                     text: Translation.tr("Mesobar style")
                     icon: "style"
-                    visible: page.barMode === "mesoBar"
+                    visible: page.settingsShow("panels") && (page.barMode === "mesoBar")
                     currentValue: Config.options.mesoBar.cornerStyle
                     onSelected: newValue => { Config.options.mesoBar.cornerStyle = newValue }
                     options: [
@@ -663,9 +739,10 @@ ContentPage {
 
                 // Mesobar width policy
                 ConfigSelectionArray {
+                    objectName: "BarConfig.width";
                     text: Translation.tr("Width")
                     icon: "width"
-                    visible: page.barMode === "mesoBar"
+                    visible: page.settingsShow("panel-details") && (page.barMode === "mesoBar")
                     currentValue: Config.options.mesoBar.widthMode
                     onSelected: newValue => { Config.options.mesoBar.widthMode = newValue }
                     options: [
@@ -674,19 +751,21 @@ ContentPage {
                     ]
                 }
                 ConfigSpinBox {
+                    objectName: "BarConfig.width-of-screen";
                     icon: "width"
                     text: Translation.tr("Width (% of screen)")
-                    visible: page.barMode === "mesoBar" && Config.options.mesoBar.widthMode === "percent"
+                    visible: page.settingsShow("panel-details") && (page.barMode === "mesoBar" && Config.options.mesoBar.widthMode === "percent")
                     value: Config.options.mesoBar.widthPercent
                     from: 20; to: 100; stepSize: 5
-                    onValueChanged: { Config.options.mesoBar.widthPercent = value }
+                    onEdited: { Config.options.mesoBar.widthPercent = value }
                 }
 
                 // Shared corner style (all other modes)
                 ConfigSelectionArray {
+                    objectName: "BarConfig.bar-style";
                     text: Translation.tr("Bar style")
                     icon: "style"
-                    visible: page.barMode !== "mesoBar" && page.barMode !== "m3Island"
+                    visible: page.settingsShow("panels") && (page.barMode !== "mesoBar" && page.barMode !== "m3Island")
                     currentValue: Config.options.bar.cornerStyle
                     onSelected: newValue => { Config.options.bar.cornerStyle = newValue }
                     options: [
@@ -699,9 +778,10 @@ ContentPage {
 
                 // Group style (classic only)
                 ConfigSelectionArray {
+                    objectName: "BarConfig.group-style";
                     text: Translation.tr("Group style")
                     icon: "tab_group"
-                    visible: page.barMode === "classic"
+                    visible: page.settingsShow("panels") && (page.barMode === "classic")
                     currentValue: Config.options.bar.borderless
                     onSelected: newValue => { Config.options.bar.borderless = newValue }
                     options: [
@@ -714,9 +794,10 @@ ContentPage {
 
                 // Mesobar group style
                 ConfigSelectionArray {
+                    objectName: "BarConfig.group-style-2";
                     text: Translation.tr("Group style")
                     icon: "tab_group"
-                    visible: page.barMode === "mesoBar"
+                    visible: page.settingsShow("panels") && (page.barMode === "mesoBar")
                     currentValue: Config.options.mesoBar.borderless
                     onSelected: newValue => { Config.options.mesoBar.borderless = newValue }
                     options: [
@@ -728,26 +809,32 @@ ContentPage {
                 }
 
                 ColorSelectionArray {
+                    objectName: "BarConfig.group-color";
                     icon: "brush"
                     text: Translation.tr("Group Color")
-                    visible: page.barMode === "classic"
+                    visible: page.settingsShow("panel-details") && (page.barMode === "classic")
                     options: ["primaryContainer", "secondaryContainer", "tertiaryContainer", "layer1", "layer0"]
                     currentValue: Config.options.bar.groupColor
                     onSelected: newValue => { Config.options.bar.groupColor = newValue }
                 }
 
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.show-background-2";
                         buttonIcon: "variable_insert"
                         text: Translation.tr("Show Background")
                         checked: page.barMode === "m3Island" ? Config.options.m3Island.showBackground : Config.options.bar.showBackground
-                        onCheckedChanged: {
+                        onEdited: {
                             if (page.barMode === "m3Island") Config.options.m3Island.showBackground = checked
                             else Config.options.bar.showBackground = checked
                         }
                     }
                     ConfigSelectionArray {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.autohide";
                         text: Translation.tr("Autohide")
                         icon: "preview_off"
                         currentValue: Config.options.bar.autoHide.enable
@@ -760,59 +847,72 @@ ContentPage {
                 }
 
                 GroupedList {
-                    visible: Config.options.bar.autoHide.enable
+                    compact: true;
+                    visible: page.settingsShow("panel-details") && (Config.options.bar.autoHide.enable)
                     ConfigSpinBox {
+                        visible: page.settingsShow("panel-details");
+                        objectName: "BarConfig.hover-region-width-px";
                         icon: "width"
                         text: Translation.tr("Hover Region Width (px)")
                         value: Config.options.bar.autoHide.hoverRegionWidth
                         from: 1; to: 20; stepSize: 1
-                        onValueChanged: { Config.options.bar.autoHide.hoverRegionWidth = value }
+                        onEdited: { Config.options.bar.autoHide.hoverRegionWidth = value }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panel-details");
+                        objectName: "BarConfig.push-windows-when-hidden";
                         buttonIcon: "open_with"
                         text: Translation.tr("Push Windows When Hidden")
                         checked: Config.options.bar.autoHide.pushWindows
-                        onCheckedChanged: { Config.options.bar.autoHide.pushWindows = checked }
+                        onEdited: { Config.options.bar.autoHide.pushWindows = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panel-details");
+                        objectName: "BarConfig.show-on-super-press";
                         buttonIcon: "keyboard"
                         text: Translation.tr("Show On Super Press")
                         checked: Config.options.bar.autoHide.showWhenPressingSuper.enable
-                        onCheckedChanged: { Config.options.bar.autoHide.showWhenPressingSuper.enable = checked }
+                        onEdited: { Config.options.bar.autoHide.showWhenPressingSuper.enable = checked }
                     }
                 }
 
                 ConfigRow {
-                    visible: page.barMode !== "m3Island"
+                    visible: page.settingsShow("panel-details|panels") && (page.barMode !== "m3Island")
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.show-frame-2";
                         buttonIcon: "panorama_wide_angle"
                         text: Translation.tr("Show Frame")
                         checked: Config.options.bar.showFrame
                         property bool switchReady: false
                         Component.onCompleted: Qt.callLater(() => switchReady = true)
-                        onCheckedChanged: {
+                        onEdited: {
                             if (switchReady && checked) GlobalStates.refreshBar()
                             Config.options.bar.showFrame = checked
                         }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panel-details");
+                        objectName: "BarConfig.follow-frame-color";
                         buttonIcon: "colors"
                         enabled: Config.options.bar.showFrame
                         text: Translation.tr("Follow Frame Color")
                         checked: Config.options.bar.followFrameColor
-                        onCheckedChanged: { Config.options.bar.followFrameColor = checked }
+                        onEdited: { Config.options.bar.followFrameColor = checked }
                     }
                 }
                 ConfigSpinBox {
-                    visible: page.barMode !== "m3Island"
+                    objectName: "BarConfig.frame-thickness-2";
+                    visible: page.settingsShow("panel-details") && (page.barMode !== "m3Island")
                     icon: "eraser_size_1"
                     text: Translation.tr("Frame thickness")
                     value: Config.options.bar.frameThickness
                     from: 2; to: 10; stepSize: 1
-                    onValueChanged: { Config.options.bar.frameThickness = value }
+                    onEdited: { Config.options.bar.frameThickness = value }
                 }
                 ColorSelectionArray {
-                    visible: page.barMode !== "m3Island"
+                    objectName: "BarConfig.frame-color-2";
+                    visible: page.settingsShow("panel-details") && (page.barMode !== "m3Island")
                     icon: "imagesearch_roller"
                     text: Translation.tr("Frame Color")
                     options: ["primaryContainer", "secondaryContainer", "tertiaryContainer", "layer0", "black"]
@@ -826,38 +926,49 @@ ContentPage {
         ContentSection {
             icon: "dock"
             shape: MaterialShape.Shape.Cookie6Sided
-            visible: page.barMode === "mesoBar"
-            title: Translation.tr("Mesobar Options")
+            visible: page.settingsShow("panel-details|panels") && (page.barMode === "mesoBar")
+            title: Translation.tr("Mesobar")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panel-details|panels")
                 ConfigRow {
+                    visible: page.settingsShow("panel-details|panels")
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.show-frame-3";
                         buttonIcon: "panorama_wide_angle"
                         text: Translation.tr("Show Frame")
                         checked: Config.options.mesoBar.showFrame
                         property bool switchReady: false
                         Component.onCompleted: Qt.callLater(() => switchReady = true)
-                        onCheckedChanged: {
+                        onEdited: {
                             if (switchReady && checked) GlobalStates.refreshBar()
                             Config.options.mesoBar.showFrame = checked
                         }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panel-details");
+                        objectName: "BarConfig.follow-frame-color-2";
                         buttonIcon: "colors"
                         enabled: Config.options.mesoBar.showFrame
                         text: Translation.tr("Follow Frame Color")
                         checked: Config.options.mesoBar.followFrameColor
-                        onCheckedChanged: { Config.options.mesoBar.followFrameColor = checked }
+                        onEdited: { Config.options.mesoBar.followFrameColor = checked }
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.frame-thickness-3";
                     icon: "eraser_size_1"
                     text: Translation.tr("Frame thickness")
                     value: Config.options.mesoBar.frameThickness
                     from: 2; to: 10; stepSize: 1
-                    onValueChanged: { Config.options.mesoBar.frameThickness = value }
+                    onEdited: { Config.options.mesoBar.frameThickness = value }
                 }
                 ColorSelectionArray {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.frame-color-3";
                     icon: "imagesearch_roller"
                     text: Translation.tr("Frame Color")
                     options: ["primaryContainer", "secondaryContainer", "tertiaryContainer", "layer0", "black"]
@@ -871,25 +982,32 @@ ContentPage {
         ContentSection {
             icon: "list"
             shape: MaterialShape.Shape.Cookie6Sided
-            visible: page.barMode === "tasklistBar"
-            title: Translation.tr("Tasklist Options")
+            visible: page.settingsShow("panel-details|panels") && (page.barMode === "tasklistBar")
+            title: Translation.tr("Task list")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panel-details|panels")
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.show-labels";
                         buttonIcon: "label"
                         text: Translation.tr("Show Labels")
                         checked: Config.options.tasklistBar.showLabels
-                        onCheckedChanged: { Config.options.tasklistBar.showLabels = checked }
+                        onEdited: { Config.options.tasklistBar.showLabels = checked }
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.max-button-width";
                     icon: "width"
                     text: Translation.tr("Max Button Width")
                     value: Config.options.tasklistBar.maxButtonWidth
                     from: 40; to: 400; stepSize: 10
-                    onValueChanged: { Config.options.tasklistBar.maxButtonWidth = value }
+                    onEdited: { Config.options.tasklistBar.maxButtonWidth = value }
                 }
                 LayoutSection {
                     sectionTitle: Translation.tr("Pinned Apps")
@@ -905,89 +1023,116 @@ ContentPage {
         ContentSection {
             icon: "monitoring"
             shape: MaterialShape.Shape.Cookie6Sided
-            visible: page.barMode === "sysmonitorBar"
-            title: Translation.tr("System Monitor Options")
+            visible: page.settingsShow("panel-details|panels") && (page.barMode === "sysmonitorBar")
+            title: Translation.tr("System monitor")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panel-details|panels")
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.cpu";
                         buttonIcon: "planner_review"
                         text: Translation.tr("CPU")
                         checked: Config.options.sysmonitorBar.showCpu
-                        onCheckedChanged: { Config.options.sysmonitorBar.showCpu = checked }
+                        onEdited: { Config.options.sysmonitorBar.showCpu = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.cpu-temperature";
                         buttonIcon: "thermostat"
                         text: Translation.tr("CPU Temperature")
                         checked: Config.options.sysmonitorBar.showCpuTemp
-                        onCheckedChanged: { Config.options.sysmonitorBar.showCpuTemp = checked }
+                        onEdited: { Config.options.sysmonitorBar.showCpuTemp = checked }
                     }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.ram";
                         buttonIcon: "memory"
                         text: Translation.tr("RAM")
                         checked: Config.options.sysmonitorBar.showRam
-                        onCheckedChanged: { Config.options.sysmonitorBar.showRam = checked }
+                        onEdited: { Config.options.sysmonitorBar.showRam = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.disk";
                         buttonIcon: "storage"
                         text: Translation.tr("Disk")
                         checked: Config.options.sysmonitorBar.showDisk
-                        onCheckedChanged: { Config.options.sysmonitorBar.showDisk = checked }
+                        onEdited: { Config.options.sysmonitorBar.showDisk = checked }
                     }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.swap";
                         buttonIcon: "swap_horiz"
                         text: Translation.tr("Swap")
                         checked: Config.options.sysmonitorBar.showSwap
-                        onCheckedChanged: { Config.options.sysmonitorBar.showSwap = checked }
+                        onEdited: { Config.options.sysmonitorBar.showSwap = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.network";
                         buttonIcon: "network_check"
                         text: Translation.tr("Network")
                         checked: Config.options.sysmonitorBar.showNetwork
-                        onCheckedChanged: { Config.options.sysmonitorBar.showNetwork = checked }
+                        onEdited: { Config.options.sysmonitorBar.showNetwork = checked }
                     }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.ram-warning-threshold";
                     icon: "memory"
                     text: Translation.tr("RAM warning threshold (%)")
                     value: Config.options.sysmonitorBar.memoryWarningThreshold
                     from: 50; to: 100; stepSize: 1
-                    onValueChanged: { Config.options.sysmonitorBar.memoryWarningThreshold = value }
+                    onEdited: { Config.options.sysmonitorBar.memoryWarningThreshold = value }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.cpu-warning-threshold";
                     icon: "planner_review"
                     text: Translation.tr("CPU warning threshold (%)")
                     value: Config.options.sysmonitorBar.cpuWarningThreshold
                     from: 50; to: 100; stepSize: 1
-                    onValueChanged: { Config.options.sysmonitorBar.cpuWarningThreshold = value }
+                    onEdited: { Config.options.sysmonitorBar.cpuWarningThreshold = value }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.temperature-warning-threshold-c";
                     icon: "thermostat"
                     text: Translation.tr("Temperature warning threshold (°C)")
                     value: Config.options.sysmonitorBar.tempWarningThreshold
                     from: 50; to: 110; stepSize: 1
-                    onValueChanged: { Config.options.sysmonitorBar.tempWarningThreshold = value }
+                    onEdited: { Config.options.sysmonitorBar.tempWarningThreshold = value }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.disk-warning-threshold";
                     icon: "storage"
                     text: Translation.tr("Disk warning threshold (%)")
                     value: Config.options.sysmonitorBar.diskWarningThreshold
                     from: 50; to: 100; stepSize: 1
-                    onValueChanged: { Config.options.sysmonitorBar.diskWarningThreshold = value }
+                    onEdited: { Config.options.sysmonitorBar.diskWarningThreshold = value }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.swap-warning-threshold";
                     icon: "swap_horiz"
                     text: Translation.tr("Swap warning threshold (%)")
                     value: Config.options.sysmonitorBar.swapWarningThreshold
                     from: 50; to: 100; stepSize: 1
-                    onValueChanged: { Config.options.sysmonitorBar.swapWarningThreshold = value }
+                    onEdited: { Config.options.sysmonitorBar.swapWarningThreshold = value }
                 }
             }
         }
@@ -996,23 +1141,30 @@ ContentPage {
         ContentSection {
             icon: "tune"
             shape: MaterialShape.Shape.Cookie6Sided
-            visible: page.barMode === "quickActionsBar"
-            title: Translation.tr("Quick Actions Options")
+            visible: page.settingsShow("integrations|panels") && (page.barMode === "quickActionsBar")
+            title: Translation.tr("Quick actions")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("integrations|panels")
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.volume-slider";
                         buttonIcon: "volume_up"
                         text: Translation.tr("Volume Slider")
                         checked: Config.options.quickActionsBar.showVolumeSlider
-                        onCheckedChanged: { Config.options.quickActionsBar.showVolumeSlider = checked }
+                        onEdited: { Config.options.quickActionsBar.showVolumeSlider = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.brightness-slider";
                         buttonIcon: "brightness_6"
                         text: Translation.tr("Brightness Slider")
                         checked: Config.options.quickActionsBar.showBrightnessSlider
-                        onCheckedChanged: { Config.options.quickActionsBar.showBrightnessSlider = checked }
+                        onEdited: { Config.options.quickActionsBar.showBrightnessSlider = checked }
                     }
                 }
                 LayoutSection {
@@ -1027,6 +1179,8 @@ ContentPage {
                     visible: Config.options.quickActionsBar.toggles.some(t => t.type === "hotspot")
                     uniform: true
                     ColumnLayout {
+                        visible: page.settingsShow("integrations");
+
                         Layout.fillWidth: true
                         spacing: 4
                         StyledText {
@@ -1035,13 +1189,18 @@ ContentPage {
                             color: Appearance.colors.colSubtext
                         }
                         MaterialTextField {
+                            objectName: "BarConfig.hotspot-ssid";
+                            visible: page.settingsShow("integrations");
+
                             Layout.fillWidth: true
                             placeholderText: Hotspot.ssid
                             text: Config.options.quickActionsBar.hotspotSsid
-                            onTextChanged: Config.options.quickActionsBar.hotspotSsid = text
+                            onTextEdited: Config.options.quickActionsBar.hotspotSsid = text
                         }
                     }
                     ColumnLayout {
+                        visible: page.settingsShow("integrations");
+
                         Layout.fillWidth: true
                         spacing: 4
                         StyledText {
@@ -1050,11 +1209,14 @@ ContentPage {
                             color: Appearance.colors.colSubtext
                         }
                         MaterialTextField {
+                            objectName: "BarConfig.hotspot-password";
+                            visible: page.settingsShow("integrations");
+
                             Layout.fillWidth: true
                             placeholderText: Hotspot.password
                             text: Config.options.quickActionsBar.hotspotPassword
                             echoMode: TextInput.Password
-                            onTextChanged: Config.options.quickActionsBar.hotspotPassword = text
+                            onTextEdited: Config.options.quickActionsBar.hotspotPassword = text
                         }
                     }
                 }
@@ -1065,57 +1227,77 @@ ContentPage {
         ContentSection {
             icon: "remove"
             shape: MaterialShape.Shape.Cookie6Sided
-            visible: page.barMode === "infoStrip"
-            title: Translation.tr("Info Strip Options")
+            visible: page.settingsShow("panels") && (page.barMode === "infoStrip")
+            title: Translation.tr("Info strip")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panels")
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.active-window";
                         buttonIcon: "subtitles"
                         text: Translation.tr("Active Window")
                         checked: Config.options.infoStrip.showActiveWindow
-                        onCheckedChanged: { Config.options.infoStrip.showActiveWindow = checked }
+                        onEdited: { Config.options.infoStrip.showActiveWindow = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.clock";
                         buttonIcon: "schedule"
                         text: Translation.tr("Clock")
                         checked: Config.options.infoStrip.showClock
-                        onCheckedChanged: { Config.options.infoStrip.showClock = checked }
+                        onEdited: { Config.options.infoStrip.showClock = checked }
                     }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.cpu-usage";
                         buttonIcon: "memory"
                         text: Translation.tr("CPU Usage")
                         checked: Config.options.infoStrip.showCpuUsage
-                        onCheckedChanged: { Config.options.infoStrip.showCpuUsage = checked }
+                        onEdited: { Config.options.infoStrip.showCpuUsage = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.memory-usage";
                         buttonIcon: "planner_review"
                         text: Translation.tr("Memory Usage")
                         checked: Config.options.infoStrip.showMemoryUsage
-                        onCheckedChanged: { Config.options.infoStrip.showMemoryUsage = checked }
+                        onEdited: { Config.options.infoStrip.showMemoryUsage = checked }
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.notification-dot";
                     buttonIcon: "notifications"
                     text: Translation.tr("Notification Dot")
                     checked: Config.options.infoStrip.showNotificationDot
-                    onCheckedChanged: { Config.options.infoStrip.showNotificationDot = checked }
+                    onEdited: { Config.options.infoStrip.showNotificationDot = checked }
                 }
             }
         }
 
         // ── 11. Notifications ─────────────────────────────────────────────────
         ContentSection {
+            visible: page.settingsShow("notification-rules|notifications|panels");
             icon: "notifications"
             shape: MaterialShape.Shape.Bun
             title: Translation.tr("Notifications")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("notification-rules|notifications|panels")
                 ConfigComboBox {
+                    objectName: "BarConfig.popup-position";
+                    visible: page.settingsShow("notifications");
+
                     text: Translation.tr("Popup position")
                     buttonIcon: "my_location"
                     currentValue: Config.options.notifications.position
@@ -1131,39 +1313,50 @@ ContentPage {
                     ]
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.unread-indicator-show-count";
                     buttonIcon: "counter_2"
                     text: Translation.tr("Unread indicator: show count")
                     checked: Config.options.bar.indicators.notifications.showUnreadCount
-                    onCheckedChanged: { Config.options.bar.indicators.notifications.showUnreadCount = checked }
+                    onEdited: { Config.options.bar.indicators.notifications.showUnreadCount = checked }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("notification-rules");
+                    objectName: "BarConfig.timeout-duration-ms";
                     icon: "av_timer"
                     text: Translation.tr("Timeout duration (ms)")
                     value: Config.options.notifications.timeout
                     from: 1000; to: 60000; stepSize: 1000
-                    onValueChanged: { Config.options.notifications.timeout = value }
+                    onEdited: { Config.options.notifications.timeout = value }
                 }
             }
         }
 
         // ── 12. Tray ──────────────────────────────────────────────────────────
         ContentSection {
+            visible: page.settingsShow("panels");
             shape: MaterialShape.Shape.Square
             icon: "inbox_customize"
             title: Translation.tr("Tray")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panels")
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.make-icons-pinned-by-default";
                     buttonIcon: "keep"
                     text: Translation.tr("Make icons pinned by default")
                     checked: Config.options.tray.invertPinnedItems
-                    onCheckedChanged: { Config.options.tray.invertPinnedItems = checked }
+                    onEdited: { Config.options.tray.invertPinnedItems = checked }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.tint-icons";
                     buttonIcon: "colors"
                     text: Translation.tr("Tint icons")
                     checked: Config.options.tray.monochromeIcons
-                    onCheckedChanged: { Config.options.tray.monochromeIcons = checked }
+                    onEdited: { Config.options.tray.monochromeIcons = checked }
                 }
             }
         }
@@ -1172,11 +1365,15 @@ ContentPage {
         ContentSection {
             icon: "vertical_align_center"
             shape: MaterialShape.Shape.Diamond
-            visible: page.barMode === "classic"
+            visible: page.settingsShow("panel-details|panels") && (page.barMode === "classic")
             title: Translation.tr("Divider")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panel-details|panels")
                 ConfigSelectionArray {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.style";
                     text: Translation.tr("Style")
                     icon: "style"
                     currentValue: Config.options.bar.divider.style
@@ -1188,12 +1385,14 @@ ContentPage {
                     ]
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.space-width-px";
                     icon: "width"
                     enabled: Config.options.bar.divider.style === "space"
                     text: Translation.tr("Space width (px)")
                     value: Config.options.bar.divider.spacing
                     from: 4; to: 400; stepSize: 2
-                    onValueChanged: { Config.options.bar.divider.spacing = value }
+                    onEdited: { Config.options.bar.divider.spacing = value }
                 }
             }
         }
@@ -1202,68 +1401,90 @@ ContentPage {
         ContentSection {
             icon: "buttons_alt"
             shape: MaterialShape.Shape.SoftBurst
-            visible: page.barMode === "classic" || page.barMode === "mesoBar"
+            visible: page.settingsShow("panels") && (page.barMode === "classic" || page.barMode === "mesoBar")
             title: Translation.tr("Utility Buttons")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panels")
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.screen-snip";
                         buttonIcon: "screenshot_region"
                         text: Translation.tr("Screen snip")
                         checked: Config.options.bar.utilButtons.showScreenSnip
-                        onCheckedChanged: { Config.options.bar.utilButtons.showScreenSnip = checked }
+                        onEdited: { Config.options.bar.utilButtons.showScreenSnip = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.color-picker";
                         buttonIcon: "colorize"
                         text: Translation.tr("Color picker")
                         checked: Config.options.bar.utilButtons.showColorPicker
-                        onCheckedChanged: { Config.options.bar.utilButtons.showColorPicker = checked }
+                        onEdited: { Config.options.bar.utilButtons.showColorPicker = checked }
                     }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.keyboard-toggle";
                         buttonIcon: "keyboard"
                         text: Translation.tr("Keyboard toggle")
                         checked: Config.options.bar.utilButtons.showKeyboardToggle
-                        onCheckedChanged: { Config.options.bar.utilButtons.showKeyboardToggle = checked }
+                        onEdited: { Config.options.bar.utilButtons.showKeyboardToggle = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.mic-toggle";
                         buttonIcon: "mic"
                         text: Translation.tr("Mic toggle")
                         checked: Config.options.bar.utilButtons.showMicToggle
-                        onCheckedChanged: { Config.options.bar.utilButtons.showMicToggle = checked }
+                        onEdited: { Config.options.bar.utilButtons.showMicToggle = checked }
                     }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.dark-light-toggle";
                         buttonIcon: "dark_mode"
                         text: Translation.tr("Dark/Light toggle")
                         checked: Config.options.bar.utilButtons.showDarkModeToggle
-                        onCheckedChanged: { Config.options.bar.utilButtons.showDarkModeToggle = checked }
+                        onEdited: { Config.options.bar.utilButtons.showDarkModeToggle = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.performance-profile";
                         buttonIcon: "speed"
                         text: Translation.tr("Performance Profile")
                         checked: Config.options.bar.utilButtons.showPerformanceProfileToggle
-                        onCheckedChanged: { Config.options.bar.utilButtons.showPerformanceProfileToggle = checked }
+                        onEdited: { Config.options.bar.utilButtons.showPerformanceProfileToggle = checked }
                     }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.record-screen";
                         buttonIcon: "screen_record"
                         text: Translation.tr("Record Screen")
                         checked: Config.options.bar.utilButtons.showScreenRecord
-                        onCheckedChanged: { Config.options.bar.utilButtons.showScreenRecord = checked }
+                        onEdited: { Config.options.bar.utilButtons.showScreenRecord = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.wallpapers-toggle";
                         buttonIcon: "imagesmode"
                         text: Translation.tr("Wallpapers Toggle")
                         checked: Config.options.bar.utilButtons.showWallpaperToggle
-                        onCheckedChanged: { Config.options.bar.utilButtons.showWallpaperToggle = checked }
+                        onEdited: { Config.options.bar.utilButtons.showWallpaperToggle = checked }
                     }
                 }
             }
@@ -1273,17 +1494,23 @@ ContentPage {
         ContentSection {
             shape: MaterialShape.Shape.Cookie12Sided
             icon: "steppers"
-            visible: page.barMode === "classic" || page.barMode === "mesoBar"
+            visible: page.settingsShow("panels") && (page.barMode === "classic" || page.barMode === "mesoBar")
             title: Translation.tr("Workspaces")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panels")
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.always-show-numbers";
                     buttonIcon: "counter_1"
                     text: Translation.tr("Always show numbers")
                     checked: Config.options.bar.workspaces.alwaysShowNumbers
-                    onCheckedChanged: { Config.options.bar.workspaces.alwaysShowNumbers = checked }
+                    onEdited: { Config.options.bar.workspaces.alwaysShowNumbers = checked }
                 }
                 ConfigSelectionArray {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.numbers-style";
                     text: Translation.tr("Numbers style")
                     icon: "looks_3"
                     currentValue: JSON.stringify(Config.options.bar.workspaces.numberMap)
@@ -1295,25 +1522,33 @@ ContentPage {
                     ]
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.show-app-icons";
                     buttonIcon: "award_star"
                     text: Translation.tr("Show app icons")
                     checked: Config.options.bar.workspaces.showAppIcons
-                    onCheckedChanged: { Config.options.bar.workspaces.showAppIcons = checked }
+                    onEdited: { Config.options.bar.workspaces.showAppIcons = checked }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.workspaces-shown";
                     icon: "view_column"
                     text: Translation.tr("Workspaces shown")
                     value: Config.options.bar.workspaces.shown
                     from: 1; to: 30
-                    onValueChanged: { Config.options.bar.workspaces.shown = value }
+                    onEdited: { Config.options.bar.workspaces.shown = value }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.show-preview-on-hover";
                     buttonIcon: "preview"
                     text: Translation.tr("Show preview on hover")
                     checked: Config.options.overview.hoverPreviewInBar
-                    onCheckedChanged: { Config.options.overview.hoverPreviewInBar = checked }
+                    onEdited: { Config.options.overview.hoverPreviewInBar = checked }
                 }
                 ConfigSelectionArray {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.indicator-style";
                     text: Translation.tr("Indicator style")
                     icon: "page_control"
                     currentValue: Config.options.bar.workspaces.indicatorStyle ?? "icon"
@@ -1330,50 +1565,67 @@ ContentPage {
         ContentSection {
             icon: "empty_dashboard"
             shape: MaterialShape.Shape.Burst
-            visible: page.barMode === "classic"
+            visible: page.settingsShow("panel-details|panels") && (page.barMode === "classic")
             title: Translation.tr("Resources")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panel-details|panels")
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.cpu-2";
                         buttonIcon: "planner_review"
                         text: Translation.tr("CPU")
                         checked: Config.options.bar.resources.alwaysShowCpu
-                        onCheckedChanged: { Config.options.bar.resources.alwaysShowCpu = checked }
+                        onEdited: { Config.options.bar.resources.alwaysShowCpu = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.cpu-temperature-2";
                         buttonIcon: "thermostat"
                         text: Translation.tr("CPU Temperature")
                         checked: Config.options.bar.resources.alwaysShowCpuTemp
-                        onCheckedChanged: { Config.options.bar.resources.alwaysShowCpuTemp = checked }
+                        onEdited: { Config.options.bar.resources.alwaysShowCpuTemp = checked }
                     }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.ram-2";
                         buttonIcon: "memory"
                         text: Translation.tr("RAM")
                         checked: Config.options.bar.resources.alwaysShowRam
-                        onCheckedChanged: { Config.options.bar.resources.alwaysShowRam = checked }
+                        onEdited: { Config.options.bar.resources.alwaysShowRam = checked }
                     }
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.disk-2";
                         buttonIcon: "storage"
                         text: Translation.tr("Disk")
                         checked: Config.options.bar.resources.alwaysShowDisk
-                        onCheckedChanged: { Config.options.bar.resources.alwaysShowDisk = checked }
+                        onEdited: { Config.options.bar.resources.alwaysShowDisk = checked }
                     }
                 }
                 ConfigRow {
+                    visible: page.settingsShow("panels");
                     uniform: true
                     ConfigSwitch {
+                        visible: page.settingsShow("panels");
+                        objectName: "BarConfig.swap-2";
                         buttonIcon: "swap_horiz"
                         text: Translation.tr("Swap")
                         checked: Config.options.bar.resources.alwaysShowSwap
-                        onCheckedChanged: { Config.options.bar.resources.alwaysShowSwap = checked }
+                        onEdited: { Config.options.bar.resources.alwaysShowSwap = checked }
                     }
                 }
                 ConfigSelectionArray {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.style-2";
                     text: Translation.tr("Style")
                     icon: "style"
                     currentValue: Config.options.bar.resources.style
@@ -1384,17 +1636,21 @@ ContentPage {
                     ]
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.show-percentage";
                     buttonIcon: "decimal_increase"
                     text: Translation.tr("Show Percentage")
                     checked: Config.options.bar.resources.showValue
-                    onCheckedChanged: { Config.options.bar.resources.showValue = checked }
+                    onEdited: { Config.options.bar.resources.showValue = checked }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.polling-interval-ms";
                     icon: "av_timer"
                     text: Translation.tr("Polling interval (ms)")
                     value: Config.options.resources.updateInterval
                     from: 100; to: 10000; stepSize: 100
-                    onValueChanged: { Config.options.resources.updateInterval = value }
+                    onEdited: { Config.options.resources.updateInterval = value }
                 }
             }
         }
@@ -1403,18 +1659,22 @@ ContentPage {
         ContentSection {
             icon: "music_note"
             shape: MaterialShape.Shape.Sunny
-            visible: page.barMode === "classic" || page.barMode === "mesoBar"
+            visible: page.settingsShow("panel-details|panels") && (page.barMode === "classic" || page.barMode === "mesoBar")
             title: Translation.tr("Media")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panel-details|panels")
                 ConfigTextArea {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.preferred-player";
                     id: preferredPlayerField
                     Layout.fillWidth: true
                     buttonIcon: "play_circle"
                     text: Translation.tr("Preferred Player")
                     placeholderText: Translation.tr("e.g. spotify, firefox")
                     value: Config.options.bar.media.preferredPlayer
-                    onValueChanged: { mediaDebounceTimer.restart() }
+                    onEdited: { mediaDebounceTimer.restart() }
 
                     Timer {
                         id: mediaDebounceTimer
@@ -1424,39 +1684,50 @@ ContentPage {
                     }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.pin-media-controls";
                     buttonIcon: "keep"
                     text: Translation.tr("Pin media controls")
                     checked: Config.options.bar.media.alwaysVisible
-                    onCheckedChanged: { Config.options.bar.media.alwaysVisible = checked }
+                    onEdited: { Config.options.bar.media.alwaysVisible = checked }
                 }
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.show-only-title";
                     buttonIcon: "titlecase"
                     text: Translation.tr("Show only title")
                     checked: Config.options.bar.media.onlyTitle
-                    onCheckedChanged: { Config.options.bar.media.onlyTitle = checked }
+                    onEdited: { Config.options.bar.media.onlyTitle = checked }
                 }
                 ConfigSpinBox {
+                    visible: page.settingsShow("panel-details");
+                    objectName: "BarConfig.max-media-width";
                     icon: "width"
                     text: Translation.tr("Max media width")
                     value: Config.options.bar.media.maxWidth
                     from: 100; to: 500; stepSize: 10
-                    onValueChanged: { Config.options.bar.media.maxWidth = value }
+                    onEdited: { Config.options.bar.media.maxWidth = value }
                 }
             }
         }
 
         // ── 18. Tooltips ──────────────────────────────────────────────────────
         ContentSection {
+            visible: page.settingsShow("panels");
             shape: MaterialShape.Shape.Puffy
             icon: "tooltip"
             title: Translation.tr("Tooltips")
 
             GroupedList {
+                compact: true;
+                visible: page.settingsShow("panels")
                 ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "BarConfig.click-to-show";
                     buttonIcon: "ads_click"
                     text: Translation.tr("Click to show")
                     checked: Config.options.bar.tooltips.clickToShow
-                    onCheckedChanged: { Config.options.bar.tooltips.clickToShow = checked }
+                    onEdited: { Config.options.bar.tooltips.clickToShow = checked }
                 }
             }
         }

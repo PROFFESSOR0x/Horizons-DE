@@ -6,6 +6,7 @@ import qs.services
 
 RowLayout {
     id: root
+    signal edited(var value)
     spacing: 10
     Layout.leftMargin: 8
     Layout.rightMargin: 8
@@ -47,6 +48,7 @@ RowLayout {
     }
     StyledSlider {
         id: slider
+        onMoved: root.edited(value)
         Layout.fillWidth: false
         Layout.minimumWidth: 120
         Layout.preferredWidth: Math.min(root.controlWidth, Math.max(120, root.width * 0.32))

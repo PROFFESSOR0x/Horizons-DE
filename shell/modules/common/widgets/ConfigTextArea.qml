@@ -6,6 +6,7 @@ import QtQuick.Controls
 
 RowLayout {
     id: root
+    signal edited(var value)
 
     property string text: ""
     property string description: ""
@@ -106,6 +107,7 @@ RowLayout {
 
         TextArea {
             id: textArea
+            onTextChanged: if (activeFocus) root.edited(text)
             anchors.fill: parent
             anchors.leftMargin: 12
             anchors.rightMargin: 12

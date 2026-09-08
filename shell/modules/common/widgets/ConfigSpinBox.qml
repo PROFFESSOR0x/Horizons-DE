@@ -5,6 +5,7 @@ import QtQuick.Layouts
 
 RowLayout {
     id: root
+    signal edited(var value)
     property string text: ""
     property string icon
     property alias value: spinBoxWidget.value
@@ -34,6 +35,7 @@ RowLayout {
 
     StyledSpinBox {
         id: spinBoxWidget
+        onValueModified: root.edited(value)
         Layout.fillWidth: false
         value: root.value
     }
