@@ -8,6 +8,31 @@ local qsScripts = "$HOME/.config/quickshell/$qsConfig/scripts"
 local hyprScripts = "$HOME/.config/hypr/hyprland/scripts"
 local qsIpcCall = "qs -c $qsConfig ipc call"
 local qsIsAlive = qsIpcCall .. " TEST_ALIVE"
+local function horizons_unified_workspaces_enabled()
+    local file = io.open(HOME .. "/.config/horizons/config.json", "r")
+    if file == nil then
+        return false
+    end
+    local text = file:read("*a") or ""
+    file:close()
+    return text:match('"unifiedMultiMonitor"%s*:%s*true') ~= nil
+end
+
+local function focus_workspace_number(i)
+    if horizons_unified_workspaces_enabled() then
+        hl.dispatch(hl.dsp.global("quickshell:unifiedWorkspace" .. i))
+    else
+        hl.dispatch(hl.dsp.focus({ workspace = workspace_in_group(i) }))
+    end
+end
+
+local function focus_workspace_relative(direction, fallback)
+    if horizons_unified_workspaces_enabled() then
+        hl.dispatch(hl.dsp.global("quickshell:unifiedWorkspace" .. direction))
+    else
+        hl.dispatch(hl.dsp.focus({ workspace = fallback }))
+    end
+end
 
 hl.bind("SUPER + SUPER_L", hl.dsp.global("quickshell:searchToggleRelease"), { description = "Shell: Toggle search" })
 hl.bind("SUPER + SUPER_R", hl.dsp.global("quickshell:searchToggleRelease"))
@@ -262,21 +287,21 @@ hl.bind("CTRL + SUPER + S", hl.dsp.workspace.toggle_special("special"))
 --#/# bind = SUPER, Hash,, -- Focus workspace -- (1, 2, 3,...)
 for i = 1, 10 do
     hl.bind("SUPER + " .. (i % 10), function()
-        hl.dispatch(hl.dsp.focus({ workspace = workspace_in_group(i) }))
+        focus_workspace_number(i)
     end, { description = "Workspace: Focus " .. i })
 end
 --# We also use raw keycodes because some keyboard layouts register number keys as different chars. The codes can be verified with `wev`
 for i = 1, 10 do
     local numberkey = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }
     hl.bind("SUPER + code:" .. numberkey[i], function()
-        hl.dispatch(hl.dsp.focus({ workspace = workspace_in_group(i) }))
+        focus_workspace_number(i)
     end)
 end
 --# keypad numbers
 for i = 1, 10 do
     local numpadkey = { 87, 88, 89, 83, 84, 85, 79, 80, 81, 90 }
     hl.bind("SUPER + code:" .. numpadkey[i], function()
-        hl.dispatch(hl.dsp.focus({ workspace = workspace_in_group(i) }))
+        focus_workspace_number(i)
     end)
 end
 
@@ -285,8 +310,11 @@ end
 for i = 1, 2 do
     local keys = { "Left", "Right" }
     local prefix = { "r-", "r+" }
+    local globalDirection = { "Previous", "Next" }
     local descdir = { "left", "right" }
-    hl.bind("CTRL + SUPER + " .. keys[i], hl.dsp.focus({ workspace = prefix[i] .. "1" }), {description = "Workspace: Focus " .. descdir[i]})
+    hl.bind("CTRL + SUPER + " .. keys[i], function()
+        focus_workspace_relative(globalDirection[i], prefix[i] .. "1")
+    end, {description = "Workspace: Focus " .. descdir[i]})
 end
 for i = 1, 2 do
     local keys = { "Left", "Right" }
@@ -298,14 +326,20 @@ for i = 1, 4 do
     local key = { "SUPER + Page_Down", "SUPER + Page_Up" }
     local keycombos = { key[1], key[2], "CTRL + " .. key[1], "CTRL + " .. key[2] }
     local prefix = { "r+", "r-", "r+", "r-" }
-    hl.bind(keycombos[i], hl.dsp.focus({ workspace = prefix[i] .. "1" }))
+    local globalDirection = { "Next", "Previous", "Next", "Previous" }
+    hl.bind(keycombos[i], function()
+        focus_workspace_relative(globalDirection[i], prefix[i] .. "1")
+    end)
 end
 --#/# bind = SUPER, Scroll ↑/↓,, -- Focus left/right
 for i = 1, 4 do
     local key = { "SUPER + mouse_up", "SUPER + mouse_down" }
     local keycombos = { key[1], key[2], "CTRL + " .. key[1], "CTRL + " .. key[2] }
     local prefix = { "+", "-", "r+", "r-" }
-    hl.bind(keycombos[i], hl.dsp.focus({ workspace = prefix[i] .. "1" }))
+    local globalDirection = { "Previous", "Next", "Next", "Previous" }
+    hl.bind(keycombos[i], function()
+        focus_workspace_relative(globalDirection[i], prefix[i] .. "1")
+    end)
 end
 --## Special
 hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: Toggle scratchpad" })

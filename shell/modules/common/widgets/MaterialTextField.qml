@@ -22,6 +22,10 @@ TextField {
     selectionColor: Appearance.colors.colSecondaryContainer
     placeholderTextColor: Appearance.m3colors.m3outline
     clip: true
+    leftPadding: 12
+    rightPadding: 12
+    topPadding: 6
+    bottomPadding: 6
 
     font {
         family: Appearance.font.family.main

@@ -137,8 +137,14 @@ Item { // Wrapper
 
         Behavior on implicitHeight {
             id: searchHeightBehavior
-            enabled: GlobalStates.overviewOpen && root.showResults
-            animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+            // Search result geometry is live data. Keep a visible but very
+            // short transition that starts from the current height on every
+            // update, rather than the long general panel animation.
+            enabled: GlobalStates.overviewOpen
+            NumberAnimation {
+                duration: Appearance.motionDuration(120)
+                easing.type: Easing.OutCubic
+            }
         }
 
         ColumnLayout {

@@ -41,6 +41,29 @@ Singleton {
             !(player.dbusName?.endsWith('.mpd') && !player.dbusName.endsWith('MediaPlayer2.mpd')));
     }
 
+    function normalizePlayerName(value) {
+        return String(value ?? "")
+            .toLowerCase()
+            .replace(/\.desktop$/, "")
+            .split(".")
+            .filter(part => part.length > 0)
+            .pop() ?? "";
+    }
+
+    function playerMatchesPreference(player, preference) {
+        const raw = String(preference ?? "").trim().toLowerCase();
+        if (raw.length === 0) return true;
+        const normalized = root.normalizePlayerName(raw);
+        const identity = String(player?.identity ?? "").toLowerCase();
+        const desktopEntry = String(player?.desktopEntry ?? "").toLowerCase();
+        const normalizedDesktop = root.normalizePlayerName(desktopEntry);
+        return identity.includes(raw)
+            || desktopEntry.includes(raw)
+            || (normalized.length > 0 && (identity.includes(normalized)
+                || desktopEntry.includes(normalized)
+                || normalizedDesktop === normalized));
+    }
+
 	// Original stuff from fox below
 	Instantiator {
 		model: Mpris.players;

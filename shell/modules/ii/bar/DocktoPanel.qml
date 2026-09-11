@@ -10,6 +10,7 @@ import QtQuick.Layouts
 import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Widgets
+import "../../../" as RootShell
 
 Item {
     id: root
@@ -314,7 +315,9 @@ Item {
                             }
                             const next = (slotItem._lastFocused + 1) % entry.toplevels.length
                             slotItem._lastFocused = next
-                            entry.toplevels[next].activate()
+                            const address = HyprlandData.clientForToplevel(entry.toplevels[next])?.address ?? ""
+                            if (address) RootShell.GlobalStates.focusWindowInUnifiedSet(address)
+                            else entry.toplevels[next].activate()
                         }
                         middleClickAction: () => { TaskbarApps.launch(slotItem.appId, null) }
                         altAction: event => pinnedContextMenu.showAt(event.x, event.y)
@@ -424,7 +427,9 @@ Item {
                             if (activeSlot.modelData.toplevels.length === 0) return
                             const next = (activeSlot._lastFocused + 1) % activeSlot.modelData.toplevels.length
                             activeSlot._lastFocused = next
-                            activeSlot.modelData.toplevels[next].activate()
+                            const address = HyprlandData.clientForToplevel(activeSlot.modelData.toplevels[next])?.address ?? ""
+                            if (address) RootShell.GlobalStates.focusWindowInUnifiedSet(address)
+                            else activeSlot.modelData.toplevels[next].activate()
                         }
                         middleClickAction: () => {
                             TaskbarApps.launch(activeSlot.modelData.appId, null)

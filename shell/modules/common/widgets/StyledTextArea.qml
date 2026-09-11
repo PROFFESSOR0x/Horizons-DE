@@ -11,6 +11,11 @@ TextArea {
     selectionColor: Appearance.colors.colSecondaryContainer
     placeholderTextColor: Appearance.m3colors.m3outline
     color: Appearance.colors.colOnLayer0
+    clip: true
+    leftPadding: 12
+    rightPadding: 12
+    topPadding: 8
+    bottomPadding: 8
     font {
         family: Appearance.font.family.main
         pixelSize: Appearance?.font.pixelSize.small ?? 15

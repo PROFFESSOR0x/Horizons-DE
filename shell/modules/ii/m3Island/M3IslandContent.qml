@@ -208,7 +208,18 @@ Item {
     clip: false
     // One visible surface morph. Hover expansion gets enough travel time to be
     // perceived as a deliberate widening of the island, not a one-frame jump.
-    Behavior on implicitHeight { NumberAnimation { duration: root.animMs(root.isHoverPeek || root.isExpanded ? 360 : 240); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
+    // Search result geometry changes on every keypress. Give it a brief,
+    // interruptible transition so it still feels animated without trailing the
+    // current result model. Its short base duration still follows the M3
+    // Animation speed setting, just like every other island transition.
+    Behavior on implicitHeight {
+        NumberAnimation {
+            duration: root.isLauncher ? root.animMs(120)
+                : root.animMs(root.isHoverPeek || root.isExpanded ? 360 : 240)
+            easing.type: root.isLauncher ? Easing.OutCubic : Easing.BezierSpline
+            easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial
+        }
+    }
     Behavior on implicitWidth { NumberAnimation { duration: root.animMs(root.isHoverPeek || root.isExpanded ? 440 : 260); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
     Behavior on width { NumberAnimation { duration: root.animMs(root.isHoverPeek || root.isExpanded ? 440 : 260); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial; alwaysRunToEnd: true } }
 

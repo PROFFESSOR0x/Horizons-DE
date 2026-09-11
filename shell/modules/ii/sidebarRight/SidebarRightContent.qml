@@ -44,10 +44,7 @@ Item {
         // Calling a local helper here caused a ReferenceError every time the
         // sidebar was constructed.
         if (preferred.length === 0) return realPlayers
-        const filtered = realPlayers.filter(p =>
-            (p.identity ?? "").toLowerCase().includes(preferred) ||
-            (p.desktopEntry ?? "").toLowerCase().includes(preferred)
-        )
+        const filtered = realPlayers.filter(p => MprisController.playerMatchesPreference(p, preferred))
         return filtered.length === 0 ? realPlayers : filtered
     }
 

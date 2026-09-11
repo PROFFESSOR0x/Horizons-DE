@@ -239,7 +239,7 @@ ComboBox {
                     TextField {
                         id: searchField
                         Layout.fillWidth: true
-                        placeholderText: "Search..."
+                        placeholderText: Translation.tr("Search...")
                         color: Appearance.colors.colOnLayer1
                         background: null
                         font.family: Appearance.font.family.main

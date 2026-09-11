@@ -26,6 +26,7 @@ RippleButton {
     onClicked: {
         if (autoToggle) checked = !checked
         root.edited(checked)
+        Config.requestWrite()
     }
 
     contentItem: RowLayout {
@@ -55,4 +56,3 @@ RippleButton {
         }
     }
 }
-

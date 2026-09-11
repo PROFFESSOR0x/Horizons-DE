@@ -107,10 +107,15 @@ RowLayout {
 
         TextArea {
             id: textArea
-            onTextChanged: if (activeFocus) root.edited(text)
+            onTextChanged: if (activeFocus) {
+                root.edited(text)
+                Config.requestWrite()
+            }
             anchors.fill: parent
             anchors.leftMargin: 12
             anchors.rightMargin: 12
+            anchors.topMargin: 6
+            anchors.bottomMargin: 6
             enabled: root.enabled
             wrapMode: TextArea.Wrap
             verticalAlignment: TextEdit.AlignVCenter
@@ -132,10 +137,12 @@ RowLayout {
             Keys.onReturnPressed: function(event) {
                 event.accepted = true
                 root.confirmClicked()
+                Config.requestWrite()
             }
             Keys.onEnterPressed: function(event) {
                 event.accepted = true
                 root.confirmClicked()
+                Config.requestWrite()
             }
         }
     }
@@ -167,7 +174,10 @@ RowLayout {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: root.confirmClicked()
+            onClicked: {
+                root.confirmClicked()
+                Config.requestWrite()
+            }
         }
     }
 }

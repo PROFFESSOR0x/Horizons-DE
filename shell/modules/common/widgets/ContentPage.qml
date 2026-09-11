@@ -9,10 +9,14 @@ StyledFlickable {
     // A source view can contribute groups to a topic without nested scrolling.
     property bool embedded: false
     property string settingsRoute: ""
+    property var settingsRouteAliases: []
     interactive: !embedded
     ScrollBar.vertical.policy: embedded ? ScrollBar.AlwaysOff : ScrollBar.AsNeeded
     function settingsShow(routes) {
-        return settingsRoute === "" || routes.split("|").includes(settingsRoute)
+        if (settingsRoute === "") return true
+        const allowedRoutes = routes.split("|")
+        const activeRoutes = [settingsRoute].concat(settingsRouteAliases ?? [])
+        return activeRoutes.some(route => allowedRoutes.includes(route))
     }
     // The settings window itself (Settings.qml) was widened to make room for
     // wider content; this default is the corresponding "sensible increase"

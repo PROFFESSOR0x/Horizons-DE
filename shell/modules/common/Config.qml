@@ -13,6 +13,11 @@ Singleton {
     property int readWriteDelay: 50 // milliseconds
     property bool blockWrites: false
 
+    function requestWrite() {
+        if (!root.ready || root.blockWrites) return;
+        fileWriteTimer.restart();
+    }
+
     function setNestedValue(nestedKey, value) {
         let keys = nestedKey.split(".");
         let obj = root.options;
@@ -807,7 +812,6 @@ Singleton {
             }
 
             property JsonObject settings: JsonObject {
-                property bool advancedExpanded: false
                 property string lastPage: "appearance"
                 property string style: "default" // default - minimal
                 property real borderSize: 1

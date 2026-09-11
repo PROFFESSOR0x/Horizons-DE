@@ -598,88 +598,102 @@ ContentPage {
                 GroupedList {
                     compact: true;
                     visible: page.settingsShow("apps")
-                    ConfigTextArea {
+                    ConfigApplicationComboBox {
                         visible: page.settingsShow("apps");
                         objectName: "ServicesConfig.web-links";
                         buttonIcon: "language"
                         text: Translation.tr("Web links")
-                        description: Translation.tr("Desktop-entry ID, e.g. firefox.desktop")
-                        value: Config.options.apps.defaultApplications.browser
-                        onEdited: {
-                            Config.options.apps.defaultApplications.browser = value
-                            defaultApplicationsSection.scheduleDefaultApplication(value, ["x-scheme-handler/http", "x-scheme-handler/https", "text/html"])
+                        description: Translation.tr("Choose from installed desktop applications")
+                        currentValue: Config.options.apps.defaultApplications.browser
+                        valueMode: "desktopFile"
+                        allowEmpty: true
+                        onSelected: newValue => {
+                            Config.options.apps.defaultApplications.browser = newValue
+                            defaultApplicationsSection.scheduleDefaultApplication(newValue, ["x-scheme-handler/http", "x-scheme-handler/https", "text/html"])
                         }
                     }
-                    ConfigTextArea {
+                    ConfigApplicationComboBox {
                         visible: page.settingsShow("apps");
                         objectName: "ServicesConfig.folders";
                         buttonIcon: "folder"
                         text: Translation.tr("Folders")
-                        description: Translation.tr("Desktop-entry ID for opening directories")
-                        value: Config.options.apps.defaultApplications.folders
-                        onEdited: {
-                            Config.options.apps.defaultApplications.folders = value
-                            defaultApplicationsSection.scheduleDefaultApplication(value, ["inode/directory"])
+                        description: Translation.tr("Choose from installed desktop applications")
+                        currentValue: Config.options.apps.defaultApplications.folders
+                        valueMode: "desktopFile"
+                        allowEmpty: true
+                        onSelected: newValue => {
+                            Config.options.apps.defaultApplications.folders = newValue
+                            defaultApplicationsSection.scheduleDefaultApplication(newValue, ["inode/directory"])
                         }
                     }
-                    ConfigTextArea {
+                    ConfigApplicationComboBox {
                         visible: page.settingsShow("apps");
                         objectName: "ServicesConfig.documents-and-text";
                         buttonIcon: "description"
                         text: Translation.tr("Documents and text")
                         description: Translation.tr("PDF, plain text, and common office documents")
-                        value: Config.options.apps.defaultApplications.documents
-                        onEdited: {
-                            Config.options.apps.defaultApplications.documents = value
-                            defaultApplicationsSection.scheduleDefaultApplication(value, ["application/pdf", "text/plain", "application/rtf", "application/vnd.oasis.opendocument.text", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"])
+                        currentValue: Config.options.apps.defaultApplications.documents
+                        valueMode: "desktopFile"
+                        allowEmpty: true
+                        onSelected: newValue => {
+                            Config.options.apps.defaultApplications.documents = newValue
+                            defaultApplicationsSection.scheduleDefaultApplication(newValue, ["application/pdf", "text/plain", "application/rtf", "application/vnd.oasis.opendocument.text", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"])
                         }
                     }
-                    ConfigTextArea {
+                    ConfigApplicationComboBox {
                         visible: page.settingsShow("apps");
                         objectName: "ServicesConfig.images";
                         buttonIcon: "image"
                         text: Translation.tr("Images")
                         description: Translation.tr("JPEG, PNG, WebP, GIF, SVG, and AVIF")
-                        value: Config.options.apps.defaultApplications.images
-                        onEdited: {
-                            Config.options.apps.defaultApplications.images = value
-                            defaultApplicationsSection.scheduleDefaultApplication(value, ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml", "image/avif"])
+                        currentValue: Config.options.apps.defaultApplications.images
+                        valueMode: "desktopFile"
+                        allowEmpty: true
+                        onSelected: newValue => {
+                            Config.options.apps.defaultApplications.images = newValue
+                            defaultApplicationsSection.scheduleDefaultApplication(newValue, ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml", "image/avif"])
                         }
                     }
-                    ConfigTextArea {
+                    ConfigApplicationComboBox {
                         visible: page.settingsShow("apps");
                         objectName: "ServicesConfig.audio";
                         buttonIcon: "audio_file"
                         text: Translation.tr("Audio")
                         description: Translation.tr("MP3, FLAC, OGG, WAV, and M4A")
-                        value: Config.options.apps.defaultApplications.audio
-                        onEdited: {
-                            Config.options.apps.defaultApplications.audio = value
-                            defaultApplicationsSection.scheduleDefaultApplication(value, ["audio/mpeg", "audio/flac", "audio/ogg", "audio/wav", "audio/mp4"])
+                        currentValue: Config.options.apps.defaultApplications.audio
+                        valueMode: "desktopFile"
+                        allowEmpty: true
+                        onSelected: newValue => {
+                            Config.options.apps.defaultApplications.audio = newValue
+                            defaultApplicationsSection.scheduleDefaultApplication(newValue, ["audio/mpeg", "audio/flac", "audio/ogg", "audio/wav", "audio/mp4"])
                         }
                     }
-                    ConfigTextArea {
+                    ConfigApplicationComboBox {
                         visible: page.settingsShow("apps");
                         objectName: "ServicesConfig.video";
                         buttonIcon: "video_file"
                         text: Translation.tr("Video")
                         description: Translation.tr("MP4, Matroska, WebM, and AVI")
-                        value: Config.options.apps.defaultApplications.video
-                        onEdited: {
-                            Config.options.apps.defaultApplications.video = value
-                            defaultApplicationsSection.scheduleDefaultApplication(value, ["video/mp4", "video/x-matroska", "video/webm", "video/x-msvideo"])
+                        currentValue: Config.options.apps.defaultApplications.video
+                        valueMode: "desktopFile"
+                        allowEmpty: true
+                        onSelected: newValue => {
+                            Config.options.apps.defaultApplications.video = newValue
+                            defaultApplicationsSection.scheduleDefaultApplication(newValue, ["video/mp4", "video/x-matroska", "video/webm", "video/x-msvideo"])
                         }
                     }
-                    ConfigTextArea {
+                    ConfigApplicationComboBox {
                         visible: page.settingsShow("apps");
                         objectName: "ServicesConfig.archives";
                         buttonIcon: "inventory_2"
                         text: Translation.tr("Archives")
                         description: Translation.tr("ZIP, 7z, RAR, tar, and gzip archives")
-                        value: Config.options.apps.defaultApplications.archives
-                        onEdited: {
-                            Config.options.apps.defaultApplications.archives = value
-                            defaultApplicationsSection.scheduleDefaultApplication(value, ["application/zip", "application/x-7z-compressed", "application/vnd.rar", "application/x-rar", "application/x-tar", "application/gzip"])
+                        currentValue: Config.options.apps.defaultApplications.archives
+                        valueMode: "desktopFile"
+                        allowEmpty: true
+                        onSelected: newValue => {
+                            Config.options.apps.defaultApplications.archives = newValue
+                            defaultApplicationsSection.scheduleDefaultApplication(newValue, ["application/zip", "application/x-7z-compressed", "application/vnd.rar", "application/x-rar", "application/x-tar", "application/gzip"])
                         }
                     }
                     StyledText {
@@ -689,7 +703,7 @@ ContentPage {
                         wrapMode: Text.Wrap
                         color: Appearance.colors.colSubtext
                         font.pixelSize: Appearance.font.pixelSize.small
-                        text: Translation.tr("Use the application's .desktop filename. Each change updates your user mimeapps.list, so it applies to file managers, xdg-open, browsers, and launcher results. Leave a field empty to keep its current system default.")
+                        text: Translation.tr("Each change updates your user mimeapps.list, so it applies to file managers, xdg-open, browsers, and launcher results. Choose System default to keep the current system default.")
                     }
                 }
             }
@@ -699,14 +713,16 @@ ContentPage {
                 GroupedList {
                     compact: true;
                     visible: page.settingsShow("apps|integrations")
-                    ConfigTextArea {
+                    ConfigApplicationComboBox {
                         visible: page.settingsShow("integrations");
                         objectName: "ServicesConfig.open-files-with";
                         buttonIcon: "open_in_new"
                         text: Translation.tr("Open files with")
-                        value: Config.options.apps.fileOpener
-                        placeholderText: "xdg-open"
-                        onEdited: { Config.options.apps.fileOpener = value }
+                        description: Translation.tr("Choose from installed desktop applications")
+                        currentValue: Config.options.apps.fileOpener
+                        valueMode: "desktopFile"
+                        allowEmpty: true
+                        onSelected: newValue => { Config.options.apps.fileOpener = newValue }
                     }
                     StyledText {
                         property bool groupDescription: true;
@@ -715,7 +731,7 @@ ContentPage {
                         wrapMode: Text.Wrap
                         color: Appearance.colors.colSubtext
                         font.pixelSize: Appearance.font.pixelSize.small
-                        text: Translation.tr("Left empty, opening a file result hands it to xdg-open, i.e. whatever ~/.config/mimeapps.list says. An editor that registered itself as the handler for every text-like MIME type will therefore claim most files - if everything keeps opening in the same app, that file is why (`xdg-mime query default text/plain` shows the current winner). Put a command here to bypass it entirely; the path is appended as one quoted argument.")
+                        text: Translation.tr("Left empty, opening a file result hands it to xdg-open, i.e. whatever ~/.config/mimeapps.list says. Choose an installed app here to bypass the system default for launcher file results.")
                     }
                     ConfigSwitch {
                         visible: page.settingsShow("apps");

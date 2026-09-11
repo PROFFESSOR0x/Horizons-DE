@@ -48,7 +48,10 @@ RowLayout {
     }
     StyledSlider {
         id: slider
-        onMoved: root.edited(value)
+        onMoved: {
+            root.edited(value)
+            Config.requestWrite()
+        }
         Layout.fillWidth: false
         Layout.minimumWidth: 120
         Layout.preferredWidth: Math.min(root.controlWidth, Math.max(120, root.width * 0.32))

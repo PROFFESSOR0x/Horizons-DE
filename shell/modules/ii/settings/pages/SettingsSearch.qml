@@ -8,9 +8,8 @@ import qs.modules.common.widgets
 // Full-page settings search, opened by the search FAB next to "Config file"
 // in SettingsContent.qml. Matches against settingsContent.searchIndex - one
 // entry per ContentSection/ContentSubsection across every page, each
-// carrying a "haystack" of its own title plus every descendant setting's
-// label (see SettingsContent.buildSearchIndex()) - so a hit on any
-// individual setting's text still surfaces its containing section.
+// carrying a stable target plus translated labels, so a hit on any
+// individual setting's text can jump to the exact control.
 // Accepts either a /regex/ (case-insensitive) or falls back to a plain
 // substring match if the input isn't valid regex syntax.
 Item {
@@ -47,7 +46,6 @@ Item {
                     id: entry.id,
                     source: entry.source,
                     route: entry.route,
-                    advanced: entry.advanced,
                     pageName: entry.pageName,
                     pageIcon: entry.pageIcon,
                     sectionTitle: entry.sectionTitle,
@@ -157,7 +155,7 @@ Item {
                                 color: Appearance.colors.colOnLayer1
                             }
                             StyledText {
-                                text: (resultButton.modelData.advanced ? Translation.tr("Advanced") + " / " : "") + resultButton.modelData.pageName
+                                text: resultButton.modelData.pageName
                                 font.pixelSize: Appearance.font.pixelSize.smaller
                                 color: Appearance.colors.colSubtext
                             }

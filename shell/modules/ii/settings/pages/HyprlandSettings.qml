@@ -204,9 +204,9 @@ ContentPage {
                     }
                 }
 
-                // Advanced Monitor Settings
+                // Monitor details
                 ContentSubsection {
-                    title: Translation.tr("Advanced Monitor Settings")
+                    title: Translation.tr("Monitor details")
                     visible: page.settingsShow("window-rules") && (monitorConfig.monitors.length > 0)
 
                     GroupedList {
@@ -928,10 +928,10 @@ ContentPage {
                     }
                 }
 
-                // Touchpad advanced
+                // Touchpad details
                 ContentSubsection {
                     visible: page.settingsShow("devices|input-details");
-                    title: Translation.tr("Touchpad Advanced")
+                    title: Translation.tr("Touchpad details")
                     GroupedList {
                         compact: true;
                         visible: page.settingsShow("devices|input-details")
@@ -1970,10 +1970,10 @@ ContentPage {
                 }
             }
 
-            // Advanced Decoration
+            // Decoration details
             ContentSubsection {
                 visible: page.settingsShow("effects");
-                title: Translation.tr("Advanced Decoration")
+                title: Translation.tr("Decoration details")
                 GroupedList {
                     compact: true;
                     visible: page.settingsShow("effects")
@@ -2006,10 +2006,10 @@ ContentPage {
                 }
             }
 
-            // Advanced Blur
+            // Blur details
             ContentSubsection {
                 visible: page.settingsShow("effects");
-                title: Translation.tr("Advanced Blur")
+                title: Translation.tr("Blur details")
                 GroupedList {
                     compact: true;
                     visible: page.settingsShow("effects")
@@ -2218,10 +2218,10 @@ ContentPage {
                 }
             }
 
-            // Advanced General Settings
+            // Window manager details
             ContentSubsection {
                 visible: page.settingsShow("window-rules");
-                title: Translation.tr("Advanced General Settings")
+                title: Translation.tr("Window manager details")
                 GroupedList {
                     compact: true;
                     visible: page.settingsShow("window-rules")
@@ -2622,7 +2622,7 @@ ContentPage {
             }
             icon: "keyboard"
             shape: MaterialShape.Shape.Pill
-            title: Translation.tr("Custom Binds (Advanced)")
+            title: Translation.tr("Custom Binds")
             GroupedList {
                 compact: true;
                 StyledText {
@@ -2712,7 +2712,7 @@ ContentPage {
             }
             icon: "rule"
             shape: MaterialShape.Shape.Square
-            title: Translation.tr("Custom Window Rules (Advanced)")
+            title: Translation.tr("Custom Window Rules")
             GroupedList {
                 compact: true;
                 StyledText {

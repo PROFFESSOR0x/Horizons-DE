@@ -119,7 +119,7 @@ ColumnLayout {
             anchors.right: headerRightGroup.left
             anchors.rightMargin: 6
             anchors.verticalCenter: parent.verticalCenter
-            text: Translation.tr("App or Command")
+            text: Translation.tr("Application")
             color: Appearance.colors.colSubtext
             font.pixelSize: Appearance.font.pixelSize.small
             font.weight: Font.Medium
@@ -135,7 +135,7 @@ ColumnLayout {
             required property var modelData
             required property int index
             Layout.fillWidth: true
-            implicitHeight: cmdArea.implicitHeight
+            implicitHeight: appSelector.implicitHeight
             visible: Config.options.hyprland.autostartApps.enable
 
             Row {
@@ -193,32 +193,15 @@ ColumnLayout {
                 }
             }
 
-            MaterialTextArea {
-                id: cmdArea
+            ApplicationComboBox {
+                id: appSelector
                 anchors.left: parent.left
                 anchors.right: rightGroup.left
                 anchors.rightMargin: 6
-                placeholderText: Translation.tr("App (e.g. firefox)")
-                text: entryRow.modelData.cmd ?? ""
-                wrapMode: TextEdit.Wrap
-                font.pixelSize: Appearance.font.pixelSize.normal
-
-                property bool ready: false
-                Component.onCompleted: ready = true
-
-                onTextChanged: {
-                    if (!ready) return
-                    debounceTimer.restart()
-                }
-
-                Timer {
-                    id: debounceTimer
-                    interval: 3000
-                    repeat: false
-                    onTriggered: {
-                        root.updateEntry(entryRow.index, "cmd", cmdArea.text)
-                    }
-                }
+                anchors.verticalCenter: parent.verticalCenter
+                currentValue: entryRow.modelData.cmd ?? ""
+                valueMode: "desktopFile"
+                onSelected: newValue => root.updateEntry(entryRow.index, "cmd", newValue)
             }
         }
     }

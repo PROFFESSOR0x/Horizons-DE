@@ -18,8 +18,14 @@ Item {
     readonly property var toplevels: ToplevelManager.toplevels
     // Clamp to avoid lock-screen temp workspace (2147483647 - N) leaking into UI
     readonly property int effectiveActiveWorkspaceId: Math.max(1, Math.min(100, monitor?.activeWorkspace?.id ?? 1))
+    // Hyprland workspace IDs are global and deliberately distinct in a
+    // unified multi-monitor set (e.g. logical desktop 1 may be 1 on DP-1 and
+    // 15 on HDMI-1). The classic overview must lay out and label by the shared
+    // logical number, never by the raw ID of the screen it happens to render.
+    readonly property int effectiveActiveWorkspaceNumber: workspaceNumber(
+        effectiveActiveWorkspaceId, monitor?.name ?? screen?.name ?? "")
     readonly property int workspacesShown: Config.options.overview.rows * Config.options.overview.columns
-    readonly property int workspaceGroup: Math.floor((effectiveActiveWorkspaceId - 1) / workspacesShown)
+    readonly property int workspaceGroup: Math.floor((effectiveActiveWorkspaceNumber - 1) / workspacesShown)
     property bool monitorIsFocused: (Hyprland.focusedMonitor?.name == monitor.name)
     property var windows: HyprlandData.windowList
     property var windowByAddress: HyprlandData.windowByAddress
@@ -46,6 +52,19 @@ Item {
 
     property int draggingFromWorkspace: -1
     property int draggingTargetWorkspace: -1
+
+    function workspaceNumber(workspaceId, monitorName) {
+        const id = Number(workspaceId)
+        if (!GlobalStates.isRealWorkspaceId(id)) return 1
+        return GlobalStates.unifiedWorkspacesEnabled
+            ? GlobalStates.logicalWorkspaceNumber(id, monitorName)
+            : id
+    }
+
+    function workspaceNumberForWindow(window) {
+        return workspaceNumber(window?.workspace?.id,
+            GlobalStates.monitorNameForWindow(window))
+    }
 
     implicitWidth: overviewBackground.implicitWidth + Appearance.sizes.elevationMargin * 2
     implicitHeight: overviewBackground.implicitHeight + Appearance.sizes.elevationMargin * 2
@@ -142,7 +161,7 @@ Item {
                                 onPressed: {
                                     if (root.draggingTargetWorkspace === -1) {
                                         GlobalStates.overviewOpen = false
-                                        GlobalStates.activateWorkspace(workspace.workspaceValue, root.monitor?.name ?? "")
+                                        GlobalStates.activateWorkspaceSlot(workspace.workspaceValue, root.monitor?.name ?? "")
                                     }
                                 }
                             }
@@ -177,9 +196,14 @@ Item {
                     values: {
                         // console.log(JSON.stringify(ToplevelManager.toplevels.values.map(t => t), null, 2))
                         return ToplevelManager.toplevels.values.filter((toplevel) => {
-                            const address = `0x${toplevel.HyprlandToplevel?.address}`
-                            var win = windowByAddress[address]
-                            const inWorkspaceGroup = (root.workspaceGroup * root.workspacesShown < win?.workspace?.id && win?.workspace?.id <= (root.workspaceGroup + 1) * root.workspacesShown)
+                            // The Hyprland address is an attached property on
+                            // current Quickshell builds. Resolve it through the
+                            // shared helper so the classic overview does not
+                            // filter every window as `0xundefined`.
+                            const win = HyprlandData.clientForToplevel(toplevel)
+                            if (!win) return false
+                            const workspaceNumber = root.workspaceNumberForWindow(win)
+                            const inWorkspaceGroup = (root.workspaceGroup * root.workspacesShown < workspaceNumber && workspaceNumber <= (root.workspaceGroup + 1) * root.workspacesShown)
                             return inWorkspaceGroup;
                         })
                     }
@@ -189,18 +213,20 @@ Item {
                     required property var modelData
                     property int monitorId: windowData?.monitor
                     property var monitor: HyprlandData.monitors.find(m => m.id == monitorId)
-                    property var address: `0x${modelData.HyprlandToplevel.address}`
+                    property var resolvedWindowData: HyprlandData.clientForToplevel(modelData)
+                    property var address: resolvedWindowData?.address ?? ""
                     toplevel: modelData
                     monitorData: this.monitor
                     scale: root.scale
                     widgetMonitor: HyprlandData.monitors.find(m => m.id == root.monitor.id)
-                    windowData: windowByAddress[address]
+                    windowData: resolvedWindowData
 
                     property bool atInitPosition: (initX == x && initY == y)
 
                     // Offset on the canvas
-                    property int workspaceColIndex: getWsColumn(windowData?.workspace.id)
-                    property int workspaceRowIndex: getWsRow(windowData?.workspace.id)
+                    property int workspaceNumber: root.workspaceNumberForWindow(windowData)
+                    property int workspaceColIndex: getWsColumn(workspaceNumber)
+                    property int workspaceRowIndex: getWsRow(workspaceNumber)
                     xOffset: (root.workspaceImplicitWidth + workspaceSpacing) * workspaceColIndex
                     yOffset: (root.workspaceImplicitHeight + workspaceSpacing) * workspaceRowIndex
                     property real xWithinWorkspaceWidget: Math.max((windowData?.at[0] - (monitor?.x ?? 0) - monitorData?.reserved[0]) * root.scale, 0)
@@ -252,7 +278,7 @@ Item {
                         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
                         drag.target: parent
                         onPressed: (mouse) => {
-                            root.draggingFromWorkspace = windowData?.workspace.id
+                            root.draggingFromWorkspace = window.workspaceNumber
                             window.pressed = true
                             window.Drag.active = true
                             window.Drag.source = window
@@ -265,8 +291,14 @@ Item {
                             window.pressed = false
                             window.Drag.active = false
                             root.draggingFromWorkspace = -1
-                            if (targetWorkspace !== -1 && targetWorkspace !== windowData?.workspace.id) {
-                                Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${targetWorkspace}, follow = false, window = "address:${window.windowData?.address}" })`)
+                            if (targetWorkspace !== -1 && targetWorkspace !== window.workspaceNumber) {
+                                const targetWorkspaceId = GlobalStates.unifiedWorkspacesEnabled
+                                    ? GlobalStates.unifiedWorkspaceIdForSlot(targetWorkspace,
+                                        GlobalStates.monitorNameForWindow(window.windowData))
+                                    : targetWorkspace
+                                if (targetWorkspaceId) {
+                                    Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${targetWorkspaceId}, follow = false, window = "address:${window.windowData?.address}" })`)
+                                }
                             }
                             else {
                                 if (!window.windowData.floating) {
@@ -302,8 +334,8 @@ Item {
 
             Rectangle { // Focused workspace indicator
                 id: focusedWorkspaceIndicator
-                property int rowIndex: getWsRow(root.effectiveActiveWorkspaceId)
-                property int colIndex: getWsColumn(root.effectiveActiveWorkspaceId)
+                property int rowIndex: getWsRow(root.effectiveActiveWorkspaceNumber)
+                property int colIndex: getWsColumn(root.effectiveActiveWorkspaceNumber)
                 x: (root.workspaceImplicitWidth + workspaceSpacing) * colIndex
                 y: (root.workspaceImplicitHeight + workspaceSpacing) * rowIndex
                 z: root.windowZ

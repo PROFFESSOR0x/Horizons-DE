@@ -38,30 +38,36 @@ class SettingsNavigationTests(unittest.TestCase):
                 depth += (clean[end] == '{') - (clean[end] == '}')
                 end += 1
             functions.append(text[match.start():end])
+        route_aliases = text.split('readonly property var routeAliases: ', 1)[1].split('    readonly property var pages:', 1)[0].strip()
         pages = text.split('readonly property var pages: ', 1)[1].split('    readonly property var sources:', 1)[0].strip()
         index = text.split('readonly property var searchIndex: ', 1)[1].split('    function resolveLegacy', 1)[0].strip()
         script = '''const assert = require('node:assert/strict');
 let WM = {compositor: 'hyprland'};
 const Translation = {tr: value => value};
 ''' + 'const Catalog = {entries:' + json.dumps(catalogue()) + '};\n'
-        script += '\n'.join(functions) + '\nconst pages = ' + pages + ';\nlet searchIndex = ' + index + ';\n'
+        script += '\n'.join(functions) + '\nconst routeAliases = ' + route_aliases + ';\nconst pages = ' + pages + ';\nlet searchIndex = ' + index + ';\n'
         script += '''
-assert.equal(pages.filter(p => !p.advanced && p.id !== 'about').length, 10);
-assert.equal(pages.filter(p => p.advanced).length, 11);
+assert.equal(pages.filter(p => p.id !== 'about').length, 10);
+assert.equal(pages.filter(p => p.advanced).length, 0);
 for (const entry of Catalog.entries) for (const route of entry.routes)
-    assert(pages.some(page => page.id === route), `${entry.id}: ${route}`);
+    assert(pages.some(page => page.id === canonicalRoute(route)), `${entry.id}: ${route}`);
 assert(!searchIndex.some(entry => entry.source === 'NiriSettings'));
 assert(searchIndex.some(entry => entry.source === 'HyprlandSettings'));
 assert.equal(resolveLegacy('Interface:Lock screen').route, 'session');
-assert.equal(resolveLegacy('General:Clock String Format').route, 'system');
-assert.equal(resolveLegacy('Services:Polling interval (m)').route, 'integrations');
+assert.equal(resolveLegacy('General:Clock String Format').route, 'personal');
+assert.equal(resolveLegacy('Services:Polling interval (m)').route, 'apps');
 assert.equal(resolveLegacy('Desktop').route, 'widgets');
 assert.equal(resolveLegacy('About').route, 'about');
 assert.equal(resolveLegacy('Keybinds').route, 'devices');
-assert(searchIndex.find(entry => entry.label === 'Noise gate').advanced);
+assert(!searchIndex.find(entry => entry.label === 'Noise gate').advanced);
 assert(contributes('GeneralConfig','capture'));
+assert(contributes('GeneralConfig','personal'));
 assert(contributes('ServicesConfig','capture'));
+assert(contributes('ServicesConfig','apps'));
 assert(!contributes('GeneralConfig','widgets'));
+assert.deepEqual(aliasesFor('appearance'), ['appearance', 'effects']);
+assert.equal(canonicalRoute('effects'), 'appearance');
+assert.equal(canonicalRoute('window-rules'), 'devices');
 WM.compositor = 'niri';
 searchIndex = ''' + index + ''';
 assert(!searchIndex.some(entry => entry.source === 'HyprlandSettings'));
@@ -85,6 +91,12 @@ assert(!searchIndex.some(entry => ['HyprlandSettings','NiriSettings','KeybindsCo
         self.assertNotIn('Component.onCompleted:', direct(hypr, root))
         self.assertNotIn('bindsDebounce', hypr)
         self.assertNotIn('rulesDebounce', hypr)
+
+    def test_normal_window_mode_uses_a_real_floating_window(self):
+        settings = (SHELL / 'modules/ii/settings/Settings.qml').read_text()
+        self.assertIn('visible: GlobalStates.settingsOpen && !root.normalWindow', settings)
+        self.assertIn('FloatingWindow {', settings)
+        self.assertIn('visible: GlobalStates.settingsOpen && root.normalWindow', settings)
 
     def test_duplicate_controls_have_one_owner(self):
         background = (SHELL / 'modules/ii/settings/pages/BackgroundConfig.qml').read_text()

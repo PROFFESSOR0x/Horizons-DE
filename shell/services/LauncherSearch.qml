@@ -273,6 +273,10 @@ Singleton {
             Quickshell.execDetached(["xdg-open", path]);
             return;
         }
+        if (opener.endsWith(".desktop")) {
+            Quickshell.execDetached(["gtk-launch", opener, path]);
+            return;
+        }
         Quickshell.execDetached(["bash", "-c", `${opener} "$1"`, "file-open", path]);
     }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, subprocess, time, os
+import json, shlex, subprocess, time, os
 
 lockfile = "/tmp/qs-autostart.lock"
 if os.path.exists(lockfile):
@@ -23,8 +23,12 @@ for app in autostart.get('apps', []):
     subprocess.run(['hyprctl', 'dispatch', f'hl.dsp.focus({{workspace = {workspace}}})'])
 
     expanded_cmd = os.path.expanduser(cmd)
+    if expanded_cmd.endswith(".desktop"):
+        expanded_cmd = "gtk-launch " + shlex.quote(expanded_cmd)
+    hypr_cmd = expanded_cmd.replace("\\", "\\\\").replace('"', '\\"')
+
     subprocess.Popen(
-        ['hyprctl', 'dispatch', f'hl.dsp.exec_cmd("{expanded_cmd}")'],
+        ['hyprctl', 'dispatch', f'hl.dsp.exec_cmd("{hypr_cmd}")'],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         close_fds=True

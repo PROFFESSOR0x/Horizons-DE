@@ -1665,23 +1665,18 @@ ContentPage {
             GroupedList {
                 compact: true;
                 visible: page.settingsShow("panel-details|panels")
-                ConfigTextArea {
+                ConfigApplicationComboBox {
                     visible: page.settingsShow("panels");
                     objectName: "BarConfig.preferred-player";
-                    id: preferredPlayerField
                     Layout.fillWidth: true
                     buttonIcon: "play_circle"
                     text: Translation.tr("Preferred Player")
-                    placeholderText: Translation.tr("e.g. spotify, firefox")
-                    value: Config.options.bar.media.preferredPlayer
-                    onEdited: { mediaDebounceTimer.restart() }
-
-                    Timer {
-                        id: mediaDebounceTimer
-                        interval: 600
-                        repeat: false
-                        onTriggered: { Config.options.bar.media.preferredPlayer = preferredPlayerField.value }
-                    }
+                    description: Translation.tr("Choose from installed desktop applications")
+                    currentValue: Config.options.bar.media.preferredPlayer
+                    valueMode: "appId"
+                    allowEmpty: true
+                    emptyLabel: Translation.tr("Any player")
+                    onSelected: newValue => { Config.options.bar.media.preferredPlayer = newValue }
                 }
                 ConfigSwitch {
                     visible: page.settingsShow("panels");

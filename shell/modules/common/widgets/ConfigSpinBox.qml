@@ -35,7 +35,10 @@ RowLayout {
 
     StyledSpinBox {
         id: spinBoxWidget
-        onValueModified: root.edited(value)
+        onValueModified: {
+            root.edited(value)
+            Config.requestWrite()
+        }
         Layout.fillWidth: false
         value: root.value
     }

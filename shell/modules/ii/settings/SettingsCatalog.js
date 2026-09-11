@@ -6555,12 +6555,12 @@ var entries = [
             "window-rules"
         ],
         "label": "Bit Depth",
-        "section": "Advanced Monitor Settings",
+        "section": "Monitor details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Displays",
             "",
-            "Advanced Monitor Settings"
+            "Monitor details"
         ],
         "keywords": ""
     },
@@ -6572,12 +6572,12 @@ var entries = [
             "window-rules"
         ],
         "label": "VRR",
-        "section": "Advanced Monitor Settings",
+        "section": "Monitor details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Displays",
             "",
-            "Advanced Monitor Settings"
+            "Monitor details"
         ],
         "keywords": ""
     },
@@ -6589,12 +6589,12 @@ var entries = [
             "window-rules"
         ],
         "label": "Reserved Area",
-        "section": "Advanced Monitor Settings",
+        "section": "Monitor details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Displays",
             "",
-            "Advanced Monitor Settings"
+            "Monitor details"
         ],
         "keywords": ""
     },
@@ -6606,12 +6606,12 @@ var entries = [
             "window-rules"
         ],
         "label": "Transform",
-        "section": "Advanced Monitor Settings",
+        "section": "Monitor details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Displays",
             "",
-            "Advanced Monitor Settings"
+            "Monitor details"
         ],
         "keywords": ""
     },
@@ -7006,12 +7006,12 @@ var entries = [
             "devices"
         ],
         "label": "Tap to Click",
-        "section": "Touchpad Advanced",
+        "section": "Touchpad details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Input",
             "Touchpad",
-            "Touchpad Advanced"
+            "Touchpad details"
         ],
         "keywords": "Config.options.hyprland.input.touchpad.tapToClick"
     },
@@ -7023,12 +7023,12 @@ var entries = [
             "input-details"
         ],
         "label": "Tap Button Map",
-        "section": "Touchpad Advanced",
+        "section": "Touchpad details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Input",
             "Touchpad",
-            "Touchpad Advanced"
+            "Touchpad details"
         ],
         "keywords": "Config.options.hyprland.input.touchpad.tapButtonMap"
     },
@@ -7040,12 +7040,12 @@ var entries = [
             "input-details"
         ],
         "label": "Tap and Drag",
-        "section": "Touchpad Advanced",
+        "section": "Touchpad details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Input",
             "Touchpad",
-            "Touchpad Advanced"
+            "Touchpad details"
         ],
         "keywords": "Config.options.hyprland.input.touchpad.tapAndDrag"
     },
@@ -7057,12 +7057,12 @@ var entries = [
             "input-details"
         ],
         "label": "Drag Lock",
-        "section": "Touchpad Advanced",
+        "section": "Touchpad details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Input",
             "Touchpad",
-            "Touchpad Advanced"
+            "Touchpad details"
         ],
         "keywords": "Config.options.hyprland.input.touchpad.dragLock"
     },
@@ -8054,11 +8054,11 @@ var entries = [
             "effects"
         ],
         "label": "Dim Modal",
-        "section": "Advanced Decoration",
+        "section": "Decoration details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Visual & Aesthetics",
-            "Advanced Decoration"
+            "Decoration details"
         ],
         "keywords": "Config.options.hyprland.decoration.dimModal"
     },
@@ -8070,11 +8070,11 @@ var entries = [
             "effects"
         ],
         "label": "Dim Around",
-        "section": "Advanced Decoration",
+        "section": "Decoration details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Visual & Aesthetics",
-            "Advanced Decoration"
+            "Decoration details"
         ],
         "keywords": "Config.options.hyprland.decoration.dimAround"
     },
@@ -8086,11 +8086,11 @@ var entries = [
             "effects"
         ],
         "label": "Noise",
-        "section": "Advanced Blur",
+        "section": "Blur details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Visual & Aesthetics",
-            "Advanced Blur"
+            "Blur details"
         ],
         "keywords": "Config.options.hyprland.decoration.blur.noise"
     },
@@ -8102,11 +8102,11 @@ var entries = [
             "effects"
         ],
         "label": "Contrast",
-        "section": "Advanced Blur",
+        "section": "Blur details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Visual & Aesthetics",
-            "Advanced Blur"
+            "Blur details"
         ],
         "keywords": "Config.options.hyprland.decoration.blur.contrast"
     },
@@ -8118,11 +8118,11 @@ var entries = [
             "effects"
         ],
         "label": "Brightness",
-        "section": "Advanced Blur",
+        "section": "Blur details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Visual & Aesthetics",
-            "Advanced Blur"
+            "Blur details"
         ],
         "keywords": "Config.options.hyprland.decoration.blur.brightness"
     },
@@ -8134,11 +8134,11 @@ var entries = [
             "effects"
         ],
         "label": "Vibrancy Darkness",
-        "section": "Advanced Blur",
+        "section": "Blur details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Visual & Aesthetics",
-            "Advanced Blur"
+            "Blur details"
         ],
         "keywords": "Config.options.hyprland.decoration.blur.vibrancyDarkness"
     },
@@ -8150,11 +8150,11 @@ var entries = [
             "effects"
         ],
         "label": "Blur Special",
-        "section": "Advanced Blur",
+        "section": "Blur details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Visual & Aesthetics",
-            "Advanced Blur"
+            "Blur details"
         ],
         "keywords": "Config.options.hyprland.decoration.blur.special"
     },
@@ -8166,11 +8166,11 @@ var entries = [
             "effects"
         ],
         "label": "Blur Popups",
-        "section": "Advanced Blur",
+        "section": "Blur details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Visual & Aesthetics",
-            "Advanced Blur"
+            "Blur details"
         ],
         "keywords": "Config.options.hyprland.decoration.blur.popups"
     },
@@ -8182,11 +8182,11 @@ var entries = [
             "effects"
         ],
         "label": "Popups Ignore Alpha",
-        "section": "Advanced Blur",
+        "section": "Blur details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Visual & Aesthetics",
-            "Advanced Blur"
+            "Blur details"
         ],
         "keywords": "Config.options.hyprland.decoration.blur.popupsIgnorealpha Config.options.hyprland.decoration.blur.popups"
     },
@@ -8303,11 +8303,11 @@ var entries = [
             "window-rules"
         ],
         "label": "Active Border Color",
-        "section": "Advanced General Settings",
+        "section": "Window manager details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "General & Snap",
-            "Advanced General Settings"
+            "Window manager details"
         ],
         "keywords": "Config.options.hyprland.general.colActiveBorder"
     },
@@ -8319,11 +8319,11 @@ var entries = [
             "window-rules"
         ],
         "label": "Inactive Border Color",
-        "section": "Advanced General Settings",
+        "section": "Window manager details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "General & Snap",
-            "Advanced General Settings"
+            "Window manager details"
         ],
         "keywords": "Config.options.hyprland.general.colInactiveBorder"
     },
@@ -8335,11 +8335,11 @@ var entries = [
             "window-rules"
         ],
         "label": "Nogroup Border Color",
-        "section": "Advanced General Settings",
+        "section": "Window manager details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "General & Snap",
-            "Advanced General Settings"
+            "Window manager details"
         ],
         "keywords": "Config.options.hyprland.general.colNogroupBorder"
     },
@@ -8351,11 +8351,11 @@ var entries = [
             "window-rules"
         ],
         "label": "Float Gaps",
-        "section": "Advanced General Settings",
+        "section": "Window manager details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "General & Snap",
-            "Advanced General Settings"
+            "Window manager details"
         ],
         "keywords": "Config.options.hyprland.general.floatGaps"
     },
@@ -8367,11 +8367,11 @@ var entries = [
             "window-rules"
         ],
         "label": "Extend Border Grab Area",
-        "section": "Advanced General Settings",
+        "section": "Window manager details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "General & Snap",
-            "Advanced General Settings"
+            "Window manager details"
         ],
         "keywords": "Config.options.hyprland.general.extendBorderGrabArea"
     },
@@ -8383,11 +8383,11 @@ var entries = [
             "window-rules"
         ],
         "label": "Hover Icon On Border",
-        "section": "Advanced General Settings",
+        "section": "Window manager details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "General & Snap",
-            "Advanced General Settings"
+            "Window manager details"
         ],
         "keywords": "Config.options.hyprland.general.hoverIconOnBorder"
     },
@@ -8399,11 +8399,11 @@ var entries = [
             "window-rules"
         ],
         "label": "No Focus Fallback",
-        "section": "Advanced General Settings",
+        "section": "Window manager details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "General & Snap",
-            "Advanced General Settings"
+            "Window manager details"
         ],
         "keywords": "Config.options.hyprland.general.noFocusFallback"
     },
@@ -8700,10 +8700,10 @@ var entries = [
             "input-details"
         ],
         "label": "Save Binds",
-        "section": "Custom Binds (Advanced)",
+        "section": "Custom Binds",
         "legacyPage": "Hyprland",
         "legacySections": [
-            "Custom Binds (Advanced)"
+            "Custom Binds"
         ],
         "keywords": ""
     },
@@ -8715,10 +8715,10 @@ var entries = [
             "input-details"
         ],
         "label": "Reload Hyprland",
-        "section": "Custom Binds (Advanced)",
+        "section": "Custom Binds",
         "legacyPage": "Hyprland",
         "legacySections": [
-            "Custom Binds (Advanced)"
+            "Custom Binds"
         ],
         "keywords": ""
     },
@@ -8730,10 +8730,10 @@ var entries = [
             "window-rules"
         ],
         "label": "Save Rules",
-        "section": "Custom Window Rules (Advanced)",
+        "section": "Custom Window Rules",
         "legacyPage": "Hyprland",
         "legacySections": [
-            "Custom Window Rules (Advanced)"
+            "Custom Window Rules"
         ],
         "keywords": ""
     },
@@ -8745,10 +8745,10 @@ var entries = [
             "window-rules"
         ],
         "label": "Reload Hyprland",
-        "section": "Custom Window Rules (Advanced)",
+        "section": "Custom Window Rules",
         "legacyPage": "Hyprland",
         "legacySections": [
-            "Custom Window Rules (Advanced)"
+            "Custom Window Rules"
         ],
         "keywords": ""
     },
@@ -9993,12 +9993,12 @@ var entries = [
             "window-rules"
         ],
         "label": "Mirror",
-        "section": "Advanced Monitor Settings",
+        "section": "Monitor details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Displays",
             "",
-            "Advanced Monitor Settings"
+            "Monitor details"
         ],
         "keywords": ""
     },
@@ -10010,12 +10010,12 @@ var entries = [
             "window-rules"
         ],
         "label": "Color Management",
-        "section": "Advanced Monitor Settings",
+        "section": "Monitor details",
         "legacyPage": "Hyprland",
         "legacySections": [
             "Displays",
             "",
-            "Advanced Monitor Settings"
+            "Monitor details"
         ],
         "keywords": ""
     },
@@ -10059,10 +10059,10 @@ var entries = [
             "input-details"
         ],
         "label": "Custom shortcuts (Lua)",
-        "section": "Custom Binds (Advanced)",
+        "section": "Custom Binds",
         "legacyPage": "Hyprland",
         "legacySections": [
-            "Custom Binds (Advanced)"
+            "Custom Binds"
         ],
         "keywords": ""
     },
@@ -10074,10 +10074,10 @@ var entries = [
             "window-rules"
         ],
         "label": "Custom window rules (Lua)",
-        "section": "Custom Window Rules (Advanced)",
+        "section": "Custom Window Rules",
         "legacyPage": "Hyprland",
         "legacySections": [
-            "Custom Window Rules (Advanced)"
+            "Custom Window Rules"
         ],
         "keywords": ""
     },

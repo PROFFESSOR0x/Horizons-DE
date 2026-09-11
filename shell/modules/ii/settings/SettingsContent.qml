@@ -13,7 +13,7 @@ Item {
     readonly property bool rightToLeft: /^(ar|he|fa|ur)(_|$)/.test(Translation.languageCode)
     LayoutMirroring.enabled: rightToLeft
     LayoutMirroring.childrenInherit: true
-    property int currentPage: Math.max(0, registry.pages.findIndex(page => page.id === Config.options.settings.lastPage))
+    property int currentPage: Math.max(0, registry.pages.findIndex(page => page.id === registry.canonicalRoute(Config.options.settings.lastPage)))
     property bool showingSearch: false
     property bool showingProfile: false
     readonly property bool isMinimal: Config.options.settings.style === "minimal"
@@ -33,20 +33,19 @@ Item {
         Qt.callLater(() => { GlobalStates.currentPageInstance = routedPage })
     }
     function navigate(id, target) {
-        const index = pages.findIndex(page => page.id === id)
+        const route = registry.canonicalRoute(id)
+        const index = pages.findIndex(page => page.id === route)
         if (index < 0) return
         pendingTarget = target ?? null
         currentPage = index
         showingSearch = false
-        if (selectedPage.advanced) Config.options.settings.advancedExpanded = true
-        Config.options.settings.lastPage = id
+        Config.options.settings.lastPage = route
         Qt.callLater(revealTarget)
-        if (id === "about") { SystemInfo.refresh(); Updates.refresh() }
+        if (route === "about") { SystemInfo.refresh(); Updates.refresh() }
     }
     function stepPage(direction) {
-        const available = pages.filter(page => !page.advanced || Config.options.settings.advancedExpanded)
-        const index = available.findIndex(page => page.id === route)
-        navigate(available[(Math.max(0, index) + direction + available.length) % available.length].id)
+        const index = pages.findIndex(page => page.id === route)
+        navigate(pages[(Math.max(0, index) + direction + pages.length) % pages.length].id)
     }
     Shortcut {
         sequence: "Ctrl+F"
@@ -136,6 +135,7 @@ Item {
                     Config.options.settings.prevLanguage = current;
                     Config.options.language.ui = "ar_EG";
                 }
+                Config.requestWrite()
             }
             StyledToolTip { text: Translation.tr("Arabic mode") }
         }
@@ -182,7 +182,7 @@ Item {
                         spacing: 3
                         StyledText {
                             Layout.fillWidth: true
-                            text: Translation.tr("Customize")
+                            text: Translation.tr("Sections")
                             font.pixelSize: Appearance.font.pixelSize.small
                             Layout.leftMargin: 10
                             Layout.topMargin: 6
@@ -191,30 +191,9 @@ Item {
                             color: Appearance.colors.colSubtext
                         }
                         Repeater {
-                            model: registry.pages.filter(page => !page.advanced && page.id !== "about")
+                            model: registry.pages.filter(page => page.id !== "about")
                             delegate: SettingsNavigationButton {
                                 required property var modelData
-                                objectName: "settings-nav-" + modelData.id
-                                text: modelData.name
-                                iconName: modelData.icon
-                                selected: root.route === modelData.id && !root.showingSearch
-                                onClicked: root.navigate(modelData.id)
-                            }
-                        }
-                        Rectangle {
-                            Layout.fillWidth: true
-                            visible: Config.options.settings.advancedExpanded
-                            implicitHeight: 1
-                            Layout.topMargin: 8
-                            Layout.bottomMargin: 8
-                            color: Appearance.colors.colLayer0Border
-                        }
-                        Repeater {
-                            model: registry.pages.filter(page => page.advanced)
-                            delegate: SettingsNavigationButton {
-                                required property var modelData
-                                visible: Config.options.settings.advancedExpanded
-                                Layout.leftMargin: 0
                                 objectName: "settings-nav-" + modelData.id
                                 text: modelData.name
                                 iconName: modelData.icon
@@ -230,17 +209,6 @@ Item {
                         }
                     }
                 }
-                        SettingsNavigationButton {
-                            text: Translation.tr("Advanced")
-                            iconName: Config.options.settings.advancedExpanded ? "expand_more" : (root.rightToLeft ? "chevron_left" : "chevron_right")
-                            Accessible.role: Accessible.Button
-                            Accessible.name: text
-                            Accessible.description: Config.options.settings.advancedExpanded ? Translation.tr("Expanded") : Translation.tr("Collapsed")
-                            onClicked: {
-                                Config.options.settings.advancedExpanded = !Config.options.settings.advancedExpanded
-
-                            }
-                        }
             }
         }
         Item {
@@ -294,6 +262,7 @@ Item {
                                 setSource(Qt.resolvedUrl("pages/" + modelData + ".qml"), {
                                     embedded: true,
                                     settingsRoute: Qt.binding(() => root.route),
+                                    settingsRouteAliases: Qt.binding(() => registry.aliasesFor(root.route)),
                                     bottomContentPadding: 0,
                                     sidePadding: 0,
                                 })
@@ -309,14 +278,7 @@ Item {
                     }
                     RippleButtonWithIcon {
                         Layout.fillWidth: true
-                        visible: !!root.selectedPage.details
-                        materialIcon: "tune"
-                        mainText: Translation.tr("Advanced options for this section")
-                        onClicked: root.navigate(root.selectedPage.details)
-                    }
-                    RippleButtonWithIcon {
-                        Layout.fillWidth: true
-                        visible: root.route === "system"
+                        visible: root.route === "personal"
                         materialIcon: "code"
                         mainText: Translation.tr("Open shell configuration file")
                         onClicked: Qt.openUrlExternally(Directories.config + "/horizons/config.json")

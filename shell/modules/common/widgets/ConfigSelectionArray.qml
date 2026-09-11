@@ -92,7 +92,10 @@ RowLayout {
                 buttonIcon: modelData.icon || ""
                 buttonText: modelData.displayName
                 toggled: root.currentValue == modelData.value
-                onClicked: root.selected(modelData.value)
+                onClicked: {
+                    root.selected(modelData.value)
+                    Config.requestWrite()
+                }
             }
         }
     }

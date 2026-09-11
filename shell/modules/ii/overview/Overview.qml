@@ -156,9 +156,27 @@ Scope {
 
             // Top/Center: search first, bottom: overview first (so search stays at screen edge)
             Loader {
+                id: bottomWorkspacesLoader
                 active: overviewScope.isBottom && panelWindow.workspacesLauncherVisible
                 visible: active
                 sourceComponent: overviewScope.isBottom ? overviewLoaderComponent : null
+                opacity: active ? 1 : 0
+                scale: active ? 1 : 0.96
+                transformOrigin: Item.Top
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Appearance.motionDuration(180)
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
+                    }
+                }
+                Behavior on scale {
+                    NumberAnimation {
+                        duration: Appearance.motionDuration(240)
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial
+                    }
+                }
             }
             SearchWidget {
                 id: searchWidget
@@ -169,9 +187,27 @@ Scope {
                 }
             }
             Loader {
+                id: topWorkspacesLoader
                 active: !overviewScope.isBottom && panelWindow.workspacesLauncherVisible
                 visible: active
                 sourceComponent: !overviewScope.isBottom ? overviewLoaderComponent : null
+                opacity: active ? 1 : 0
+                scale: active ? 1 : 0.96
+                transformOrigin: Item.Bottom
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Appearance.motionDuration(180)
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
+                    }
+                }
+                Behavior on scale {
+                    NumberAnimation {
+                        duration: Appearance.motionDuration(240)
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial
+                    }
+                }
             }
 
             Component {

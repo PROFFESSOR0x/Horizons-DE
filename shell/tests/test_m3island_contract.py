@@ -446,14 +446,47 @@ class M3IslandContractTests(unittest.TestCase):
         launcher = source("services/LauncherSearch.qml")
         m3_launcher = source("modules/ii/m3Island/M3LauncherInline.qml")
 
-        self.assertIn("property list<var> results: []", launcher)
-        self.assertNotIn("property list<var> results: {", launcher)
+        self.assertIn("property var results: []", launcher)
+        self.assertNotIn("property var results: {", launcher)
         self.assertIn("function buildResults()", launcher)
         self.assertIn("function updateResults()", launcher)
         self.assertIn("onQueryChanged:", launcher)
         self.assertIn("fileSearchRevision", launcher)
         self.assertIn("filesProc.searchRevision === root.fileSearchRevision", launcher)
         self.assertIn("interval: 24", m3_launcher)
+
+    def test_launcher_resize_retargets_while_typing(self) -> None:
+        """Search-result geometry must not wait for an obsolete animation."""
+        island = source("modules/ii/m3Island/M3IslandContent.qml")
+        overview_launcher = source("modules/ii/overview/SearchWidget.qml")
+
+        height_behavior = island.split("Behavior on implicitHeight", 1)[1].split(
+            "Behavior on implicitWidth", 1
+        )[0]
+        self.assertNotIn("alwaysRunToEnd", height_behavior)
+        self.assertIn("duration: root.isLauncher ? root.animMs(120)", height_behavior)
+        self.assertIn("duration: Appearance.motionDuration(120)", overview_launcher)
+        self.assertNotIn(
+            "Appearance.animation.elementMove.numberAnimation.createObject(this)",
+            overview_launcher,
+        )
+        self.assertNotIn("enabled: !root.isLauncher", height_behavior)
+        self.assertIn("enabled: GlobalStates.overviewOpen", overview_launcher)
+
+    def test_classic_overview_uses_logical_workspace_slots_and_animates_grid(self) -> None:
+        overview = source("modules/ii/overview/Overview.qml")
+        widget = source("modules/ii/overview/OverviewWidget.qml")
+        dock_to_panel = source("modules/ii/bar/DocktoPanel.qml")
+
+        self.assertIn("id: topWorkspacesLoader", overview)
+        self.assertIn("id: bottomWorkspacesLoader", overview)
+        self.assertIn("duration: Appearance.motionDuration(180)", overview)
+        self.assertIn("effectiveActiveWorkspaceNumber", widget)
+        self.assertIn("function workspaceNumberForWindow", widget)
+        self.assertIn("GlobalStates.activateWorkspaceSlot", widget)
+        self.assertIn("HyprlandData.clientForToplevel", widget)
+        self.assertIn("GlobalStates.unifiedWorkspaceIdForSlot", widget)
+        self.assertIn("focusWindowInUnifiedSet", dock_to_panel)
 
     def test_settings_search_names_the_matching_option(self) -> None:
         settings_content = source("modules/ii/settings/SettingsContent.qml")

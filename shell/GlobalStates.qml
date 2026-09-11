@@ -439,6 +439,26 @@ Singleton {
             .map(set => set.map(entry => entry.key))
     }
 
+    function activeWorkspaceEntriesForConnectedMonitors() {
+        const entries = []
+        for (const name of root.connectedMonitorNames()) {
+            const id = Number(WM.activeWorkspaceForMonitor(name)?.id)
+            if (root.isRealWorkspaceId(id))
+                entries.push({key: root.workspaceKey(id, name), workspaceId: id, monitorName: name})
+        }
+        return entries
+    }
+
+    function resetUnifiedWorkspaceSetsToActiveMonitors() {
+        const activeEntries = root.activeWorkspaceEntriesForConnectedMonitors()
+        Config.options.workspaceLinking.detachedGroups = []
+        Config.options.workspaceLinking.unifiedSets =
+            root.groupCoversConnectedMonitors(activeEntries)
+                ? [activeEntries.map(entry => entry.key)]
+                : []
+        return root.initializeUnifiedWorkspaceSets()
+    }
+
     readonly property bool unifiedWorkspacesEnabled: WM.compositor === "hyprland"
         && Config.options.workspaceLinking.unifiedMultiMonitor
     onUnifiedWorkspacesEnabledChanged: {
@@ -610,8 +630,13 @@ Singleton {
 
     function setUnifiedMultiMonitorWorkspaces(enabled) {
         Config.options.workspaceLinking.unifiedMultiMonitor = enabled && WM.compositor === "hyprland"
-        if (!enabled) return
-        root.initializeUnifiedWorkspaceSets()
+        if (!enabled) {
+            Config.options.workspaceLinking.detachedGroups = []
+            Config.requestWrite()
+            return
+        }
+        root.resetUnifiedWorkspaceSetsToActiveMonitors()
+        Config.requestWrite()
     }
 
     function unifiedFocusedMonitorName() {

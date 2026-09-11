@@ -56,8 +56,7 @@ MouseArea {
         if (preferred.length === 0) return MprisController.activePlayer
         const _ = MprisController.players.count
         for (const p of MprisController.players) {
-            if ((p.identity ?? "").toLowerCase().includes(preferred) ||
-                (p.desktopEntry ?? "").toLowerCase().includes(preferred))
+            if (MprisController.playerMatchesPreference(p, preferred))
                 return p
         }
         return MprisController.activePlayer

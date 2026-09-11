@@ -58,6 +58,14 @@ assert.equal(root.unifiedSets().length,10);
 assert.equal(calls.length,1); assert.equal(calls[0][0].length,2);
 assert.ok(root.peekUnifiedWorkspaceIdForSlot(10,'DP-1')>0);''')
 
+    def test_logical_slot_switches_every_monitor_with_distinct_raw_ids(self):
+        self.run_controller('''WM.workspaces=[{id:1,monitor:'DP-1'},{id:15,monitor:'HDMI-1'}];
+root.initializeUnifiedWorkspaceSets();
+root.activateWorkspaceSlot(1,'HDMI-1');
+assert.equal(calls.length,1);
+assert.deepEqual(calls[0][0].map(entry=>entry.workspaceId).sort((a,b)=>a-b),[1,15]);
+assert.equal(calls[0][1],'HDMI-1');''')
+
     def test_hotplug_preserves_reservations_and_projects_members(self):
         self.run_controller('''WM.workspaces=[{id:1,monitor:'DP-1'},{id:101,monitor:'HDMI-1'}];
 root.initializeUnifiedWorkspaceSets();
@@ -97,3 +105,33 @@ assert.deepEqual(calls,['a']);''')
         self.run_controller('''WM.workspaces=[{id:1,monitor:'DP-1'}];root.initializeUnifiedWorkspaceSets();
 WM.workspaces.push({id:170,monitor:'HDMI-1'});root.initializeUnifiedWorkspaceSets();
 assert.equal(root.unifiedWorkspaceMembers(170,'HDMI-1',false).length,2);''')
+
+    def test_dock_focus_switches_the_whole_logical_set_before_focusing_window(self):
+        self.run_controller('''WM.activeWorkspaceForMonitor = name => ({id: name === 'DP-1' ? 1 : 2});
+WM.monitors=[{name:'DP-1',id:0},{name:'HDMI-1',id:1}];
+Config.options.workspaceLinking.unifiedSets=[
+ ['DP-1::1','HDMI-1::2'], ['DP-1::3','HDMI-1::4']
+];
+HyprlandData.windowByAddress={'0xabc':{address:'0xabc',workspace:{id:4},monitor:1}};
+HyprlandData.windowList=[HyprlandData.windowByAddress['0xabc']];
+assert.equal(root.focusWindowInUnifiedSet('0xabc'),true);
+assert.equal(calls.length,1);
+assert.deepEqual(calls[0][0].map(entry=>entry.workspaceId).sort((a,b)=>a-b),[3,4]);
+assert.equal(calls[0][1],'HDMI-1');
+assert.equal(calls[0][2],'0xabc');''')
+
+    def test_enabling_resets_stale_sets_to_the_current_active_pair(self):
+        self.run_controller('''WM.focusedMonitor={name:'DP-1'};
+WM.workspaces=[{id:1,monitor:'DP-1'},{id:2,monitor:'HDMI-1'}];
+WM.activeWorkspaceForMonitor = name => ({id: name === 'DP-1' ? 1 : 2});
+Config.requestWrite = () => calls.push('write');
+Config.options.workspaceLinking.detachedGroups=['DP-1::1|HDMI-1::2'];
+Config.options.workspaceLinking.unifiedSets=[
+ ['DP-1::1','HDMI-1::2'], ['DP-1::15','HDMI-1::16'], ['DP-1::21','HDMI-1::25']
+];
+root.setUnifiedMultiMonitorWorkspaces(true);
+assert.deepEqual(Config.options.workspaceLinking.detachedGroups,[]);
+assert.deepEqual(Config.options.workspaceLinking.unifiedSets,[['DP-1::1','HDMI-1::2']]);
+root.switchUnifiedWorkspaceRelative('next');
+assert.equal(Config.options.workspaceLinking.unifiedSets.length,2);
+assert.deepEqual(Config.options.workspaceLinking.unifiedSets[1],['DP-1::3','HDMI-1::4']);''')
