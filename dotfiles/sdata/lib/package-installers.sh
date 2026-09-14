@@ -64,19 +64,40 @@ install-MicroTeX(){
 
 install-uv(){
   x bash <(curl -LJs "https://astral.sh/uv/install.sh")
+  export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+  command -v uv >/dev/null 2>&1 || {
+    printf "${STY_RED}[$0]: uv installer finished, but the uv binary is still not on PATH.${STY_RST}\n"
+    return 1
+  }
 }
 
 install-python-packages(){
-  UV_NO_MODIFY_PATH=1
-  ILLOGICAL_IMPULSE_VIRTUAL_ENV=$XDG_STATE_HOME/quickshell/.venv
-  x mkdir -p $(eval echo $ILLOGICAL_IMPULSE_VIRTUAL_ENV)
+  export UV_NO_MODIFY_PATH=1
+  export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+  local uv_bin=""
+  uv_bin="$(command -v uv 2>/dev/null || true)"
+  if [[ -z "$uv_bin" ]]; then
+    install-uv
+    uv_bin="$(command -v uv 2>/dev/null || true)"
+  fi
+  [[ -n "$uv_bin" ]] || {
+    printf "${STY_RED}[$0]: uv is required for Python package setup, but it could not be installed or found.${STY_RST}\n"
+    return 1
+  }
+
+  ILLOGICAL_IMPULSE_VIRTUAL_ENV="$XDG_STATE_HOME/quickshell/.venv"
+  x mkdir -p "$(eval echo "$ILLOGICAL_IMPULSE_VIRTUAL_ENV")"
   # we need python 3.12 https://github.com/python-pillow/Pillow/issues/8089
-  try uv venv --prompt .venv $(eval echo $ILLOGICAL_IMPULSE_VIRTUAL_ENV) -p 3.12
-  x source $(eval echo $ILLOGICAL_IMPULSE_VIRTUAL_ENV)/bin/activate
+  x "$uv_bin" venv --prompt .venv "$(eval echo "$ILLOGICAL_IMPULSE_VIRTUAL_ENV")" -p 3.12
+  [[ -f "$(eval echo "$ILLOGICAL_IMPULSE_VIRTUAL_ENV")/bin/activate" ]] || {
+    printf "${STY_RED}[$0]: Python virtualenv was not created at $ILLOGICAL_IMPULSE_VIRTUAL_ENV.${STY_RST}\n"
+    return 1
+  }
+  x source "$(eval echo "$ILLOGICAL_IMPULSE_VIRTUAL_ENV")/bin/activate"
   if [[ "$INSTALL_VIA_NIX" = true ]]; then
     x nix-shell ${REPO_ROOT}/sdata/uv/shell.nix --run "uv pip install -r ${REPO_ROOT}/sdata/uv/requirements.txt"
   else
-    x uv pip install -r ${REPO_ROOT}/sdata/uv/requirements.txt
+    x "$uv_bin" pip install -r ${REPO_ROOT}/sdata/uv/requirements.txt
   fi
   x deactivate
 }

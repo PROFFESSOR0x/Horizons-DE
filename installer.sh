@@ -1854,26 +1854,40 @@ print_summary(){
   printf "\n"
   printf "${M}$(printf '%0.s─' $(seq 1 60))${RST}\n"
   printf "\n"
-  if [[ $ERRORS -eq 0 ]]; then
+  if [[ "$DRY_RUN" == true && $ERRORS -eq 0 ]]; then
+    printf "${G}${BD}  ✦  $(L "Dry-run complete — no changes were written." "اكتملت المعاينة — لم يتم إجراء أي تغييرات.")${RST}\n"
+  elif [[ $ERRORS -eq 0 ]]; then
     printf "${G}${BD}  ✦  $(L "Installation complete — no errors!" "اكتمل التثبيت — بدون أخطاء!")${RST}\n"
   else
-    printf "${Y}${BD}  ✦  $(L "Installation finished with %d warning(s)/error(s)." "انتهى التثبيت مع %d تحذير/خطأ.")${RST}\n" "$ERRORS"
+    if [[ "$DRY_RUN" == true ]]; then
+      printf "${Y}${BD}  ✦  $(L "Dry-run finished with %d warning(s)/error(s)." "انتهت المعاينة مع %d تحذير/خطأ.")${RST}\n" "$ERRORS"
+    else
+      printf "${Y}${BD}  ✦  $(L "Installation finished with %d warning(s)/error(s)." "انتهى التثبيت مع %d تحذير/خطأ.")${RST}\n" "$ERRORS"
+    fi
     printf "${Y}  $(L "Check the log for details:" "تحقق من السجل للتفاصيل:") ${UL}%s${RST}\n" "$LOG_FILE"
   fi
   printf "\n"
-  printf "  ${C}${BD}$(L "Next steps:" "الخطوات التالية:")${RST}\n"
-  printf "  ${C}•  $(L "Press ${IV} Super + Escape ${RST}${C} to open Settings" "اضغط ${IV} Super + Escape ${RST}${C} لفتح الإعدادات")${RST}\n"
-  printf "  ${C}•  $(L "Press ${IV} Ctrl + Super + T ${RST}${C} to pick a wallpaper" "اضغط ${IV} Ctrl + Super + T ${RST}${C} لاختيار خلفية")${RST}\n"
-  printf "  ${C}•  $(L "Press ${IV} Super + / ${RST}${C} to see all keybinds" "اضغط ${IV} Super + / ${RST}${C} لعرض جميع الاختصارات")${RST}\n"
-  printf "  ${C}•  $(L "Run ${IV} horizons status ${RST}${C} or ${IV} ./installer.sh status ${RST}${C} to see identity" "شغّل ${IV} horizons status ${RST}${C} أو ${IV} ./installer.sh status ${RST}${C} لعرض الهوية")${RST}\n"
-  printf "  ${C}•  $(L "Run ${IV} ./installer.sh update ${RST}${C} to update" "شغّل ${IV} ./installer.sh update ${RST}${C} للتحديث")${RST}\n"
+  if [[ "$DRY_RUN" == true ]]; then
+    printf "  ${C}${BD}$(L "Preview only:" "معاينة فقط:")${RST}\n"
+    printf "  ${C}•  $(L "Nothing was installed, copied, restarted, or written." "لم يتم تثبيت أو نسخ أو إعادة تشغيل أو كتابة أي شيء.")${RST}\n"
+    printf "  ${C}•  $(L "Run the same command without ${IV} --dry-run ${RST}${C} to perform the install." "شغّل نفس الأمر بدون ${IV} --dry-run ${RST}${C} لتنفيذ التثبيت.")${RST}\n"
+  else
+    printf "  ${C}${BD}$(L "Next steps:" "الخطوات التالية:")${RST}\n"
+    printf "  ${C}•  $(L "Press ${IV} Super + Escape ${RST}${C} to open Settings" "اضغط ${IV} Super + Escape ${RST}${C} لفتح الإعدادات")${RST}\n"
+    printf "  ${C}•  $(L "Press ${IV} Ctrl + Super + T ${RST}${C} to pick a wallpaper" "اضغط ${IV} Ctrl + Super + T ${RST}${C} لاختيار خلفية")${RST}\n"
+    printf "  ${C}•  $(L "Press ${IV} Super + / ${RST}${C} to see all keybinds" "اضغط ${IV} Super + / ${RST}${C} لعرض جميع الاختصارات")${RST}\n"
+    printf "  ${C}•  $(L "Run ${IV} horizons status ${RST}${C} or ${IV} ./installer.sh status ${RST}${C} to see identity" "شغّل ${IV} horizons status ${RST}${C} أو ${IV} ./installer.sh status ${RST}${C} لعرض الهوية")${RST}\n"
+    printf "  ${C}•  $(L "Run ${IV} ./installer.sh update ${RST}${C} to update" "شغّل ${IV} ./installer.sh update ${RST}${C} للتحديث")${RST}\n"
+  fi
   printf "  ${C}•  $(L "Log file:" "ملف السجل:") ${UL}%s${RST}\n" "$LOG_FILE"
   printf "\n"
   printf "  ${DM}${IT}Source: https://github.com/PROFFESSOR0x/Horizons-DE${RST}\n"
   printf "\n"
   printf "${M}$(printf '%0.s─' $(seq 1 60))${RST}\n"
   printf "\n"
-  if declare -f horizons_state_read &>/dev/null; then
+  if [[ "$DRY_RUN" == true ]]; then
+      printf "${DM}$(L "Identity marker: skipped in dry-run; any existing marker was left unchanged." "علامة الهوية: تم تخطيها في وضع المعاينة؛ أي علامة موجودة لم يتم تغييرها.")${RST}\n\n"
+  elif declare -f horizons_state_read &>/dev/null; then
       printf "${DM}Identity marker:${RST}\n"
       horizons_state_read 2>/dev/null | head -n 30 || true
       printf "\n"
