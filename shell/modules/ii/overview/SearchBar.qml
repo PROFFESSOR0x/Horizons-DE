@@ -14,11 +14,20 @@ RowLayout {
     property bool animateWidth: false
     property alias searchInput: searchInput
     property string searchingText
+    property bool syncingSearchText: false
     // Owned by SearchWidget. Keeping a direct reference avoids trying to
     // discover sibling ids through the parent tree (which made arrow-key
     // navigation depend on the launcher's layout/position).
     property var resultsView: null
     signal activateResult()
+
+    onSearchingTextChanged: {
+        if (searchInput.text !== searchingText) {
+            syncingSearchText = true;
+            searchInput.text = searchingText;
+            syncingSearchText = false;
+        }
+    }
 
     function forceFocus() {
         searchInput.forceActiveFocus();
@@ -117,7 +126,12 @@ RowLayout {
             }
         }
 
-        onTextChanged: LauncherSearch.query = text
+        onTextChanged: {
+            if (root.searchingText !== text)
+                root.searchingText = text;
+            if (!root.syncingSearchText || LauncherSearch.query !== text)
+                LauncherSearch.query = text;
+        }
 
         onAccepted: {
             root.activateResult()

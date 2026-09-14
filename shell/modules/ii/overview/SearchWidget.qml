@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 
-import Qt.labs.synchronizer
 import Qt5Compat.GraphicalEffects
 import QtQuick
 import QtQuick.Layouts
@@ -214,13 +213,17 @@ Item { // Wrapper
                 id: searchBar
                 resultsView: root.launcherPosition === "bottom" ? appResultsBottom : appResultsTop
                 onActivateResult: root.activateCurrentResult()
+                searchingText: root.searchingText
+                onSearchingTextChanged: {
+                    if (root.searchingText !== searchingText)
+                        root.searchingText = searchingText
+                }
                 property real verticalPadding: 4
                 Layout.fillWidth: true
                 Layout.leftMargin: 10
                 Layout.rightMargin: 4
                 Layout.topMargin: verticalPadding
                 Layout.bottomMargin: verticalPadding
-                Synchronizer on searchingText { property alias source: root.searchingText }
             }
             Rectangle {
                 visible: root.launcherPosition !== "bottom" && root.showResults

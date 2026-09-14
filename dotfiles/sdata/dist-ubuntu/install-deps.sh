@@ -175,10 +175,13 @@ apt_install_available "desktop services" \
 apt_install_available "shell applications" \
   kitty foot fish fuzzel cava grim slurp swappy wf-recorder imagemagick \
   python3 python3-venv python3-pip python3-pil python3-gi \
-  qt6-wayland qt6-image-formats-plugins qml6-module-qtquick \
+  qt6-wayland qt6-image-formats-plugins qml6-module-qtqml \
+  qml6-module-qtquick qml6-module-qt-labs-folderlistmodel \
   qml6-module-qtquick-controls qml6-module-qtquick-layouts \
-  qml6-module-qtquick-window qml6-module-qt5compat-graphicaleffects \
-  qml6-module-qtmultimedia qml6-module-qtwebsockets
+  qml6-module-qtquick-window qml6-module-qtquick-dialogs \
+  qml6-module-qtquick-shapes qml6-module-qtquick-effects \
+  qml6-module-qt5compat-graphicaleffects qml6-module-qtmultimedia \
+  qml6-module-qtwebsockets qml6-module-qt-labs-synchronizer
 
 showfun install_swappy_source_fallback
 v install_swappy_source_fallback

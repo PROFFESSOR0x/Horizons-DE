@@ -6,7 +6,6 @@ import qs.modules.common.widgets
 import qs.services
 import QtQuick
 import QtQuick.Controls
-import Qt.labs.synchronizer
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -538,11 +537,15 @@ PanelWindow {
             spacing: 6
 
             OptionsToolbar {
-                Synchronizer on action {
-                    property alias source: root.action
+                action: root.action
+                selectionMode: root.selectionMode
+                onActionChanged: {
+                    if (root.action !== action)
+                        root.action = action
                 }
-                Synchronizer on selectionMode {
-                    property alias source: root.selectionMode
+                onSelectionModeChanged: {
+                    if (root.selectionMode !== selectionMode)
+                        root.selectionMode = selectionMode
                 }
                 onDismiss: root.dismiss();
             }

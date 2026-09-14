@@ -2,7 +2,6 @@ import qs
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
-import Qt.labs.synchronizer
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -192,8 +191,10 @@ Scope {
                 id: searchWidget
                 anchors.horizontalCenter: parent.horizontalCenter
                 launcherPosition: overviewScope.launcherPosition
-                Synchronizer on searchingText {
-                    property alias source: panelWindow.searchingText
+                searchingText: panelWindow.searchingText
+                onSearchingTextChanged: {
+                    if (panelWindow.searchingText !== searchingText)
+                        panelWindow.searchingText = searchingText
                 }
             }
             Loader {

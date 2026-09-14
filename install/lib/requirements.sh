@@ -289,6 +289,35 @@ hz_install_quickshell_build_tools() {
     done
 }
 
+hz_install_ubuntu_qml_runtime() {
+    [[ "${PKG_GROUP:-unknown}" == ubuntu ]] || return 0
+    local packages=(
+        qt6-wayland
+        qt6-image-formats-plugins
+        qml6-module-qtqml
+        qml6-module-qtquick
+        qml6-module-qt-labs-folderlistmodel
+        qml6-module-qtquick-controls
+        qml6-module-qtquick-layouts
+        qml6-module-qtquick-window
+        qml6-module-qtquick-dialogs
+        qml6-module-qtquick-shapes
+        qml6-module-qtquick-effects
+        qml6-module-qt5compat-graphicaleffects
+        qml6-module-qtmultimedia
+        qml6-module-qtwebsockets
+        qml6-module-qt-labs-synchronizer
+    )
+    local package
+    for package in "${packages[@]}"; do
+        if ! hz_package_available "$package"; then
+            warn "Ubuntu QML runtime package is unavailable on this release, skipping: $package"
+            continue
+        fi
+        is_pkg_installed "$package" || hz_install_native_package "$package" || warn "Could not install Ubuntu QML runtime package: $package"
+    done
+}
+
 install_target_requirements() {
     step "Install target runtime requirements"
     if [[ "${DO_DEPS:-true}" != true || "${SKIP_DEPS:-false}" == true ]]; then
@@ -311,6 +340,7 @@ install_target_requirements() {
         hz_install_capability quickshell QuickShell || true
         hz_install_quickshell_fallback || warn "QuickShell is still missing after all package fallbacks."
     fi
+    hz_install_ubuntu_qml_runtime
 
     case "${HORIZONS_WINDOW_MANAGER:-}" in
         hyprland)

@@ -7,7 +7,6 @@ import qs.modules.common.widgets
 import qs.services
 import QtQuick
 import QtQuick.Controls
-import Qt.labs.synchronizer
 import Quickshell
 
 Singleton {
