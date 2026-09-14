@@ -1188,6 +1188,18 @@ ContentPage {
                     checked: Config.options.dock.showBackground
                     onEdited: { Config.options.dock.showBackground = checked }
                 }
+                ConfigSelectionArray {
+                    visible: page.settingsShow("panels");
+                    objectName: "InterfaceConfig.dock-style";
+                    text: Translation.tr("Dock style")
+                    icon: "dock"
+                    currentValue: Config.options.dock.cornerStyle
+                    onSelected: newValue => { Config.options.dock.cornerStyle = newValue }
+                    options: [
+                        { displayName: Translation.tr("Hug"),   icon: "line_curve", value: 0 },
+                        { displayName: Translation.tr("Float"), icon: "view_day",   value: 1 }
+                    ]
+                }
                 ConfigSwitch {
                     visible: page.settingsShow("panels");
                     objectName: "InterfaceConfig.hover-to-reveal";
@@ -1203,6 +1215,14 @@ ContentPage {
                     text: Translation.tr("Pinned on startup")
                     checked: Config.options.dock.pinnedOnStartup
                     onEdited: { Config.options.dock.pinnedOnStartup = checked }
+                }
+                ConfigSwitch {
+                    visible: page.settingsShow("panels");
+                    objectName: "InterfaceConfig.launcher-in-dock";
+                    buttonIcon: "apps"
+                    text: Translation.tr("Launcher in dock")
+                    checked: Config.options.dock.launcherInDock
+                    onEdited: { Config.options.dock.launcherInDock = checked }
                 }
             }
 

@@ -3,6 +3,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import qs.modules.ii.overview
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
@@ -14,7 +15,24 @@ import Quickshell.Wayland
 
 Scope {
     id: root
-    property bool pinned: Config.options?.dock.pinnedOnStartup ?? false
+    property var pinnedMonitors: ({})
+
+    function defaultPinned() {
+        return Config.options?.dock.pinnedOnStartup ?? false
+    }
+
+    function monitorPinned(monitorName) {
+        if (!monitorName) return defaultPinned()
+        const value = pinnedMonitors[monitorName]
+        return value === undefined ? defaultPinned() : value
+    }
+
+    function setMonitorPinned(monitorName, pinned) {
+        if (!monitorName) return
+        const next = Object.assign({}, pinnedMonitors)
+        next[monitorName] = pinned
+        pinnedMonitors = next
+    }
 
     Variants {
         model: Quickshell.screens
@@ -26,21 +44,42 @@ Scope {
             visible: !GlobalStates.screenLocked && !GlobalStates.lockPreviewOpen
 
             property var monitor: WM.monitorFor(modelData)
-            property bool fullscreenOnThisMonitor: WM.fullscreenOnMonitor(monitor?.name)
+            property string monitorName: modelData?.name ?? monitor?.name ?? ""
+            property bool fullscreenOnThisMonitor: WM.fullscreenOnMonitor(monitorName)
+            property bool obscuredOnThisMonitor: !!WM.obscuredMonitors[monitorName]
+            property bool floatStyle: (Config.options?.dock.cornerStyle ?? 1) === 1
+            property bool launcherInDock: Config.options?.dock.enable
+                && Config.options?.dock.launcherInDock
+            property bool focusedMonitor: WM.focusedMonitor?.name === monitorName
+            property bool launcherActive: launcherInDock && GlobalStates.overviewOpen && focusedMonitor
+            property bool pinned: root.monitorPinned(monitorName)
+            property real edgeGap: floatStyle ? Appearance.sizes.hyprlandGapsOut : 0
+            property real launcherSurfaceHeight: dockLauncherLoader.active && dockLauncherLoader.item
+                ? dockLauncherLoader.item.implicitHeight
+                : 0
+            property real surfaceHeight: launcherActive
+                ? Math.max(Config.options?.dock.height ?? 70, launcherSurfaceHeight)
+                : (Config.options?.dock.height ?? 70)
 
             property bool reveal: {
+                if (launcherActive)
+                    return true
                 if (fullscreenOnThisMonitor)
                     return Config.options?.dock.hoverToReveal && dockMouseArea.containsMouse
-                return root.pinned
+                if (obscuredOnThisMonitor)
+                    return dockRoot.pinned
+                        || (Config.options?.dock.hoverToReveal && dockMouseArea.containsMouse)
+                        || activeAppsArea.requestDockShow
+                        || dragSlots.requestDockShow
+                return dockRoot.pinned
                     || (Config.options?.dock.hoverToReveal && dockMouseArea.containsMouse)
                     || activeAppsArea.requestDockShow
                     || dragSlots.requestDockShow
-                    || (!ToplevelManager.activeToplevel?.activated)
+                    || !obscuredOnThisMonitor
             }
 
-            exclusiveZone: (root.pinned && !fullscreenOnThisMonitor)
-                ? implicitHeight - Appearance.sizes.hyprlandGapsOut
-                  - (Appearance.sizes.elevationMargin - Appearance.sizes.hyprlandGapsOut)
+            exclusiveZone: (dockRoot.pinned && !fullscreenOnThisMonitor && !launcherActive)
+                ? surfaceHeight + edgeGap
                 : 0
 
             anchors { bottom: true; left: true; right: true }
@@ -51,15 +90,35 @@ Scope {
                 active: WM.isWayland
                 sourceComponent: Item {
                     Binding { target: dockRoot.WlrLayershell; property: "namespace"; value: "quickshell:dock" }
+                    Binding {
+                        target: dockRoot.WlrLayershell
+                        property: "keyboardFocus"
+                        value: dockRoot.launcherActive ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+                    }
                 }
             }
             color: "transparent"
 
-            implicitHeight: (Config.options?.dock.height ?? 70)
+            implicitHeight: surfaceHeight
                 + Appearance.sizes.elevationMargin
-                + Appearance.sizes.hyprlandGapsOut
+                + edgeGap
 
             mask: Region { item: dockMouseArea }
+
+            onLauncherActiveChanged: {
+                if (launcherActive)
+                    GlobalFocusGrab.addDismissable(dockRoot)
+                else
+                    GlobalFocusGrab.removeDismissable(dockRoot)
+            }
+
+            Connections {
+                target: GlobalFocusGrab
+                function onDismissed() {
+                    if (dockRoot.launcherActive)
+                        GlobalStates.overviewOpen = false
+                }
+            }
 
             MouseArea {
                 id: dockMouseArea
@@ -73,7 +132,10 @@ Scope {
                             : (dockRoot.implicitHeight + 1)
                     horizontalCenter: parent.horizontalCenter
                 }
-                implicitWidth: dockHoverRegion.implicitWidth + Appearance.sizes.elevationMargin * 2
+                implicitWidth: Math.max(
+                    dockHoverRegion.implicitWidth,
+                    dockLauncherLoader.active && dockLauncherLoader.item ? dockLauncherLoader.item.implicitWidth : 0
+                ) + Appearance.sizes.elevationMargin * 2
                 hoverEnabled: true
 
                 Behavior on anchors.topMargin {
@@ -92,14 +154,16 @@ Scope {
                             bottom: parent.bottom
                             horizontalCenter: parent.horizontalCenter
                         }
-                        implicitWidth: dockRow.implicitWidth + 5 * 2
+                        implicitWidth: (dockRoot.launcherActive && dockLauncherLoader.item)
+                            ? dockLauncherLoader.item.implicitWidth
+                            : dockRow.implicitWidth + 5 * 2
                         height: parent.height
                             - Appearance.sizes.elevationMargin
-                            - Appearance.sizes.hyprlandGapsOut
+                            - dockRoot.edgeGap
 
                         StyledRectangularShadow {
                             target: dockVisualBackground
-                            visible: false
+                            visible: dockRoot.floatStyle && Config.options.dock.showBackground
                         }
 
                         Rectangle {
@@ -107,16 +171,37 @@ Scope {
                             property real margin: Appearance.sizes.elevationMargin
                             anchors.fill: parent
                             anchors.topMargin:    Appearance.sizes.elevationMargin
-                            anchors.bottomMargin: Appearance.sizes.hyprlandGapsOut
+                            anchors.bottomMargin: dockRoot.edgeGap
                             color: Config.options.dock.showBackground
                                    ? Appearance.colors.colLayer0 : "transparent"
                             border.width: Config.options.dock.showBackground ? 1 : 0
                             border.color: Appearance.colors.colLayer0Border
                             radius: Appearance.rounding.normal + 6
+                            bottomLeftRadius: dockRoot.floatStyle ? radius : 0
+                            bottomRightRadius: dockRoot.floatStyle ? radius : 0
+                        }
+
+                        Loader {
+                            id: dockLauncherLoader
+                            active: dockRoot.launcherActive
+                            visible: active
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            width: active && item ? item.implicitWidth : 0
+                            height: active && item ? item.implicitHeight : 0
+                            opacity: active ? 1 : 0
+                            scale: active ? 1 : 0.96
+                            Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+                            Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                            sourceComponent: SearchWidget {
+                                launcherPosition: "bottom"
+                            }
                         }
 
                         RowLayout {
                             id: dockRow
+                            visible: !dockRoot.launcherActive
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -126,10 +211,10 @@ Scope {
 
                             VerticalButtonGroup {
                                 Layout.topMargin: 3
-                                Layout.leftMargin:  root.pinned
+                                Layout.leftMargin:  dockRoot.pinned
                                     ? Appearance.sizes.hyprlandGapsOut + 4
                                     : Appearance.sizes.hyprlandGapsOut
-                                Layout.rightMargin: root.pinned
+                                Layout.rightMargin: dockRoot.pinned
                                     ? Appearance.sizes.hyprlandGapsOut + 4
                                     : Appearance.sizes.hyprlandGapsOut
 
@@ -138,13 +223,13 @@ Scope {
                                     visible: Config.options.dock.showPinButton
                                     clickedWidth: baseWidth; clickedHeight: baseHeight + 20
                                     buttonRadius: Appearance.rounding.normal
-                                    toggled: root.pinned
-                                    onClicked: root.pinned = !root.pinned
+                                    toggled: dockRoot.pinned
+                                    onClicked: root.setMonitorPinned(dockRoot.monitorName, !dockRoot.pinned)
                                     contentItem: MaterialSymbol {
                                         text: "keep"
                                         horizontalAlignment: Text.AlignHCenter
                                         iconSize: Appearance.font.pixelSize.larger
-                                        color: root.pinned
+                                        color: dockRoot.pinned
                                                ? Appearance.m3colors.m3onPrimary
                                                : Appearance.colors.colOnLayer0
                                     }

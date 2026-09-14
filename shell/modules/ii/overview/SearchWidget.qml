@@ -22,7 +22,10 @@ Item { // Wrapper
     property string launcherPosition: "top" // top | bottom | center
     property string searchingText: LauncherSearch.query
     property bool showResults: searchingText != ""
-    readonly property bool resultsActive: GlobalStates.overviewOpen && Config.options.bar.barMode !== "m3Island"
+    readonly property bool dockLauncherActive: Config.options?.dock?.enable
+        && Config.options?.dock?.launcherInDock
+    readonly property bool resultsActive: GlobalStates.overviewOpen
+        && (Config.options.bar.barMode !== "m3Island" || dockLauncherActive)
     readonly property real searchBarHeight: searchBar.implicitHeight + searchBar.verticalPadding * 2
     implicitWidth: searchWidgetContent.implicitWidth + Appearance.sizes.elevationMargin * 2
     implicitHeight: searchWidgetContent.implicitHeight + searchBar.verticalPadding * 2 + Appearance.sizes.elevationMargin * 2

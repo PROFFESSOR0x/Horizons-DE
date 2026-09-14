@@ -403,7 +403,7 @@ function install_cmds(){
       v sudo pacman -Syu
       v sudo pacman -S --noconfirm --needed "${pkgs[@]}"
       ;;
-    "debian")
+    "debian"|"ubuntu")
       local pkgs=()
       for cmd in "$@";do
         # For package name which is not cmd name, use "case" syntax to replace

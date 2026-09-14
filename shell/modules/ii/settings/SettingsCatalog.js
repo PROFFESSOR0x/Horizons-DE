@@ -4418,6 +4418,21 @@ var entries = [
         "keywords": "Config.options.dock.showBackground"
     },
     {
+        "id": "InterfaceConfig.dock-style",
+        "source": "InterfaceConfig",
+        "route": "panels",
+        "routes": [
+            "panels"
+        ],
+        "label": "Dock style",
+        "section": "Dock",
+        "legacyPage": "Interface",
+        "legacySections": [
+            "Dock"
+        ],
+        "keywords": "Config.options.dock.cornerStyle"
+    },
+    {
         "id": "InterfaceConfig.hover-to-reveal",
         "source": "InterfaceConfig",
         "route": "panels",
@@ -4446,6 +4461,21 @@ var entries = [
             "Dock"
         ],
         "keywords": "Config.options.dock.pinnedOnStartup"
+    },
+    {
+        "id": "InterfaceConfig.launcher-in-dock",
+        "source": "InterfaceConfig",
+        "route": "panels",
+        "routes": [
+            "panels"
+        ],
+        "label": "Launcher in dock",
+        "section": "Dock",
+        "legacyPage": "Interface",
+        "legacySections": [
+            "Dock"
+        ],
+        "keywords": "Config.options.dock.launcherInDock Config.options.apps.launcher"
     },
     {
         "id": "InterfaceConfig.media-player-2",

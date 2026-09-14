@@ -8,7 +8,7 @@ import qs.modules.common.widgets
 StyledComboBoxSearch {
     id: root
 
-    property string currentValue: ""
+    property string selectedValue: ""
     property string valueMode: "appId"
     property bool allowEmpty: false
     property string emptyLabel: Translation.tr("System default")
@@ -18,7 +18,7 @@ StyledComboBoxSearch {
     textRole: "displayName"
     model: applicationModel
 
-    readonly property string normalizedCurrentValue: normalizeValue(root.currentValue)
+    readonly property string normalizedCurrentValue: normalizeValue(root.selectedValue)
     readonly property var applicationModel: {
         const seen = new Set()
         const entries = []

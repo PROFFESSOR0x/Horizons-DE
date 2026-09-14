@@ -57,7 +57,7 @@ RowLayout {
         Layout.minimumWidth: Math.min(180, root.fieldWidth)
         Layout.alignment: Qt.AlignVCenter
         enabled: root.enabled
-        currentValue: root.currentValue
+        selectedValue: root.currentValue
         valueMode: root.valueMode
         allowEmpty: root.allowEmpty
         emptyLabel: root.emptyLabel

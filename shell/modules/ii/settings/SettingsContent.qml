@@ -22,6 +22,7 @@ Item {
     readonly property var selectedPage: pages[currentPage] ?? pages[0]
     readonly property string route: selectedPage.id
     property var pendingTarget: null
+    property int revealAttemptsRemaining: 0
     property string navigationNotice: ""
 
     SettingsRegistry { id: registry }
@@ -36,11 +37,18 @@ Item {
         const route = registry.canonicalRoute(id)
         const index = pages.findIndex(page => page.id === route)
         if (index < 0) return
+        focusOutline.targetItem = null
+        highlightTimer.stop()
+        revealTargetTimer.stop()
         pendingTarget = target ?? null
         currentPage = index
         showingSearch = false
         Config.options.settings.lastPage = route
-        Qt.callLater(revealTarget)
+        if (pendingTarget?.id) {
+            scheduleRevealTarget()
+        } else {
+            Qt.callLater(scrollToTop)
+        }
         if (route === "about") { SystemInfo.refresh(); Updates.refresh() }
     }
     function stepPage(direction) {
@@ -54,14 +62,38 @@ Item {
     }
     function navigateToSearchResult(entry) { navigate(entry.route, entry) }
     function buildSearchIndex() {} // The catalogue exists before any source view loads.
+    function scrollToTop() {
+        routedPage.contentY = 0
+    }
+    function childItems(item) {
+        const result = []
+        const add = candidate => {
+            if (!candidate) return
+            if (result.indexOf(candidate) < 0) result.push(candidate)
+        }
+        for (const child of item.children ?? []) add(child)
+        for (const child of item.contentItem?.children ?? []) add(child)
+        for (const child of item.data ?? []) add(child)
+        return result
+    }
+    function itemAndParentsVisible(item) {
+        for (let cursor = item; cursor && cursor !== routedPage.contentItem; cursor = cursor.parent) {
+            if (cursor.visible === false) return false
+        }
+        return true
+    }
     function findTarget(item, name) {
         if (!item) return null
-        if (item.objectName === name) return item
-        for (const child of item.children ?? []) {
+        if (item.objectName === name && itemAndParentsVisible(item)) return item
+        for (const child of childItems(item)) {
             const found = findTarget(child, name)
             if (found) return found
         }
         return null
+    }
+    function scheduleRevealTarget() {
+        revealAttemptsRemaining = 12
+        revealTargetTimer.restart()
     }
     function revealTarget() {
         if (!pendingTarget?.id) return
@@ -70,17 +102,26 @@ Item {
             if (loader.modelData !== pendingTarget.source || !loader.item) continue
             const target = findTarget(loader.item, pendingTarget.id)
             if (!target) continue
-            if (!target.visible) {
+            if (!itemAndParentsVisible(target)) {
                 navigationNotice = Translation.tr("This option is available when its feature or layout is active.")
                 pendingTarget = null
                 return
             }
             const point = target.mapToItem(routedPage.contentItem, 0, 0)
             routedPage.contentY = Math.max(0, Math.min(point.y - 24, routedPage.contentHeight - routedPage.height))
-            focusOutline.targetItem = target
-            highlightTimer.restart()
+            Qt.callLater(() => {
+                focusOutline.targetItem = target
+                highlightTimer.restart()
+            })
             pendingTarget = null
             return
+        }
+        revealAttemptsRemaining -= 1
+        if (revealAttemptsRemaining > 0) {
+            revealTargetTimer.restart()
+        } else {
+            navigationNotice = Translation.tr("This option is available when its feature or layout is active.")
+            pendingTarget = null
         }
     }
     Connections {
@@ -273,7 +314,7 @@ Item {
                                 target: Config
                                 function onReadyChanged() { sourceLoader.requestIfNeeded() }
                             }
-                            onLoaded: Qt.callLater(() => Qt.callLater(root.revealTarget))
+                            onLoaded: if (root.pendingTarget?.id) root.scheduleRevealTarget()
                         }
                     }
                     RippleButtonWithIcon {
@@ -317,4 +358,5 @@ Item {
         z: 100
     }
     Timer { id: highlightTimer; interval: 2200; onTriggered: focusOutline.targetItem = null }
+    Timer { id: revealTargetTimer; interval: 35; onTriggered: root.revealTarget() }
 }

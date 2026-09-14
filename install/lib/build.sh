@@ -97,6 +97,12 @@ build_all(){ hz_build_all "$@"; }
 # ── bundled extras ────────────────────────────────────────────────────────────
 hz_build_bundled() {
     _build_info "Installing bundled extras (fonts, bibata, microtex, google-sans)…"
+    if ! declare -f try &>/dev/null; then
+        try(){ if declare -f run &>/dev/null; then run "$@" || true; else "$@" || true; fi; }
+    fi
+    if ! declare -f x &>/dev/null; then
+        x(){ if declare -f run &>/dev/null; then run "$@"; else "$@"; fi; }
+    fi
     if ! declare -f install-Rubik &>/dev/null; then
         if [[ -f "$REPO_ROOT/dotfiles/sdata/lib/package-installers.sh" ]]; then
             # shellcheck source=/dev/null

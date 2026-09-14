@@ -368,6 +368,44 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertIn("function forceCloseWindow", wm)
         self.assertIn("function forceCloseWindow", hyprland)
 
+    def test_standalone_dock_is_screen_local_and_can_host_launcher(self) -> None:
+        dock = source("modules/ii/dock/Dock.qml")
+        overview = source("modules/ii/overview/Overview.qml")
+        search_widget = source("modules/ii/overview/SearchWidget.qml")
+        config = source("modules/common/Config.qml")
+        settings = source("modules/ii/settings/pages/InterfaceConfig.qml")
+
+        self.assertIn("property var pinnedMonitors", dock)
+        self.assertIn("function monitorPinned(monitorName)", dock)
+        self.assertIn("function setMonitorPinned(monitorName, pinned)", dock)
+        self.assertIn("property bool pinned: root.monitorPinned(monitorName)", dock)
+        self.assertIn("property string monitorName: modelData?.name ?? monitor?.name ?? \"\"", dock)
+        self.assertIn("property bool obscuredOnThisMonitor: !!WM.obscuredMonitors[monitorName]", dock)
+        self.assertNotIn("ToplevelManager.activeToplevel", dock)
+        self.assertIn("if (fullscreenOnThisMonitor)", dock)
+        self.assertIn("if (obscuredOnThisMonitor)", dock)
+        self.assertIn("return dockRoot.pinned", dock)
+        self.assertIn("onClicked: root.setMonitorPinned(dockRoot.monitorName, !dockRoot.pinned)", dock)
+        self.assertIn("Config.options?.dock.cornerStyle", dock)
+        self.assertIn("bottomLeftRadius: dockRoot.floatStyle ? radius : 0", dock)
+        self.assertIn("property bool focusedMonitor: WM.focusedMonitor?.name === monitorName", dock)
+        self.assertIn("launcherInDock && GlobalStates.overviewOpen && focusedMonitor", dock)
+        self.assertIn("SearchWidget {", dock)
+        self.assertIn('launcherPosition: "bottom"', dock)
+        self.assertIn("WlrKeyboardFocus.OnDemand", dock)
+        self.assertIn("GlobalFocusGrab.addDismissable(dockRoot)", dock)
+
+        self.assertIn("property int cornerStyle", config)
+        self.assertIn("property bool launcherInDock", config)
+        self.assertIn("opts.dock.cornerStyle === undefined", config)
+        self.assertIn("opts.dock.launcherInDock === undefined", config)
+        self.assertIn("Config.options.dock.cornerStyle", settings)
+        self.assertIn("Config.options.dock.launcherInDock", settings)
+        self.assertIn("dockLauncherEnabled", overview)
+        self.assertIn("if (overviewScope.dockLauncherEnabled)", overview)
+        self.assertIn("!panelWindow.dockLauncherActive", overview)
+        self.assertIn("dockLauncherActive", search_widget)
+
     def test_app_launch_indicator_never_delays_launch_and_finishes_on_mapped_window(self) -> None:
         launcher = source("services/AppLaunchService.qml")
         indicator = source("modules/ii/overlay/AppLaunchIndicator.qml")
@@ -498,6 +536,19 @@ class M3IslandContractTests(unittest.TestCase):
         self.assertNotIn("collectSearchData", settings_content)
         self.assertIn("matchingSettings", settings_search)
         self.assertIn("resultButton.modelData.matchingSettings", settings_search)
+
+    def test_settings_navigation_resets_scroll_and_reveals_loaded_targets(self) -> None:
+        settings_content = source("modules/ii/settings/SettingsContent.qml")
+
+        self.assertIn("function scrollToTop()", settings_content)
+        self.assertIn("Qt.callLater(scrollToTop)", settings_content)
+        self.assertIn("function childItems(item)", settings_content)
+        self.assertIn("item.contentItem?.children", settings_content)
+        self.assertIn("function itemAndParentsVisible(item)", settings_content)
+        self.assertIn("function scheduleRevealTarget()", settings_content)
+        self.assertIn("Timer { id: revealTargetTimer", settings_content)
+        self.assertIn("onLoaded: if (root.pendingTarget?.id) root.scheduleRevealTarget()", settings_content)
+        self.assertIn("focusOutline.targetItem = null", settings_content)
 
     def test_settings_text_inputs_keep_a_resting_outline(self) -> None:
         config_text_area = source("modules/common/widgets/ConfigTextArea.qml")

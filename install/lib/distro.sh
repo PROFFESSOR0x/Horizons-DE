@@ -10,7 +10,7 @@
 #   DISTRO_ID     - lowercase ID from /etc/os-release (e.g. "arch", "fedora")
 #   DISTRO_LIKE   - lowercase ID_LIKE from /etc/os-release
 #   DISTRO_NAME   - PRETTY_NAME from /etc/os-release, human readable
-#   PKG_GROUP     - one of: arch, fedora, gentoo, suse, debian, unknown
+#   PKG_GROUP     - one of: arch, fedora, gentoo, suse, ubuntu, debian, unknown
 #   NEEDS_NIX     - "true" for groups without a native dependency path
 #                   (suse, debian, unknown) — mirrors dots-hyprland's
 #                   INSTALL_VIA_NIX fallback.
@@ -45,6 +45,8 @@ detect_distro() {
             PKG_GROUP="gentoo" ;;
         opensuse-leap|opensuse-tumbleweed)
             PKG_GROUP="suse"; NEEDS_NIX=true ;;
+        ubuntu)
+            PKG_GROUP="ubuntu" ;;
         debian)
             PKG_GROUP="debian"; NEEDS_NIX=true ;;
         *)
@@ -56,6 +58,8 @@ detect_distro() {
                 PKG_GROUP="gentoo"
             elif [[ "$DISTRO_LIKE" == *suse* || "$DISTRO_LIKE" == *opensuse* ]]; then
                 PKG_GROUP="suse"; NEEDS_NIX=true
+            elif [[ "$DISTRO_LIKE" == *ubuntu* ]]; then
+                PKG_GROUP="ubuntu"
             elif [[ "$DISTRO_LIKE" == *debian* ]]; then
                 PKG_GROUP="debian"; NEEDS_NIX=true
             else

@@ -28,6 +28,7 @@ hz_package_available() {
     case "${PKG_GROUP:-unknown}" in
         arch)   pacman -Si "$package" >/dev/null 2>&1 ;;
         fedora) dnf -q list --available "$package" >/dev/null 2>&1 || dnf -q list --installed "$package" >/dev/null 2>&1 ;;
+        ubuntu) apt-cache show "$package" >/dev/null 2>&1 ;;
         debian) apt-cache show "$package" >/dev/null 2>&1 ;;
         suse)   zypper --non-interactive se --match-exact "$package" 2>/dev/null | grep -qE '^[[:space:]]*[i |]+' ;;
         gentoo) emerge -p "$package" >/dev/null 2>&1 ;;
@@ -40,6 +41,7 @@ hz_install_native_package() {
     case "${PKG_GROUP:-unknown}" in
         arch)   run sudo pacman -S --needed --noconfirm "$package" ;;
         fedora) run sudo dnf install -y "$package" ;;
+        ubuntu) run sudo apt-get install -y "$package" ;;
         debian) run sudo apt-get install -y "$package" ;;
         suse)   run sudo zypper --non-interactive install --no-recommends "$package" ;;
         gentoo) run sudo emerge --ask=n "$package" ;;
@@ -108,6 +110,18 @@ hz_packages_for() {
         fedora:clipboard-x) printf '%s\n' xclip xsel ;;
         fedora:portal)      printf '%s\n' xdg-desktop-portal-hyprland ;;
 
+        ubuntu:git)         printf '%s\n' git ;;
+        ubuntu:rsync)       printf '%s\n' rsync ;;
+        ubuntu:curl)        printf '%s\n' curl ;;
+        ubuntu:jq)          printf '%s\n' jq ;;
+        ubuntu:quickshell)  printf '%s\n' quickshell quickshell-git ;;
+        ubuntu:hyprland)    printf '%s\n' hyprland ;;
+        ubuntu:i3)          printf '%s\n' i3-wm i3 ;;
+        ubuntu:xserver)     printf '%s\n' xserver-xorg ;;
+        ubuntu:clipboard-w) printf '%s\n' wl-clipboard ;;
+        ubuntu:clipboard-x) printf '%s\n' xclip xsel ;;
+        ubuntu:portal)      printf '%s\n' xdg-desktop-portal-hyprland ;;
+
         debian:git)         printf '%s\n' git ;;
         debian:rsync)       printf '%s\n' rsync ;;
         debian:curl)        printf '%s\n' curl ;;
@@ -146,6 +160,74 @@ hz_packages_for() {
     esac
 }
 
+hz_ubuntu_add_apt_repository() {
+    local repo="$1"
+    command -v add-apt-repository >/dev/null 2>&1 || hz_install_native_package software-properties-common || return 1
+    [[ "${DRY_RUN:-false}" == true ]] && { run true; return 0; }
+    run sudo add-apt-repository -y "$repo"
+}
+
+hz_prepare_ubuntu_base_repos() {
+    [[ "${PKG_GROUP:-unknown}" == ubuntu ]] || return 0
+    if command -v add-apt-repository >/dev/null 2>&1; then
+        run sudo add-apt-repository -y universe || true
+    else
+        hz_install_native_package software-properties-common || true
+        command -v add-apt-repository >/dev/null 2>&1 && run sudo add-apt-repository -y universe || true
+    fi
+    run sudo apt-get update
+}
+
+hz_prepare_ubuntu_quickshell_repo() {
+    [[ "${PKG_GROUP:-unknown}" == ubuntu ]] || return 1
+    if command -v quickshell >/dev/null 2>&1 || command -v qs >/dev/null 2>&1; then
+        return 0
+    fi
+    if hz_package_available quickshell || hz_package_available quickshell-git; then
+        return 0
+    fi
+    info "QuickShell is not in the enabled Ubuntu repositories; enabling ppa:avengemedia/danklinux…"
+    hz_ubuntu_add_apt_repository ppa:avengemedia/danklinux || return 1
+    run sudo apt-get update
+}
+
+hz_ubuntu_codename() {
+    if [[ -n "${VERSION_CODENAME:-}" ]]; then
+        printf '%s' "$VERSION_CODENAME"
+        return 0
+    fi
+    if [[ -r /etc/os-release ]]; then
+        # shellcheck source=/dev/null
+        source /etc/os-release
+        printf '%s' "${VERSION_CODENAME:-}"
+    fi
+}
+
+hz_prepare_ubuntu_hyprland_repo() {
+    [[ "${PKG_GROUP:-unknown}" == ubuntu ]] || return 0
+    [[ "${HORIZONS_WINDOW_MANAGER:-}" == hyprland ]] || return 0
+
+    local package missing=false
+    for package in hyprland hypridle hyprlock hyprpicker xdg-desktop-portal-hyprland; do
+        hz_package_available "$package" || missing=true
+    done
+    [[ "$missing" == true ]] || return 0
+
+    local codename
+    codename="$(hz_ubuntu_codename)"
+    case "$codename" in
+        noble|plucky|questing|oracular|jammy)
+            info "Some Hyprland packages are missing from Ubuntu repositories; enabling ppa:cppiber/hyprland…"
+            hz_ubuntu_add_apt_repository ppa:cppiber/hyprland || return 1
+            run sudo apt-get update
+            ;;
+        *)
+            warn "Some Hyprland packages are missing and ppa:cppiber/hyprland does not advertise support for Ubuntu codename '${codename:-unknown}'."
+            warn "The installer will use every available apt package and report anything still missing at pre-flight."
+            ;;
+    esac
+}
+
 hz_install_capability() {
     local capability="$1" label="$2"
     local packages=()
@@ -161,6 +243,11 @@ hz_install_quickshell_fallback() {
     # Arch's official repository is tried first above. AUR is deliberately a
     if [[ "${PKG_GROUP:-unknown}" == arch ]]; then
         hz_install_aur_package QuickShell quickshell-git || true
+    fi
+
+    if [[ "${PKG_GROUP:-unknown}" == ubuntu ]]; then
+        hz_prepare_ubuntu_quickshell_repo || true
+        hz_install_capability quickshell QuickShell || true
     fi
 
     if ! command -v quickshell >/dev/null 2>&1 && ! command -v qs >/dev/null 2>&1; then
@@ -183,6 +270,7 @@ hz_install_quickshell_build_tools() {
     case "${PKG_GROUP:-unknown}" in
         arch)   packages=(base-devel cmake ninja qt6-base qt6-declarative) ;;
         fedora) packages=(gcc-c++ cmake ninja-build qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland wayland-devel pipewire-devel) ;;
+        ubuntu) packages=(build-essential cmake ninja-build pkg-config git qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-svg-dev qt6-5compat-dev qt6-multimedia-dev qt6-image-formats-plugins libwayland-dev wayland-protocols libpipewire-0.3-dev libjemalloc-dev libcli11-dev) ;;
         debian) packages=(build-essential cmake ninja-build qt6-base-dev qt6-declarative-dev qt6-wayland-dev libwayland-dev libpipewire-0.3-dev) ;;
         suse)   packages=(gcc-c++ cmake ninja qt6-base-devel qt6-declarative-devel qt6-wayland-devel wayland-devel) ;;
         gentoo) packages=(dev-build/cmake dev-build/ninja dev-qt/qtbase dev-qt/qtdeclarative gui-libs/qtwayland) ;;
@@ -190,9 +278,13 @@ hz_install_quickshell_build_tools() {
     esac
     local package
     for package in "${packages[@]}"; do
+        if ! hz_package_available "$package"; then
+            warn "Build dependency package is unavailable for ${PKG_GROUP:-unknown}: $package"
+            continue
+        fi
         if ! is_pkg_installed "$package"; then
             hz_install_native_package "$package"
-            is_pkg_installed "$package" || return 1
+            is_pkg_installed "$package" || warn "Build dependency may still be missing: $package"
         fi
     done
 }
@@ -205,6 +297,9 @@ install_target_requirements() {
         return 0
     fi
 
+    hz_prepare_ubuntu_base_repos
+    hz_prepare_ubuntu_hyprland_repo
+
     local command capability
     for capability in git rsync curl jq; do
         command="$capability"
@@ -212,6 +307,7 @@ install_target_requirements() {
     done
 
     if ! command -v quickshell >/dev/null 2>&1 && ! command -v qs >/dev/null 2>&1; then
+        [[ "${PKG_GROUP:-unknown}" == ubuntu ]] && hz_prepare_ubuntu_quickshell_repo || true
         hz_install_capability quickshell QuickShell || true
         hz_install_quickshell_fallback || warn "QuickShell is still missing after all package fallbacks."
     fi

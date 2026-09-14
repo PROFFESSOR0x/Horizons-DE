@@ -40,7 +40,7 @@
 #                           Prefix with ^/- /no- to disable: --components no-dots,^bundled
 #       --with-deps         Install dependencies (default: via profile)
 #       --skip-deps         Skip dependencies
-#       --with-sysupdate    Full system upgrade (pacman -Syu / dnf upgrade)
+#       --with-sysupdate    Full system upgrade (pacman -Syu / dnf/apt upgrade)
 #       --skip-sysupdate    Skip system upgrade (default)
 #       --with-build        Build quickshell from source
 #       --skip-build        Skip building
@@ -127,6 +127,17 @@ DO_SYSUPDATE=false
 DO_DEPS=true
 DO_BACKUP=true
 BUILD_FORCE=false
+
+# CLI toggles are resolved after profiles/components so explicit --with/--skip
+# flags keep their meaning even when a profile rewrites the DO_* defaults.
+CLI_DO_DEPS=""
+CLI_DO_SYSUPDATE=""
+CLI_DO_BUILD=""
+CLI_DO_BUNDLED=""
+CLI_DO_BACKUP=""
+CLI_DO_DOTS=""
+CLI_DO_SHELL=""
+CLI_DO_LAUNCHERS=""
 
 # Optional launchers (Walker, Vicinae) — see install_launchers() below.
 # Fuzzel is already a hard dependency and the built-in Quickshell launcher
@@ -281,23 +292,23 @@ while [[ $# -gt 0 ]]; do
     --fresh-install) FRESH_INSTALL=true; shift ;;
     --reinstall-dots) REINSTALL_DOTS=true; shift ;;
     --components) COMPONENTS_CSV="$2"; shift 2 ;;
-    --with-deps) DO_DEPS=true; SKIP_DEPS=false; shift ;;
-    --skip-deps) DO_DEPS=false; SKIP_DEPS=true; shift ;;
-    --skip-alldeps) DO_DEPS=false; SKIP_DEPS=true; shift ;;
-    --with-sysupdate) DO_SYSUPDATE=true; SKIP_SYSUPDATE=false; shift ;;
-    --skip-sysupdate|--skip-sysupgrade) DO_SYSUPDATE=false; SKIP_SYSUPDATE=true; shift ;;
-    --with-build) DO_BUILD=true; shift ;;
-    --skip-build) DO_BUILD=false; shift ;;
-    --build-force) BUILD_FORCE=true; DO_BUILD=true; shift ;;
-    --with-bundled|--with-extra) DO_BUNDLED=true; shift ;;
-    --skip-bundled|--skip-extra) DO_BUNDLED=false; shift ;;
+    --with-deps) DO_DEPS=true; CLI_DO_DEPS=true; SKIP_DEPS=false; shift ;;
+    --skip-deps) DO_DEPS=false; CLI_DO_DEPS=false; SKIP_DEPS=true; shift ;;
+    --skip-alldeps) DO_DEPS=false; CLI_DO_DEPS=false; SKIP_DEPS=true; shift ;;
+    --with-sysupdate) DO_SYSUPDATE=true; CLI_DO_SYSUPDATE=true; SKIP_SYSUPDATE=false; shift ;;
+    --skip-sysupdate|--skip-sysupgrade) DO_SYSUPDATE=false; CLI_DO_SYSUPDATE=false; SKIP_SYSUPDATE=true; shift ;;
+    --with-build) DO_BUILD=true; CLI_DO_BUILD=true; shift ;;
+    --skip-build) DO_BUILD=false; CLI_DO_BUILD=false; shift ;;
+    --build-force) BUILD_FORCE=true; DO_BUILD=true; CLI_DO_BUILD=true; shift ;;
+    --with-bundled|--with-extra) DO_BUNDLED=true; CLI_DO_BUNDLED=true; shift ;;
+    --skip-bundled|--skip-extra) DO_BUNDLED=false; CLI_DO_BUNDLED=false; shift ;;
     --launchers) LAUNCHERS_CSV="${2,,}"; DO_LAUNCHERS=true; shift 2 ;;
-    --skip-launchers) DO_LAUNCHERS=false; shift ;;
-    --with-backup) DO_BACKUP=true; SKIP_BACKUP=false; shift ;;
-    --skip-backup) DO_BACKUP=false; SKIP_BACKUP=true; shift ;;
+    --skip-launchers) DO_LAUNCHERS=false; CLI_DO_LAUNCHERS=false; shift ;;
+    --with-backup) DO_BACKUP=true; CLI_DO_BACKUP=true; SKIP_BACKUP=false; shift ;;
+    --skip-backup) DO_BACKUP=false; CLI_DO_BACKUP=false; SKIP_BACKUP=true; shift ;;
     --existing-config) EXISTING_CONFIG_ACTION="${2,,}"; shift 2 ;;
-    --skip-dots) SKIP_DOTS=true; shift ;;
-    --skip-qs|--skip-quickshell) SKIP_QS=true; shift ;;
+    --skip-dots) SKIP_DOTS=true; CLI_DO_DOTS=false; shift ;;
+    --skip-qs|--skip-quickshell) SKIP_QS=true; CLI_DO_SHELL=false; shift ;;
     --with-fontset|--fontset) FONTSET_DIR_NAME="$2"; shift 2 ;;
     --via-nix) WITH_VIA_NIX=true; INSTALL_VIA_NIX=true; shift ;;
     --log-file) LOG_FILE="$2"; shift 2 ;;
@@ -436,30 +447,18 @@ horizons_choose_target(){
 # ── Resolve profile → flags, then apply granular overrides ───────────────────
 if declare -f horizons_profile_resolve &>/dev/null; then
     horizons_profile_resolve "$HORIZONS_PROFILE"
-    # Apply explicit CLI toggles that override profile defaults (after resolve)
-    # We already set DO_* to true/false via flags above; need to re-apply if flag was explicitly set
-    # Simpler: if user passed --skip/--with flags, they already flipped; respects last write.
-    # But profile resolve overwrote them, so we re-apply: track which flags were touched
-    # For now, handle legacy compat flags:
-    [[ "$SKIP_DEPS" == true ]] && DO_DEPS=false
-    [[ "$SKIP_DOTS" == true ]] && DO_DOTS=false
-    [[ "$SKIP_QS" == true ]] && DO_SHELL=false
-    [[ "$SKIP_BACKUP" == true ]] && DO_BACKUP=false
-    [[ "$SKIP_SYSUPDATE" == true ]] && DO_SYSUPDATE=false
     if [[ -n "$COMPONENTS_CSV" ]]; then
         horizons_components_apply "$COMPONENTS_CSV"
         # Also update HORIZONS_PROFILE to reflect custom? keep original
     fi
-    # Re-honor explicit WITH flags that may have been reset:
-    # We use a trick: check if original FORCE/QUIET/DRY_RUN set; for DO_* we need to track if user passed --with-build etc after profile
-    # Since we already resolved, and user may have wanted --with-build, we check BUILD_FORCE
-    [[ "$BUILD_FORCE" == true ]] && DO_BUILD=true
-    # If user passed --with-bundled etc on CLI after profile, it was overwritten — re-check arg presence via a second pass would be needed.
-    # Workaround: if DO_BUNDLED etc were set via --with-* before profile, they got reset; so we parse COMPONENTS_CSV fallback to profile.
-    # Easier: if user explicitly passed --with-bundled, honor it now (we lost it). Check by re-reading that flag was not in profile ultra?
-    # Instead, respect that --with-build/--with-bundled mean true regardless of profile, if they were on CLI.
-    # We do this by checking if original invokation contained those strings via $*? Not reliable. So we just keep profile + components.
-    # For now, allow manual override via env: if user wants full control, use --components.
+    [[ -n "$CLI_DO_DEPS" ]] && DO_DEPS="$CLI_DO_DEPS"
+    [[ -n "$CLI_DO_SYSUPDATE" ]] && DO_SYSUPDATE="$CLI_DO_SYSUPDATE"
+    [[ -n "$CLI_DO_BUILD" ]] && DO_BUILD="$CLI_DO_BUILD"
+    [[ -n "$CLI_DO_BUNDLED" ]] && DO_BUNDLED="$CLI_DO_BUNDLED"
+    [[ -n "$CLI_DO_BACKUP" ]] && DO_BACKUP="$CLI_DO_BACKUP"
+    [[ -n "$CLI_DO_DOTS" ]] && DO_DOTS="$CLI_DO_DOTS"
+    [[ -n "$CLI_DO_SHELL" ]] && DO_SHELL="$CLI_DO_SHELL"
+    [[ -n "$CLI_DO_LAUNCHERS" ]] && DO_LAUNCHERS="$CLI_DO_LAUNCHERS"
 fi
 
 if [[ "$COMMAND" == "install" || "$COMMAND" == "update" || "$COMMAND" == "build" ]]; then
@@ -592,7 +591,7 @@ is_pkg_installed(){
     fedora) dnf list installed "$pkg" &>/dev/null 2>&1 || rpm -q "$pkg" &>/dev/null ;;
     gentoo) equery list "$pkg" &>/dev/null 2>&1 || qlist -I "$pkg" &>/dev/null 2>&1 ;;
     suse)   rpm -q "$pkg" &>/dev/null ;;
-    debian) dpkg -s "$pkg" &>/dev/null 2>&1 ;;
+    ubuntu|debian) dpkg -s "$pkg" &>/dev/null 2>&1 ;;
     *)      command -v "$pkg" &>/dev/null ;;
   esac
 }
@@ -1239,7 +1238,7 @@ do_backup(){
 do_sysupdate(){
   [[ "$DO_SYSUPDATE" == false ]] && { info "$(L "Skipping system upgrade (--skip-sysupdate is default; use --with-sysupdate)" "تخطي ترقية النظام (--skip-sysupdate هو الافتراضي، استخدم --with-sysupdate)")"; return 0; }
   step "$(L "System upgrade (full — via distro package manager)" "ترقية النظام (كاملة — عبر مدير الحزم)")"
-  if ! confirm "$(L "Run full system upgrade now? (pacman -Syu / dnf upgrade / zypper dup)" "تشغيل ترقية كاملة للنظام الآن؟ (pacman -Syu / dnf upgrade / zypper dup)")"; then
+  if ! confirm "$(L "Run full system upgrade now? (pacman -Syu / dnf/apt upgrade / zypper dup)" "تشغيل ترقية كاملة للنظام الآن؟ (pacman -Syu / dnf/apt upgrade / zypper dup)")"; then
     info "$(L "Skipping system upgrade." "تخطي ترقية النظام.")"
     return 0
   fi
@@ -1248,6 +1247,7 @@ do_sysupdate(){
     fedora) run sudo dnf upgrade --refresh -y ;;
     gentoo) run sudo emerge --sync; run sudo emerge -uDN @world ;;
     suse) run sudo zypper dup -y ;;
+    ubuntu) run sudo apt-get update; run sudo apt-get upgrade -y ;;
     debian) run sudo apt update -y; run sudo apt upgrade -y ;;
     *) warn "Unknown PKG_GROUP '$PKG_GROUP' — cannot do sysupdate automatically. Please update manually." ;;
   esac
@@ -1465,6 +1465,10 @@ install_bundled(){
   step "$(L "Install bundled extras (Rubik, Gabarito, Bibata, etc.)" "تثبيت الإضافات المرفقة (Rubik، Gabarito، Bibata، إلخ)")"
   if ! confirm "$(L "Install bundled fonts/cursors (may download ~100MB)?" "تثبيت الخطوط/المؤشرات المرفقة (قد يتم تنزيل ~100 ميجابايت)؟")"; then
     info "$(L "Skipping bundled extras." "تخطي الإضافات المرفقة.")"
+    return 0
+  fi
+  if [[ "$DRY_RUN" == true ]]; then
+    info "[dry-run] would install bundled extras (Rubik, Gabarito, Bibata, optional MicroTeX/Google Sans)"
     return 0
   fi
   if declare -f hz_build_bundled &>/dev/null; then

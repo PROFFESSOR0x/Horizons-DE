@@ -15,17 +15,25 @@ Scope {
     id: overviewScope
     property bool dontAutoCancelSearch: false
     readonly property string launcherPosition: Config?.options.overview.position ?? "top"
+    readonly property bool dockLauncherEnabled: Config.options?.dock?.enable
+        && Config.options?.dock?.launcherInDock
 
-    // Settings > Services > Search picks what Super (tap) actually opens.
-    // "quickshell" (default) toggles this shell's own overview/search
-    // surface as before; anything else hands off to that external tool
-    // instead, following the exact kill-if-running/spawn convention already
-    // used by the fuzzel fallback bind in hyprland/keybinds.lua ("pkill X
-    // || X") so behavior stays consistent with the rest of this config.
+    // Settings > Services > Search picks what Super (tap) opens unless the
+    // Dock's "Launcher in dock" option is enabled; that option intentionally
+    // routes Super to the built-in search surface hosted by the dock.
+    // External launchers follow the exact kill-if-running/spawn convention
+    // already used by the fuzzel fallback bind in hyprland/keybinds.lua
+    // ("pkill X || X") so behavior stays consistent with the rest of this
+    // config.
     // walker additionally needs its "elephant" companion service already
     // running; vicinae needs its "vicinae-server" daemon already running -
     // neither is started here, both are expected to autostart on their own.
     function toggleSearchLauncher() {
+        if (overviewScope.dockLauncherEnabled) {
+            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+            return;
+        }
+
         const launcher = Config?.options.apps?.launcher ?? "quickshell";
         switch (launcher) {
         case "walker":
@@ -51,6 +59,7 @@ Scope {
         property bool monitorIsFocused: WM.focusedMonitor?.name === monitor?.name
         // When m3Island is active, its inline launcher replaces Overview - suppress duplicate
         readonly property bool m3IslandActive: Config.options.bar.barMode === "m3Island"
+        readonly property bool dockLauncherActive: overviewScope.dockLauncherEnabled
         // Shared by the outer Loader below (a direct Column child, so its
         // collapsed size drives columnLayout's implicitHeight and therefore
         // the click-outside mask/HyprlandFocusGrab surface) and the actual
@@ -66,7 +75,7 @@ Scope {
             && (Config?.options.overview.enable ?? true)
             && (Config?.options.overview.showWorkspacesInLauncher ?? true)
             && panelWindow.searchingText === ""
-        visible: GlobalStates.overviewOpen && !panelWindow.m3IslandActive
+        visible: GlobalStates.overviewOpen && !panelWindow.m3IslandActive && !panelWindow.dockLauncherActive
 
         // See Bar.qml (shell/modules/ii/bar/Bar.qml) for why this is gated
         // behind a Wayland-only Loader instead of set directly.
@@ -75,13 +84,13 @@ Scope {
             sourceComponent: Item {
                 Binding { target: panelWindow.WlrLayershell; property: "namespace"; value: "quickshell:overview" }
                 Binding { target: panelWindow.WlrLayershell; property: "layer"; value: WlrLayer.Top }
-                Binding { target: panelWindow.WlrLayershell; property: "keyboardFocus"; value: (GlobalStates.overviewOpen && !panelWindow.m3IslandActive) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None }
+                Binding { target: panelWindow.WlrLayershell; property: "keyboardFocus"; value: (GlobalStates.overviewOpen && !panelWindow.m3IslandActive && !panelWindow.dockLauncherActive) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None }
             }
         }
         color: "transparent"
 
         mask: Region {
-            item: (GlobalStates.overviewOpen && !panelWindow.m3IslandActive) ? columnLayout : null
+            item: (GlobalStates.overviewOpen && !panelWindow.m3IslandActive && !panelWindow.dockLauncherActive) ? columnLayout : null
         }
 
         anchors {
@@ -102,7 +111,8 @@ Scope {
                     if (!overviewScope.dontAutoCancelSearch) {
                         searchWidget.cancelSearch();
                     }
-                    GlobalFocusGrab.addDismissable(panelWindow);
+                    if (!panelWindow.dockLauncherActive)
+                        GlobalFocusGrab.addDismissable(panelWindow);
                 }
             }
         }

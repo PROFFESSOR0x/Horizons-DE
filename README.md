@@ -62,11 +62,15 @@ rules or bindings.
 Before modifying configuration, the installer audits the selected target and installs
 only missing runtime capabilities. It tries the distribution's normal repositories
 first, then safe alternatives (including an Arch AUR fallback where an existing
-`yay` or `paru` is available), and finally offers a QuickShell source build with its
-build dependencies when no package is available. Hyprland installs its Wayland
-runtime helpers; i3 installs i3, X.Org, and X11 clipboard support. `--skip-deps`
-is an explicit opt-out: it leaves the installer in audit-only mode and reports what
-is still missing.
+`yay` or `paru` is available). Ubuntu is handled natively through apt: the installer
+enables `universe`, uses Ubuntu packages for Hyprland and runtime helpers, enables
+the upstream Quickshell PPA (`ppa:avengemedia/danklinux`) when needed, enables
+the Hyprland PPA (`ppa:cppiber/hyprland`) when Ubuntu's own archive lacks the
+Hyprland stack, and builds `swappy` from source when it is missing from apt.
+If no Quickshell package is available after the PPA, it offers a source build with
+its build dependencies. Hyprland installs its Wayland runtime helpers; i3 installs
+i3, X.Org, and X11 clipboard support. `--skip-deps` is an explicit opt-out: it
+leaves the installer in audit-only mode and reports what is still missing.
 
 The installer also inventories known existing desktop configuration directories for
 Hyprland, i3, QuickShell, AGS, Waybar, Polybar, Eww, Kitty, and Fish. Interactive

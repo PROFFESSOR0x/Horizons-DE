@@ -107,6 +107,9 @@ elif [[ "$OS_DISTRO_ID" =~ ^(opensuse-leap|opensuse-tumbleweed)$ ]] || [[ "$OS_D
   OS_GROUP_ID="suse"
   INSTALL_VIA_NIX=true
   print_os_group_id_functions=(print_os_group_id{,_unsupported})
+elif [[ "$OS_DISTRO_ID" == "ubuntu" || "$OS_DISTRO_ID_LIKE" =~ (^|[[:space:]])ubuntu($|[[:space:]]) ]]; then
+  OS_GROUP_ID="ubuntu"
+  print_os_group_id_functions=(print_os_group_id{,_unofficial})
 elif [[ "$OS_DISTRO_ID" == "debian" || "$OS_DISTRO_ID_LIKE" == "debian" ]]; then
   OS_GROUP_ID="debian"
   INSTALL_VIA_NIX=true

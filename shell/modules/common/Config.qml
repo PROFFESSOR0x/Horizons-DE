@@ -137,6 +137,10 @@ Singleton {
             if (opts.workspaceLinking.unifiedSets === undefined)
                 opts.workspaceLinking.unifiedSets = [];
         }
+        if (opts.dock.cornerStyle === undefined)
+            opts.dock.cornerStyle = 1;
+        if (opts.dock.launcherInDock === undefined)
+            opts.dock.launcherInDock = false;
 
         // Workspace ids around INT_MAX are compositor-internal temporary
         // workspaces. They can briefly be reported while QuickShell is
@@ -1496,10 +1500,12 @@ Singleton {
 
             property JsonObject dock: JsonObject {
                 property bool enable: false
+                property int cornerStyle: 1 // 0: Hug | 1: Float
                 property bool showBackground: true
                 property bool showPinButton: true
                 property bool showAppsButton: true
                 property bool showMedia: true
+                property bool launcherInDock: false
                 property bool monochromeIcons: true
                 property real height: 60
                 property real hoverRegionHeight: 2

@@ -56,7 +56,7 @@ if [[ "$INSTALL_VIA_NIX" == "true" ]]; then
   pause
   source ./sdata/dist-${TARGET_ID}/install-deps.sh
 
-elif [[ "$OS_GROUP_ID" =~ ^(arch|gentoo|fedora)$ ]]; then
+elif [[ "$OS_GROUP_ID" =~ ^(arch|gentoo|fedora|ubuntu)$ ]]; then
 
   TARGET_ID=$OS_GROUP_ID
   if ! [[ "${TARGET_ID}" = "arch" ]]; then

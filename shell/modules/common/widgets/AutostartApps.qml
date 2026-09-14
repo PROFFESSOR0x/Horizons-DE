@@ -199,7 +199,7 @@ ColumnLayout {
                 anchors.right: rightGroup.left
                 anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
-                currentValue: entryRow.modelData.cmd ?? ""
+                selectedValue: entryRow.modelData.cmd ?? ""
                 valueMode: "desktopFile"
                 onSelected: newValue => root.updateEntry(entryRow.index, "cmd", newValue)
             }
