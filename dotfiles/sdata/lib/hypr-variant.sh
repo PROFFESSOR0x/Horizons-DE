@@ -13,6 +13,14 @@
 HYPR_LUA_MIN_MAJOR=0
 HYPR_LUA_MIN_MINOR=55
 
+# `windowrulev2` was deprecated in Hyprland 0.53 in favor of the unified
+# `windowrule` keyword (same `match:` syntax, so a plain rename suffices).
+# Older builds (e.g. Ubuntu 24.04 archive) only know `windowrulev2`, hence
+# the repo ships `windowrulev2` and the installer rewrites the installed
+# copies on >= 0.53 (see subcmd-install/3.files-legacy.sh).
+HYPR_WINDOWRULE_UNIFIED_MAJOR=0
+HYPR_WINDOWRULE_UNIFIED_MINOR=53
+
 function hypr_version_string(){
   # Prints e.g. "0.55.0" for the installed Hyprland, or nothing (return 1)
   # when no version is detectable (Hyprland not installed yet).
@@ -56,6 +64,18 @@ function hypr_version_at_least(){
 function hypr_supports_lua(){
   # True iff the installed Hyprland can load the *.lua config (>= 0.55).
   hypr_version_at_least "$HYPR_LUA_MIN_MAJOR" "$HYPR_LUA_MIN_MINOR"
+}
+
+function hypr_windowrule_keyword(){
+  # Prints the window-rule keyword this machine's Hyprland expects without
+  # warnings: "windowrule" (>= 0.53, where windowrulev2 is deprecated) or
+  # "windowrulev2" (older builds, or version unknown — the old keyword is
+  # the safe default, understood since 0.34).
+  if hypr_version_at_least "$HYPR_WINDOWRULE_UNIFIED_MAJOR" "$HYPR_WINDOWRULE_UNIFIED_MINOR"; then
+    printf 'windowrule\n'
+  else
+    printf 'windowrulev2\n'
+  fi
 }
 
 function hypr_os_likely_legacy(){

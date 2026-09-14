@@ -69,6 +69,22 @@ case "${SKIP_HYPRLAND}" in
     v print_hypr_variant
     if [[ "$HYPR_ACTIVE_VARIANT" == "legacy" ]]; then
       echo -e "${STY_YELLOW}[$0]: Legacy Hyprland (< 0.55) path — verifying the .conf entry...${STY_RST}"
+      # Hyprland >= 0.53 deprecated `windowrulev2` (every rule logs a Config
+      # error) in favor of the unified `windowrule` keyword with the same
+      # `match:` syntax. The repo ships `windowrulev2` (understood by the
+      # oldest builds, e.g. Ubuntu 24.04 archive) and it is rewritten here
+      # in the INSTALLED copies when this machine wants the new keyword.
+      HYPR_WINDOWRULE_KW="$(hypr_windowrule_keyword)"
+      if [[ "$HYPR_WINDOWRULE_KW" == "windowrule" ]]; then
+        echo -e "${STY_YELLOW}[$0]: Hyprland >= 0.53 — using unified 'windowrule' keyword in installed rules...${STY_RST}"
+        for HYPR_WR_F in "${XDG_CONFIG_HOME}/hypr/hyprland/rules.conf" "${XDG_CONFIG_HOME}/hypr/hyprland/colors.conf"; do
+          if [[ -f "$HYPR_WR_F" ]]; then
+            v sed -i 's/^windowrulev2 =/windowrule =/' "$HYPR_WR_F"
+          fi
+        done
+        unset HYPR_WR_F
+      fi
+      unset HYPR_WINDOWRULE_KW
       HYPR_LEGACY_MISSING=0
       for HYPR_LEGACY_F in hyprland.conf monitors.conf hyprland/env.conf hyprland/variables.conf hyprland/execs.conf hyprland/general.conf hyprland/rules.conf hyprland/colors.conf hyprland/keybinds.conf hyprland/shellOverrides/main.conf hyprland/shellOverrides/animations.conf; do
         if [[ ! -f "${XDG_CONFIG_HOME}/hypr/${HYPR_LEGACY_F}" ]]; then

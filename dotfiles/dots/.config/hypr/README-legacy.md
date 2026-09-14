@@ -54,6 +54,29 @@ Manual override:
 ./setup install --hypr-variant lua     # force the Lua entry
 ```
 
+## Installer-time compat fixes (legacy path)
+
+Two things older Hyprlands choke on are fixed automatically during
+`setup install` — no manual edits needed:
+
+1. **Gestures with a `global` dispatcher do not exist in hyprlang** (any
+   version; the 0.54 wiki lists fixed actions only: workspace/move/
+   fullscreen/...). The 4-finger up/down overview toggle therefore lives
+   only in the Lua config (via a lambda), and the legacy `general.conf`
+   keeps those two lines commented out. The remaining gestures (3-finger
+   move/pinch, 4-finger horizontal workspace swipe) work everywhere.
+2. **`windowrulev2` was deprecated in Hyprland 0.53** (every rule logs a
+   Config error) in favor of the unified `windowrule` keyword with the
+   same `match:` syntax — but builds < 0.53 (e.g. Ubuntu 24.04 archive)
+   only understand `windowrulev2`. The repo therefore ships `windowrulev2`,
+   and the installer rewrites the *installed* copies of `rules.conf` /
+   `colors.conf` to `windowrule` when it detects Hyprland >= 0.53
+   (`hypr_windowrule_keyword` in `sdata/lib/hypr-variant.sh`).
+
+If you still see the red error bar after updating, re-run the installer
+(`./installer.sh` or `dotfiles/setup install`) so the installed copies are
+regenerated, then `hyprctl reload`.
+
 Helpers used only by the legacy binds (the Lua file keeps inline
 equivalents, because hyprlang would expand bare shell `$vars` at parse time):
 
