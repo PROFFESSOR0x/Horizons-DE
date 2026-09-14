@@ -135,7 +135,7 @@ Singleton {
     Process {
         id: readProc
 
-        command: [root.cliphistBinary, "list"]
+        command: ["bash", "-c", "command -v \"$1\" >/dev/null 2>&1 && \"$1\" list 2>/dev/null || true", "cliphist-list", root.cliphistBinary]
 
         stdout: StdioCollector {
             id: listOutput
@@ -145,8 +145,9 @@ Singleton {
                 const next = listOutput.text.split("\n").filter(line => line.length > 0)
                 if (next.length !== root.entries.length || next.some((entry, index) => entry !== root.entries[index]))
                     root.entries = next
-            } else
+            } else {
                 console.error("[Cliphist] Failed to refresh with code", exitCode, "and status", exitStatus)
+            }
             if (root.refreshPending) Qt.callLater(root.refresh)
         }
     }

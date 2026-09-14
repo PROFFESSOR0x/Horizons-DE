@@ -86,18 +86,40 @@ install-python-packages(){
   }
 
   ILLOGICAL_IMPULSE_VIRTUAL_ENV="$XDG_STATE_HOME/quickshell/.venv"
-  x mkdir -p "$(eval echo "$ILLOGICAL_IMPULSE_VIRTUAL_ENV")"
+  local venv_path
+  venv_path="$(eval echo "$ILLOGICAL_IMPULSE_VIRTUAL_ENV")"
+  x mkdir -p "$venv_path"
   # we need python 3.12 https://github.com/python-pillow/Pillow/issues/8089
-  x "$uv_bin" venv --prompt .venv "$(eval echo "$ILLOGICAL_IMPULSE_VIRTUAL_ENV")" -p 3.12
-  [[ -f "$(eval echo "$ILLOGICAL_IMPULSE_VIRTUAL_ENV")/bin/activate" ]] || {
+  local venv_args=(venv --prompt .venv)
+  if [[ "${OS_GROUP_ID:-}" == "ubuntu" || "${OS_GROUP_ID:-}" == "debian" ]]; then
+    venv_args+=(--clear --system-site-packages)
+  fi
+  venv_args+=("$venv_path" -p 3.12)
+  x "$uv_bin" "${venv_args[@]}"
+  [[ -f "$venv_path/bin/activate" ]] || {
     printf "${STY_RED}[$0]: Python virtualenv was not created at $ILLOGICAL_IMPULSE_VIRTUAL_ENV.${STY_RST}\n"
     return 1
   }
-  x source "$(eval echo "$ILLOGICAL_IMPULSE_VIRTUAL_ENV")/bin/activate"
+  x source "$venv_path/bin/activate"
   if [[ "$INSTALL_VIA_NIX" = true ]]; then
     x nix-shell ${REPO_ROOT}/sdata/uv/shell.nix --run "uv pip install -r ${REPO_ROOT}/sdata/uv/requirements.txt"
   else
-    x "$uv_bin" pip install -r ${REPO_ROOT}/sdata/uv/requirements.txt
+    local requirements_file="${REPO_ROOT}/sdata/uv/requirements.txt"
+    local filtered_requirements=""
+    local log_file="$XDG_STATE_HOME/quickshell/uv-install.log"
+    x mkdir -p "$(dirname "$log_file")"
+    if [[ "${OS_GROUP_ID:-}" == "ubuntu" || "${OS_GROUP_ID:-}" == "debian" ]]; then
+      filtered_requirements="$(mktemp)"
+      grep -vE '^(dbus-python|pycairo|pygobject)==' "$requirements_file" > "$filtered_requirements"
+      requirements_file="$filtered_requirements"
+      printf "${STY_BLUE}[$0]: Using system Python GI/DBus packages on ${OS_GROUP_ID}; filtered pip requirements for dbus-python, pycairo and pygobject.${STY_RST}\n"
+    fi
+    if ! "$uv_bin" pip install -r "$requirements_file" 2>&1 | tee "$log_file"; then
+      printf "${STY_RED}[$0]: uv pip install failed. Full log: $log_file${STY_RST}\n"
+      [[ -n "$filtered_requirements" ]] && rm -f "$filtered_requirements"
+      return 1
+    fi
+    [[ -n "$filtered_requirements" ]] && rm -f "$filtered_requirements"
   fi
   x deactivate
 }

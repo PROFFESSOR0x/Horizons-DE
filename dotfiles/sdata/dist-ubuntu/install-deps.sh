@@ -170,11 +170,15 @@ apt_install_available "desktop services" \
   pipewire wireplumber pipewire-pulse pipewire-alsa pipewire-jack \
   bluez blueman network-manager brightnessctl power-profiles-daemon upower \
   playerctl pavucontrol libnotify-bin dunst gnome-keyring polkit-kde-agent-1 \
-  kde-cli-tools geoclue-2.0 ydotool wl-clipboard cliphist
+  kde-cli-tools geoclue-2.0 ydotool wl-clipboard cliphist ddcutil \
+  libsecret-tools adwaita-icon-theme hicolor-icon-theme breeze-icon-theme \
+  papirus-icon-theme
 
 apt_install_available "shell applications" \
   kitty foot fish fuzzel cava grim slurp swappy wf-recorder imagemagick \
-  python3 python3-venv python3-pip python3-pil python3-gi \
+  python3 python3-venv python3-pip python3-dev python3-pil python3-gi \
+  python3-dbus python3-cairo libdbus-1-dev libgirepository1.0-dev \
+  gobject-introspection gir1.2-gtk-3.0 libcairo2-dev \
   qt6-wayland qt6-image-formats-plugins qml6-module-qtqml \
   qml6-module-qtquick qml6-module-qt-labs-folderlistmodel \
   qml6-module-qtquick-controls qml6-module-qtquick-layouts \
@@ -182,6 +186,9 @@ apt_install_available "shell applications" \
   qml6-module-qtquick-shapes qml6-module-qtquick-effects \
   qml6-module-qt5compat-graphicaleffects qml6-module-qtmultimedia \
   qml6-module-qtwebsockets qml6-module-qt-labs-synchronizer
+
+apt_install_available "shell prompt tools" \
+  starship eza
 
 showfun install_swappy_source_fallback
 v install_swappy_source_fallback

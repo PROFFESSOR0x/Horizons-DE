@@ -48,19 +48,39 @@ case "${SKIP_HYPRLAND}" in
   true) true;;
   *)
     install_dir__sync dots/.config/hypr/hyprland "$XDG_CONFIG_HOME"/hypr/hyprland
-    if [ -f "${XDG_CONFIG_HOME}/hypr/hyprland.conf" ]; then
-      mv "${XDG_CONFIG_HOME}/hypr/hyprland.conf" "${XDG_CONFIG_HOME}/hypr/hyprland.conf.old" # disable old config
-      echo 'hyprland.conf has been renamed to hyprland.conf.old. This is to allow the new lua config to load.'
-    fi
+    # Both entry points ship intentionally and coexist:
+    #   - Hyprland >= 0.55 loads hyprland.lua and ignores hyprland.conf
+    #   - Hyprland < 0.55 (e.g. Ubuntu archive builds) loads hyprland.conf
+    #     (+ hyprland/*.conf, monitors.conf) and ignores the *.lua files.
+    # Do NOT rename hyprland.conf away — legacy machines need it.
     for i in hyprlock.conf ; do
       install_file__auto_backup "dots/.config/hypr/$i" "${XDG_CONFIG_HOME}/hypr/$i"
     done
-    for i in hyprland.lua ; do
+    for i in hyprland.lua hyprland.conf monitors.conf workspaces.conf ; do
       case "${SKIP_HYPRLAND_ENTRY}" in
         true) true;;
         *) install_file "dots/.config/hypr/$i" "${XDG_CONFIG_HOME}/hypr/$i" ;;
       esac
     done
+    # Lua vs legacy: report which entry this machine will actually load, and
+    # on legacy machines (Ubuntu / Hyprland < 0.55) verify the .conf entry
+    # is complete. Override with --hypr-variant <auto|lua|legacy>.
+    HYPR_ACTIVE_VARIANT="$(hypr_config_variant)"
+    v print_hypr_variant
+    if [[ "$HYPR_ACTIVE_VARIANT" == "legacy" ]]; then
+      echo -e "${STY_YELLOW}[$0]: Legacy Hyprland (< 0.55) path — verifying the .conf entry...${STY_RST}"
+      HYPR_LEGACY_MISSING=0
+      for HYPR_LEGACY_F in hyprland.conf monitors.conf hyprland/env.conf hyprland/variables.conf hyprland/execs.conf hyprland/general.conf hyprland/rules.conf hyprland/colors.conf hyprland/keybinds.conf hyprland/shellOverrides/main.conf hyprland/shellOverrides/animations.conf; do
+        if [[ ! -f "${XDG_CONFIG_HOME}/hypr/${HYPR_LEGACY_F}" ]]; then
+          echo -e "${STY_RED}[$0]: Missing legacy file: ${XDG_CONFIG_HOME}/hypr/${HYPR_LEGACY_F}${STY_RST}"
+          HYPR_LEGACY_MISSING=1
+        fi
+      done
+      if [[ "$HYPR_LEGACY_MISSING" == 0 ]]; then
+        echo -e "${STY_GREEN}[$0]: Legacy .conf config complete — this machine will load hyprland.conf.${STY_RST}"
+      fi
+      unset HYPR_LEGACY_MISSING HYPR_LEGACY_F
+    fi
     for i in hypridle.conf ; do
       if [[ "${INSTALL_VIA_NIX}" == true ]]; then
         install_file__auto_backup "dots-extra/via-nix/$i" "${XDG_CONFIG_HOME}/hypr/$i"
@@ -70,6 +90,10 @@ case "${SKIP_HYPRLAND}" in
     done
     if [ "$OS_GROUP_ID" = "fedora" ];then
       v bash -c "printf \"# For fedora to setup polkit\nexec-once = /usr/libexec/kf6/polkit-kde-authentication-agent-1\n\" >> ${XDG_CONFIG_HOME}/hypr/hyprland/execs.conf"
+      # Lua entry point equivalent (Hyprland >= 0.55 ignores execs.conf)
+      if ! grep -q "polkit-kde-authentication-agent-1" "${XDG_CONFIG_HOME}/hypr/custom/execs.lua" 2>/dev/null; then
+        v bash -c "printf '%s\n' 'hl.exec_cmd(\"/usr/libexec/kf6/polkit-kde-authentication-agent-1\") -- For fedora to setup polkit' >> ${XDG_CONFIG_HOME}/hypr/custom/execs.lua"
+      fi
     fi
 
     install_dir__ignore_existing "dots/.config/hypr/custom" "${XDG_CONFIG_HOME}/hypr/custom"

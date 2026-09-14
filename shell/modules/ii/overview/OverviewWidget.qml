@@ -297,7 +297,7 @@ Item {
                                         GlobalStates.monitorNameForWindow(window.windowData))
                                     : targetWorkspace
                                 if (targetWorkspaceId) {
-                                    Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${targetWorkspaceId}, follow = false, window = "address:${window.windowData?.address}" })`)
+                                    Hyprland.dispatch(`movetoworkspacesilent ${targetWorkspaceId},address:${window.windowData?.address}`)
                                 }
                             }
                             else {
@@ -307,7 +307,7 @@ Item {
                                 }
                                 const percentageX = (window.x - xOffset) / root.workspaceImplicitWidth
                                 const percentageY = (window.y - yOffset) / root.workspaceImplicitHeight
-                                Hyprland.dispatch(`hl.dsp.window.move({ x = "${percentageX * root.screen.width}", y = "${percentageY * root.screen.height}", window = "address:${window.windowData?.address}" })`)
+                                Hyprland.dispatch(`movewindowpixel exact ${Math.round(percentageX * root.screen.width)} ${Math.round(percentageY * root.screen.height)},address:${window.windowData?.address}`)
                             }
                         }
                         onClicked: (event) => {
@@ -318,7 +318,7 @@ Item {
                                 GlobalStates.focusWindowInUnifiedSet(windowData.address)
                                 event.accepted = true
                             } else if (event.button === Qt.MiddleButton) {
-                                Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${windowData.address}" })`)
+                                Hyprland.dispatch(`closewindow address:${windowData.address}`)
                                 event.accepted = true
                             }
                         }

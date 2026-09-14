@@ -23,8 +23,14 @@ Options for install:
       --skip-hyprland-entry Skip installing the entry config for Hyprland
       --skip-fish           Skip installing the config for Fish
       --skip-fontconfig     Skip installing the config for fontconfig
-      --skip-miscconf       Skip copying the dirs and files to \".configs\" except for
+      --skip-miscconf       Skip copying the dirs and files to ".configs" except for
                             Quickshell, Fish and Hyprland
+      --hypr-variant <v>    Hyprland config variant: auto (default, detect from the
+                            installed Hyprland, Ubuntu/Debian heuristic when it is
+                            not installed yet), lua (Hyprland >= 0.55 entry), or
+                            legacy (.conf entry for Hyprland < 0.55, e.g. Ubuntu).
+                            Both entries are always installed; this only decides
+                            which one is reported/verified as ACTIVE.
       --core                Alias of --skip-{plasmaintg,fish,miscconf,fontconfig}
       --fontset <set>       Use a set of pre-defined font and config (currently only fontconfig).
                             Possible values of <set>: $(ls -A ${REPO_ROOT}/dots-extra/fontsets)
@@ -44,10 +50,12 @@ cleancache(){
   rm -rf "${REPO_ROOT}/cache"
 }
 
+HYPR_VARIANT="${HYPR_VARIANT:-auto}"
+
 # `man getopt` to see more
 para=$(getopt \
   -o hfFk:cs \
-  -l help,force,firstrun,fontset:,clean,skip-allgreeting,skip-alldeps,skip-allsetups,skip-allfiles,ignore-outdate,skip-sysupdate,skip-plasmaintg,skip-backup,skip-quickshell,skip-fish,skip-hyprland,skip-hyprland-entry,skip-fontconfig,skip-miscconf,core,exp-files,via-nix \
+  -l help,force,firstrun,fontset:,clean,skip-allgreeting,skip-alldeps,skip-allsetups,skip-allfiles,ignore-outdate,skip-sysupdate,skip-plasmaintg,skip-backup,skip-quickshell,skip-fish,skip-hyprland,skip-hyprland-entry,skip-fontconfig,skip-miscconf,core,exp-files,via-nix,hypr-variant: \
   -n "$0" -- "$@")
 [ $? != 0 ] && echo "$0: Error when getopt, please recheck parameters." && exit 1
 #####################################################################################
@@ -97,6 +105,11 @@ while true ; do
       then echo "Using fontset \"$2\".";FONTSET_DIR_NAME="$2";shift 2
       else echo "Wrong argument for $1.";exit 1
     fi;;
+    --hypr-variant)
+    case "$2" in
+      auto|lua|legacy) echo "Hyprland config variant: \"$2\".";HYPR_VARIANT="$2";shift 2;;
+      *) echo "Wrong argument for $1 (expected auto|lua|legacy).";exit 1;;
+    esac;;
 
     ## Ending
     --) shift;break ;;

@@ -14,7 +14,7 @@ Scope {
     property var focusedMonitor: Hyprland.focusedMonitor
 
     function switchWorkspaceRelative(direction) {
-        Hyprland.dispatch(`hl.dsp.focus({workspace = "r${direction === "next" ? "+1" : "-1"}"})`);
+        Hyprland.dispatch(`workspace r${direction === "next" ? "+1" : "-1"}`);
     }
     function normalizeWindow(w) {
         return {
@@ -30,10 +30,10 @@ Scope {
     }
 
     function focusWindow(id) {
-        Hyprland.dispatch(`hl.dsp.focus({ window = "address:${id}" })`);
+        Hyprland.dispatch(`focuswindow address:${id}`);
     }
     function closeWindow(id) {
-        Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${id}" })`);
+        Hyprland.dispatch(`closewindow address:${id}`);
     }
     function forceCloseWindow(id, pid) {
         const numericPid = Number(pid)
@@ -47,11 +47,11 @@ Scope {
         Quickshell.execDetached(["bash", "-c", "killtree(){ for child in $(pgrep -P \"$1\"); do killtree \"$child\"; done; kill -KILL \"$1\" 2>/dev/null || true; }; killtree \"$1\"", "horizons-end-task", String(numericPid)])
     }
     function switchWorkspace(id) {
-        Hyprland.dispatch(`hl.dsp.focus({ workspace = ${id} })`);
+        Hyprland.dispatch(`workspace ${id}`);
     }
     function switchWorkspaceOnMonitor(id, monitorName) {
         if (monitorName)
-            Hyprland.dispatch(`hl.dsp.focus({ monitor = "${monitorName}" })`)
+            Hyprland.dispatch(`focusmonitor ${monitorName}`)
         root.switchWorkspace(id)
     }
     function nextWorkspaceId() {
@@ -66,49 +66,38 @@ Scope {
         return candidate
     }
     function switchWorkspacesOnMonitors(entries, focusMonitor, windowToFocus) {
-        // Hyprland 0.55+ uses Lua dispatchers. `focus({ monitor })` alone is
-        // not enough here: focus-follows-mouse can immediately return focus to
-        // the pointer's output before the next workspace command executes.
-        // Drive the cursor to the *centre* of each target output inside one Lua
-        // evaluation, focus/create the requested workspace there, then restore
-        // it in the same compositor transaction. Never use x/y + 1 here:
-        // those are screen-corner hover zones and made Ctrl+Super+Arrow open a
-        // sidebar as an unintended side effect. If a target already exists on
-        // a different screen, move it first so every logical member remains on
-        // its assigned output.
-        const statements = ["local p = hl.get_cursor_pos()"]
+        const quote = s => "'" + String(s).replace(/'/g, "'\\''") + "'"
+        const commands = []
         for (const entry of entries) {
             if (!entry?.monitorName || !Number.isInteger(Number(entry.workspaceId))) continue
-            const monitor = JSON.stringify(String(entry.monitorName))
+            const monitor = String(entry.monitorName)
             const workspace = Number(entry.workspaceId)
-            statements.push("do local m = hl.get_monitor(" + monitor + "); if m then "
-                + "local ws = hl.get_workspace(" + workspace + "); "
-                + "if ws then hl.dispatch(hl.dsp.workspace.move({ workspace = ws, monitor = m })) end; "
-                + "hl.dispatch(hl.dsp.cursor.move({ x = m.position.x + math.floor(m.width / 2), y = m.position.y + math.floor(m.height / 2) })); "
-                + "hl.dispatch(hl.dsp.focus({ workspace = " + workspace + " })) end end")
+            commands.push(`hyprctl dispatch moveworkspacetomonitor ${workspace} ${quote(monitor)} >/dev/null 2>&1 || true`)
+            commands.push(`hyprctl dispatch focusmonitor ${quote(monitor)} >/dev/null 2>&1 || true`)
+            commands.push(`hyprctl dispatch workspace ${workspace} >/dev/null 2>&1 || true`)
         }
-        if (statements.length === 1) return
-        statements.push("hl.dispatch(hl.dsp.cursor.move({ x = p.x, y = p.y }))")
+        if (commands.length === 0) return
         // Restore focus to the screen that initiated the action. The previous
         // implementation ignored focusMonitor, leaving focus on whichever
         // monitor happened to be processed last.
         const focusEntry = entries.find(entry => entry?.monitorName === focusMonitor)
             ?? entries[entries.length - 1]
+        if (focusEntry?.monitorName)
+            commands.push(`hyprctl dispatch focusmonitor ${quote(focusEntry.monitorName)} >/dev/null 2>&1 || true`)
         if (focusEntry?.workspaceId)
-            statements.push("hl.dispatch(hl.dsp.focus({ workspace = " + Number(focusEntry.workspaceId) + " }))")
+            commands.push(`hyprctl dispatch workspace ${Number(focusEntry.workspaceId)} >/dev/null 2>&1 || true`)
         // A dock/tray activation may point at a window in a currently hidden
         // member of the set. Focus it only after all monitors have reached
         // their mapped workspaces, otherwise Hyprland performs its normal
         // single-monitor workspace jump first.
         if (typeof windowToFocus === "string" && windowToFocus.length > 0)
-            statements.push("hl.dispatch(hl.dsp.focus({ window = "
-                + JSON.stringify("address:" + windowToFocus) + " }))")
-        const code = statements.join("; ")
-        console.log("[Workspaces] Hyprland multi-monitor eval=" + code)
-        Quickshell.execDetached(["hyprctl", "eval", code])
+            commands.push(`hyprctl dispatch focuswindow ${quote("address:" + windowToFocus)} >/dev/null 2>&1 || true`)
+        const script = commands.join("; ")
+        console.log("[Workspaces] Hyprland multi-monitor dispatch=" + script)
+        Quickshell.execDetached(["bash", "-c", script])
     }
     function moveWindowToWorkspace(id, wsId) {
-        Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${wsId}, follow = false, window = "address:${id}" })`);
+        Hyprland.dispatch(`movetoworkspacesilent ${wsId},address:${id}`);
     }
 
     function monitorFor(screen) {

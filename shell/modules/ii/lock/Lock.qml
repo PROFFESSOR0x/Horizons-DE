@@ -36,7 +36,7 @@ LockScreen {
                 var monName = Quickshell.screens[j].name
                 var wsId = root.savedWorkspaces[monName]
                 if (wsId !== undefined) {
-                    batch += `hyprctl dispatch 'hl.dsp.focus({monitor="${monName}"})'; hyprctl dispatch 'hl.dsp.focus({workspace=${wsId}})';`
+                    batch += `hyprctl dispatch focusmonitor '${monName}'; hyprctl dispatch workspace ${wsId};`
                 }
             }
             if (batch.length > 0) {
@@ -90,7 +90,7 @@ LockScreen {
                     }
                     var ws = (mData?.activeWorkspace?.id ?? 1)
                     next[mon] = ws
-                    batch += `hyprctl dispatch 'hl.dsp.focus({monitor="${mon}"})'; hyprctl dispatch 'hl.dsp.focus({workspace=${2147483647 - ws}})';`
+                    batch += `hyprctl dispatch focusmonitor '${mon}'; hyprctl dispatch workspace ${2147483647 - ws};`
                 }
                 root.savedWorkspaces = next
                 Quickshell.execDetached(["bash", "-c", batch])

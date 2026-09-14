@@ -20,15 +20,13 @@ for app in autostart.get('apps', []):
     if not cmd:
         continue
 
-    subprocess.run(['hyprctl', 'dispatch', f'hl.dsp.focus({{workspace = {workspace}}})'])
+    subprocess.run(['hyprctl', 'dispatch', 'workspace', str(workspace)])
 
     expanded_cmd = os.path.expanduser(cmd)
     if expanded_cmd.endswith(".desktop"):
         expanded_cmd = "gtk-launch " + shlex.quote(expanded_cmd)
-    hypr_cmd = expanded_cmd.replace("\\", "\\\\").replace('"', '\\"')
-
     subprocess.Popen(
-        ['hyprctl', 'dispatch', f'hl.dsp.exec_cmd("{hypr_cmd}")'],
+        ['hyprctl', 'dispatch', 'exec', expanded_cmd],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         close_fds=True

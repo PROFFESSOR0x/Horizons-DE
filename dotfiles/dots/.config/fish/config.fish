@@ -3,13 +3,16 @@ if status is-interactive
     # No greeting
     set fish_greeting
 
-    # Use starship
-    function starship_transient_prompt_func
-        starship module character
-    end
-    if test "$TERM" != "linux"
+    # Use starship when available. Fresh Ubuntu installs can briefly start a
+    # shell before optional prompt packages are installed, so keep startup quiet.
+    if command -q starship; and test "$TERM" != "linux"
+        function starship_transient_prompt_func
+            starship module character
+        end
         starship init fish | source
-        enable_transience
+        if functions -q enable_transience
+            enable_transience
+        end
     end
     
     # Colors
@@ -23,7 +26,7 @@ if status is-interactive
     alias celar "printf '\033[2J\033[3J\033[1;1H'"
     alias claer "printf '\033[2J\033[3J\033[1;1H'"
     alias pamcan pacman
-    alias q 'qs -c ii'
+    alias q 'qs -c horizons'
     if test "$TERM" != "linux"
         alias ls 'eza --icons=auto'
     end

@@ -204,10 +204,10 @@ Item {
             if (toPos !== fromPos && toPos < toWsWindows.length) {
                 var targetAddr = toWsWindows[toPos].address
                 GlobalStates.focusWindowInUnifiedSet(targetAddr)
-                Hyprland.dispatch(`hl.dsp.window.swap({ window = "address:${addr}" })`)
+                Hyprland.dispatch(`swapwindow address:${addr}`)
             }
         } else {
-            Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${toWs}, follow = false, window = "address:${addr}" })`)
+            Hyprland.dispatch(`movetoworkspacesilent ${toWs},address:${addr}`)
         }
     }
 
@@ -514,7 +514,7 @@ Item {
                                         GlobalStates.focusWindowInUnifiedSet(winContainer.win.address)
                                         event.accepted = true
                                     } else if (event.button === Qt.MiddleButton) {
-                                        Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${winContainer.win.address}" })`)
+                                        Hyprland.dispatch(`closewindow address:${winContainer.win.address}`)
                                         event.accepted = true
                                     }
                                 }

@@ -318,6 +318,45 @@ hz_install_ubuntu_qml_runtime() {
     done
 }
 
+hz_install_ubuntu_shell_tools() {
+    [[ "${PKG_GROUP:-unknown}" == ubuntu ]] || return 0
+    local package
+    for package in starship eza libsecret-tools ddcutil adwaita-icon-theme hicolor-icon-theme breeze-icon-theme papirus-icon-theme; do
+        if ! hz_package_available "$package"; then
+            warn "Ubuntu shell tool package is unavailable on this release, skipping: $package"
+            continue
+        fi
+        is_pkg_installed "$package" || hz_install_native_package "$package" || warn "Could not install Ubuntu shell tool package: $package"
+    done
+}
+
+hz_install_ubuntu_python_runtime() {
+    [[ "${PKG_GROUP:-unknown}" == ubuntu ]] || return 0
+    local packages=(
+        python3
+        python3-venv
+        python3-pip
+        python3-dev
+        python3-gi
+        python3-dbus
+        python3-cairo
+        libdbus-1-dev
+        libgirepository1.0-dev
+        gobject-introspection
+        gir1.2-gtk-3.0
+        libcairo2-dev
+        pkg-config
+    )
+    local package
+    for package in "${packages[@]}"; do
+        if ! hz_package_available "$package"; then
+            warn "Ubuntu Python runtime package is unavailable on this release, skipping: $package"
+            continue
+        fi
+        is_pkg_installed "$package" || hz_install_native_package "$package" || warn "Could not install Ubuntu Python runtime package: $package"
+    done
+}
+
 install_target_requirements() {
     step "Install target runtime requirements"
     if [[ "${DO_DEPS:-true}" != true || "${SKIP_DEPS:-false}" == true ]]; then
@@ -341,6 +380,8 @@ install_target_requirements() {
         hz_install_quickshell_fallback || warn "QuickShell is still missing after all package fallbacks."
     fi
     hz_install_ubuntu_qml_runtime
+    hz_install_ubuntu_shell_tools
+    hz_install_ubuntu_python_runtime
 
     case "${HORIZONS_WINDOW_MANAGER:-}" in
         hyprland)
