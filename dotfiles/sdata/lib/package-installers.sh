@@ -88,14 +88,24 @@ install-python-packages(){
   ILLOGICAL_IMPULSE_VIRTUAL_ENV="$XDG_STATE_HOME/quickshell/.venv"
   local venv_path
   venv_path="$(eval echo "$ILLOGICAL_IMPULSE_VIRTUAL_ENV")"
-  x mkdir -p "$venv_path"
+  x mkdir -p "$(dirname "$venv_path")"
   # we need python 3.12 https://github.com/python-pillow/Pillow/issues/8089
   local venv_args=(venv --prompt .venv)
   if [[ "${OS_GROUP_ID:-}" == "ubuntu" || "${OS_GROUP_ID:-}" == "debian" ]]; then
-    venv_args+=(--clear --system-site-packages)
+    venv_args+=(--system-site-packages)
   fi
-  venv_args+=("$venv_path" -p 3.12)
-  x "$uv_bin" "${venv_args[@]}"
+  if [[ -f "$venv_path/bin/activate" && -f "$venv_path/pyvenv.cfg" ]]; then
+    # Re-runs (the common case from the screenshot: `uv venv` refuses with
+    # "A virtual environment already exists") reuse the healthy venv and just
+    # refresh the packages below instead of failing the whole install.
+    printf "${STY_BLUE}[$0]: Reusing existing virtualenv at $ILLOGICAL_IMPULSE_VIRTUAL_ENV.${STY_RST}\n"
+  else
+    # --clear also handles stale/partial dirs (e.g. a previous run that died
+    # mid-creation), which `uv venv` would otherwise refuse to touch.
+    venv_args+=(--clear)
+    venv_args+=("$venv_path" -p 3.12)
+    x "$uv_bin" "${venv_args[@]}"
+  fi
   [[ -f "$venv_path/bin/activate" ]] || {
     printf "${STY_RED}[$0]: Python virtualenv was not created at $ILLOGICAL_IMPULSE_VIRTUAL_ENV.${STY_RST}\n"
     return 1

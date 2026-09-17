@@ -30,6 +30,10 @@ ContentPage {
     // "New Keybind" — captures a second (or third...) real hl.bind line for the
     // exact same dispatcher+params, only prompting for the new key combo.
     property var duplicatingBind: null
+    // Drives the capture dialog below. (A plain bool keeps the
+    // settingsShow() route gate live; assigning overlay.visible directly
+    // would silently break that binding.)
+    property bool captureOpen: false
 
     function goTo(term) {
         const t = term.toLowerCase().trim()
@@ -224,17 +228,17 @@ ContentPage {
     Rectangle {
         objectName: "KeybindsConfig.actions-and-shortcuts";
         id: captureOverlay
-        visible: page.settingsShow("devices|input-details") && (false)
+        visible: page.captureOpen && page.settingsShow("devices|input-details")
         width: page.width
         height: page.height
         color: ColorUtils.transparentize(Appearance.colors.colScrim, 0.55)
         z: 999
-        MouseArea { anchors.fill: parent; onClicked: captureOverlay.visible = false }
+        MouseArea { anchors.fill: parent; onClicked: page.captureOpen = false }
         Rectangle {
             id: captureBox
             anchors.centerIn: parent
             width: Math.min(parent.width - 40, 520)
-            implicitHeight: captureCol.implicitHeight + 24
+            implicitHeight: captureCol.implicitHeight + 32
             radius: Appearance.rounding.normal
             color: Appearance.colors.colLayer0
             border.width: 1
@@ -254,7 +258,9 @@ ContentPage {
             Keys.onReleased: (event) => { event.accepted = true }
             ColumnLayout {
                 id: captureCol
-                anchors.fill: parent
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
                 anchors.margins: 16
                 spacing: 12
                 RowLayout {
@@ -273,7 +279,7 @@ ContentPage {
                         width: 32; height: 32; radius: 16
                         color: closeCapMa.containsMouse ? Appearance.colors.colErrorContainer : "transparent"
                         MaterialSymbol { anchors.centerIn: parent; text: "close"; iconSize: 18; color: Appearance.colors.colOnLayer0 }
-                        MouseArea { id: closeCapMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: captureOverlay.visible = false }
+                        MouseArea { id: closeCapMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: page.captureOpen = false }
                     }
                 }
                 Rectangle {
@@ -428,7 +434,7 @@ ContentPage {
                     Item { Layout.fillWidth: true }
                     RippleButton {
                         buttonText: Translation.tr("Cancel")
-                        onClicked: captureOverlay.visible = false
+                        onClicked: page.captureOpen = false
                     }
                     RippleButtonWithIcon {
                         enabled: page.pendingNewKeyStr.length > 0
@@ -486,7 +492,7 @@ ContentPage {
                             captureToast.text = (page.creatingNew || page.duplicatingBind ? Translation.tr("Created: ") : Translation.tr("Saved: ")) + page.pendingNewKeyStr
                             captureToast.opacity = 1
                             hideToast.restart()
-                            captureOverlay.visible = false
+                            page.captureOpen = false
                             page.creatingNew = false
                             page.duplicatingBind = null
                             page.newDispatcher = ""
@@ -587,7 +593,7 @@ ContentPage {
                         page.newDispatcherCustom = ""
                         page.newParams = ""
                         page.newComment = ""
-                        captureOverlay.visible = true
+                        page.captureOpen = true
                         captureBox.forceActiveFocus()
                     }
                     StyledToolTip { text: Translation.tr("Create a brand-new keybind from scratch") }
@@ -808,7 +814,7 @@ ContentPage {
                                         page.pendingNewKeyStr = ""
                                         page.captureConflict = null
                                         page.conflictConfirmed = false
-                                        captureOverlay.visible = true
+                                        page.captureOpen = true
                                         captureBox.forceActiveFocus()
                                     }
                                     StyledToolTip { text: Translation.tr("Capture new shortcut automatically") }
@@ -885,7 +891,7 @@ ContentPage {
                                     page.pendingNewKeyStr = ""
                                     page.captureConflict = null
                                     page.conflictConfirmed = false
-                                    captureOverlay.visible = true
+                                    page.captureOpen = true
                                     captureBox.forceActiveFocus()
                                 }
                                 StyledToolTip { text: Translation.tr("Bind another key combo to trigger the same action") }

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -704,6 +705,121 @@ ContentPage {
                         color: Appearance.colors.colSubtext
                         font.pixelSize: Appearance.font.pixelSize.small
                         text: Translation.tr("Each change updates your user mimeapps.list, so it applies to file managers, xdg-open, browsers, and launcher results. Choose System default to keep the current system default.")
+                    }
+                }
+            }
+            ContentSubsection {
+                visible: page.settingsShow("apps");
+                id: terminalSection
+                title: Translation.tr("Terminal")
+                property string pendingTerminal: ""
+
+                function scheduleTerminal(command) {
+                    pendingTerminal = command
+                    terminalCommit.restart()
+                }
+
+                // Known terminal emulators: desktop entry IDs to recognize and
+                // the launch command to use for each. The command runs bare
+                // for Hyprland shortcuts (Super+Return, Super+T, Ctrl+Alt+T)
+                // and with " -e <cmd>" appended for the shell's own actions.
+                readonly property var terminalCandidates: [
+                    { ids: ["kitty.desktop"], command: "kitty -1", name: "Kitty" },
+                    { ids: ["foot.desktop", "footclient.desktop"], command: "foot", name: "Foot" },
+                    { ids: ["alacritty.desktop"], command: "alacritty", name: "Alacritty" },
+                    { ids: ["org.wezfurlong.wezterm.desktop", "wezterm.desktop"], command: "wezterm", name: "WezTerm" },
+                    { ids: ["org.kde.konsole.desktop", "konsole.desktop"], command: "konsole", name: "Konsole" },
+                    { ids: ["org.gnome.console.desktop"], command: "kgx", name: "Console" },
+                    { ids: ["org.gnome.terminal.desktop", "gnome-terminal.desktop"], command: "gnome-terminal", name: "GNOME Terminal" },
+                    { ids: ["com.mitchellh.ghostty.desktop"], command: "ghostty", name: "Ghostty" },
+                    { ids: ["org.gnome.ptyxis.desktop"], command: "ptyxis", name: "Ptyxis" },
+                    { ids: ["com.raggesilver.blackbox.desktop"], command: "blackbox", name: "Black Box" },
+                    { ids: ["org.contourterminal.contour.desktop"], command: "contour", name: "Contour" },
+                    { ids: ["terminator.desktop"], command: "terminator", name: "Terminator" },
+                    { ids: ["xfce4-terminal.desktop"], command: "xfce4-terminal", name: "Xfce Terminal" },
+                    { ids: ["mate-terminal.desktop"], command: "mate-terminal", name: "MATE Terminal" },
+                    { ids: ["xterm.desktop"], command: "xterm", name: "XTerm" },
+                    { ids: ["uxterm.desktop"], command: "uxterm", name: "UXTerm" }
+                ]
+
+                function installedTerminals() {
+                    // Quickshell's DesktopEntries exposes suffix-less app IDs
+                    // ("kitty", not "kitty.desktop"), so normalize both sides
+                    // before comparing.
+                    function normId(raw) {
+                        let id = String(raw ?? "").toLowerCase()
+                        if (id.endsWith(".desktop"))
+                            id = id.slice(0, -8)
+                        return id
+                    }
+                    const byId = {}
+                    for (const app of Array.from(DesktopEntries.applications.values)) {
+                        const id = normId(app?.id)
+                        if (id !== "") byId[id] = app
+                    }
+                    const options = []
+                    for (const candidate of terminalSection.terminalCandidates) {
+                        for (const raw of candidate.ids) {
+                            const app = byId[normId(raw)]
+                            if (app) {
+                                options.push({
+                                    displayName: String(app?.name ?? "") || candidate.name,
+                                    icon: "terminal",
+                                    value: candidate.command
+                                })
+                                break
+                            }
+                        }
+                    }
+                    return options
+                }
+
+                Timer {
+                    id: terminalCommit
+                    interval: 550
+                    repeat: false
+                    onTriggered: SystemTheming.applyDefaultTerminal(
+                        terminalSection.pendingTerminal)
+                }
+
+                GroupedList {
+                    compact: true;
+                    visible: page.settingsShow("apps")
+                    ConfigSelectionArray {
+                        visible: page.settingsShow("apps");
+                        objectName: "ServicesConfig.terminal";
+                        icon: "terminal"
+                        text: Translation.tr("Terminal")
+                        currentValue: Config.options.apps.terminal
+                        options: terminalSection.installedTerminals()
+                        onSelected: newValue => {
+                            Config.options.apps.terminal = newValue
+                            customTerminalField.text = newValue
+                            terminalSection.scheduleTerminal(newValue)
+                        }
+                    }
+                    MaterialTextField {
+                        visible: page.settingsShow("apps");
+                        id: customTerminalField
+                        Layout.fillWidth: true
+                        placeholderText: Translation.tr("Custom command, e.g. kitty -1 (Enter to apply)")
+                        Component.onCompleted: text = Config.options.apps.terminal
+                        onAccepted: {
+                            const cmd = text.trim()
+                            if (cmd.length === 0) return
+                            Config.options.apps.terminal = cmd
+                            Config.requestWrite()
+                            terminalSection.scheduleTerminal(cmd)
+                        }
+                    }
+                    StyledText {
+                        property bool groupDescription: true;
+                        visible: page.settingsShow("apps");
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        text: Translation.tr("Applies to the shell's own actions right away and to Hyprland shortcuts (Super+Return, Super+T, Ctrl+Alt+T) after an automatic reload, plus GNOME terminal consumers where available.")
                     }
                 }
             }

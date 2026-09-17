@@ -50,13 +50,15 @@ ContentPage {
             Quickshell.execDetached(["bash", "-c", `${Directories.wallpaperSwitchScriptPath} --mode ${dark ? "dark" : "light"} --noswitch`]);
         }
         contentItem: Item {
-            anchors.centerIn: parent
+            implicitWidth: buttonContentLayout.implicitWidth
+            implicitHeight: buttonContentLayout.implicitHeight
             ColumnLayout {
+                id: buttonContentLayout
                 anchors.centerIn: parent
-                spacing: 0
+                spacing: 2
                 MaterialSymbol {
                     Layout.alignment: Qt.AlignHCenter
-                    iconSize: 30
+                    iconSize: 28
                     text: dark ? "dark_mode" : "light_mode"
                     color: smallLightDarkPreferenceButton.colText
                 }
@@ -83,7 +85,8 @@ ContentPage {
             RowLayout {
                 visible: page.settingsShow("appearance");
                 Layout.fillWidth: true
-                implicitHeight: 64
+                implicitHeight: 78
+                spacing: 8
                 SmallLightDarkPreferenceButton {
                     visible: page.settingsShow("appearance");
                     objectName: "QuickConfig.color-mode"; dark: false }

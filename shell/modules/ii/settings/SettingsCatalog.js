@@ -6252,6 +6252,22 @@ var entries = [
         "keywords": "Config.options.apps.defaultApplications.archives"
     },
     {
+        "id": "ServicesConfig.terminal",
+        "source": "ServicesConfig",
+        "route": "apps",
+        "routes": [
+            "apps"
+        ],
+        "label": "Terminal",
+        "section": "Terminal",
+        "legacyPage": "Services",
+        "legacySections": [
+            "Search",
+            "Terminal"
+        ],
+        "keywords": "Config.options.apps.terminal"
+    },
+    {
         "id": "ServicesConfig.open-files-with",
         "source": "ServicesConfig",
         "route": "integrations",
