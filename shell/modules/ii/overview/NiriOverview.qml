@@ -207,7 +207,7 @@ Item {
                 Hyprland.dispatch(`swapwindow address:${addr}`)
             }
         } else {
-            Hyprland.dispatch(`movetoworkspacesilent ${toWs},address:${addr}`)
+            Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${Number(toWs)}, window = "address:${addr}", follow = false })`)
         }
     }
 
@@ -514,7 +514,7 @@ Item {
                                         GlobalStates.focusWindowInUnifiedSet(winContainer.win.address)
                                         event.accepted = true
                                     } else if (event.button === Qt.MiddleButton) {
-                                        Hyprland.dispatch(`closewindow address:${winContainer.win.address}`)
+                                        Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${winContainer.win.address}" })`)
                                         event.accepted = true
                                     }
                                 }

@@ -545,6 +545,7 @@ ContentPage {
                         }
                         Flow {
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             spacing: 6
                             Repeater {
                                 model: keyboardSection.layoutsList()

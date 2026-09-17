@@ -13,8 +13,17 @@ Scope {
     property var monitors: HyprlandData.monitors
     property var focusedMonitor: Hyprland.focusedMonitor
 
+    // Hyprland >= 0.55 parses socket `dispatch` payloads as Lua
+    // (hl.dispatch(...)), so every dispatcher below is spelled in the Lua
+    // form (hl.dsp.*). The classic flat names ("workspace 3",
+    // "focusmonitor eDP-1", ...) are rejected with exit 7 and the action
+    // silently never happens.
+    function luaStr(s) {
+        return '"' + String(s ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"'
+    }
+
     function switchWorkspaceRelative(direction) {
-        Hyprland.dispatch(`workspace r${direction === "next" ? "+1" : "-1"}`);
+        Hyprland.dispatch(`hl.dsp.focus({ workspace = "r${direction === "next" ? "+1" : "-1"}" })`);
     }
     function normalizeWindow(w) {
         return {
@@ -30,10 +39,10 @@ Scope {
     }
 
     function focusWindow(id) {
-        Hyprland.dispatch(`focuswindow address:${id}`);
+        Hyprland.dispatch(`hl.dsp.focus({ window = "address:${id}" })`);
     }
     function closeWindow(id) {
-        Hyprland.dispatch(`closewindow address:${id}`);
+        Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${id}" })`);
     }
     function forceCloseWindow(id, pid) {
         const numericPid = Number(pid)
@@ -47,11 +56,11 @@ Scope {
         Quickshell.execDetached(["bash", "-c", "killtree(){ for child in $(pgrep -P \"$1\"); do killtree \"$child\"; done; kill -KILL \"$1\" 2>/dev/null || true; }; killtree \"$1\"", "horizons-end-task", String(numericPid)])
     }
     function switchWorkspace(id) {
-        Hyprland.dispatch(`workspace ${id}`);
+        Hyprland.dispatch(`hl.dsp.focus({ workspace = ${Number(id)} })`);
     }
     function switchWorkspaceOnMonitor(id, monitorName) {
         if (monitorName)
-            Hyprland.dispatch(`focusmonitor ${monitorName}`)
+            Hyprland.dispatch(`hl.dsp.focus({ monitor = ${root.luaStr(monitorName)} })`)
         root.switchWorkspace(id)
     }
     function nextWorkspaceId() {
@@ -67,14 +76,17 @@ Scope {
     }
     function switchWorkspacesOnMonitors(entries, focusMonitor, windowToFocus) {
         const quote = s => "'" + String(s).replace(/'/g, "'\\''") + "'"
+        // One hyprctl call per action; the payload is Lua (see note above),
+        // shell-quoted as a whole so the compositor receives it verbatim.
+        const dispatchLua = lua => `hyprctl dispatch ${quote(lua)} >/dev/null 2>&1 || true`
         const commands = []
         for (const entry of entries) {
             if (!entry?.monitorName || !Number.isInteger(Number(entry.workspaceId))) continue
             const monitor = String(entry.monitorName)
             const workspace = Number(entry.workspaceId)
-            commands.push(`hyprctl dispatch moveworkspacetomonitor ${workspace} ${quote(monitor)} >/dev/null 2>&1 || true`)
-            commands.push(`hyprctl dispatch focusmonitor ${quote(monitor)} >/dev/null 2>&1 || true`)
-            commands.push(`hyprctl dispatch workspace ${workspace} >/dev/null 2>&1 || true`)
+            commands.push(dispatchLua(`hl.dsp.workspace.move({ workspace = ${workspace}, monitor = ${root.luaStr(monitor)} })`))
+            commands.push(dispatchLua(`hl.dsp.focus({ monitor = ${root.luaStr(monitor)} })`))
+            commands.push(dispatchLua(`hl.dsp.focus({ workspace = ${workspace} })`))
         }
         if (commands.length === 0) return
         // Restore focus to the screen that initiated the action. The previous
@@ -83,21 +95,21 @@ Scope {
         const focusEntry = entries.find(entry => entry?.monitorName === focusMonitor)
             ?? entries[entries.length - 1]
         if (focusEntry?.monitorName)
-            commands.push(`hyprctl dispatch focusmonitor ${quote(focusEntry.monitorName)} >/dev/null 2>&1 || true`)
+            commands.push(dispatchLua(`hl.dsp.focus({ monitor = ${root.luaStr(focusEntry.monitorName)} })`))
         if (focusEntry?.workspaceId)
-            commands.push(`hyprctl dispatch workspace ${Number(focusEntry.workspaceId)} >/dev/null 2>&1 || true`)
+            commands.push(dispatchLua(`hl.dsp.focus({ workspace = ${Number(focusEntry.workspaceId)} })`))
         // A dock/tray activation may point at a window in a currently hidden
         // member of the set. Focus it only after all monitors have reached
         // their mapped workspaces, otherwise Hyprland performs its normal
         // single-monitor workspace jump first.
         if (typeof windowToFocus === "string" && windowToFocus.length > 0)
-            commands.push(`hyprctl dispatch focuswindow ${quote("address:" + windowToFocus)} >/dev/null 2>&1 || true`)
+            commands.push(dispatchLua(`hl.dsp.focus({ window = "address:${windowToFocus}" })`))
         const script = commands.join("; ")
         console.log("[Workspaces] Hyprland multi-monitor dispatch=" + script)
         Quickshell.execDetached(["bash", "-c", script])
     }
     function moveWindowToWorkspace(id, wsId) {
-        Hyprland.dispatch(`movetoworkspacesilent ${wsId},address:${id}`);
+        Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${Number(wsId)}, window = "address:${id}", follow = false })`);
     }
 
     function monitorFor(screen) {

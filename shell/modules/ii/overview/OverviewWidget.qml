@@ -297,7 +297,7 @@ Item {
                                         GlobalStates.monitorNameForWindow(window.windowData))
                                     : targetWorkspace
                                 if (targetWorkspaceId) {
-                                    Hyprland.dispatch(`movetoworkspacesilent ${targetWorkspaceId},address:${window.windowData?.address}`)
+                                    Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${Number(targetWorkspaceId)}, window = "address:${window.windowData?.address}", follow = false })`)
                                 }
                             }
                             else {
@@ -318,7 +318,7 @@ Item {
                                 GlobalStates.focusWindowInUnifiedSet(windowData.address)
                                 event.accepted = true
                             } else if (event.button === Qt.MiddleButton) {
-                                Hyprland.dispatch(`closewindow address:${windowData.address}`)
+                                Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${windowData.address}" })`)
                                 event.accepted = true
                             }
                         }

@@ -37,6 +37,16 @@ StyledFlickable {
     clip: true
     contentHeight: contentColumn.implicitHeight + root.bottomContentPadding // Add some padding at the bottom
     implicitWidth: contentColumn.implicitWidth
+    // An embedded page is instantiated by a Loader, which never resizes its
+    // item: without this the page keeps its natural implicit width even when
+    // the loader (and the settings window) is narrower, so every row bleeds
+    // past the visible edge and gets clipped. Track the loader width instead.
+    // Imperative (not a width binding) so non-embedded pages — whose geometry
+    // is managed by layouts — are completely untouched.
+    onParentChanged: {
+        if (root.embedded && root.parent)
+            root.width = Qt.binding(() => root.parent.width)
+    }
 
     ColumnLayout {
         id: contentColumn

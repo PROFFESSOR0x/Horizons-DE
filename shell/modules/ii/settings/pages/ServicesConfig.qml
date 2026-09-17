@@ -742,36 +742,46 @@ ContentPage {
                     { ids: ["uxterm.desktop"], command: "uxterm", name: "UXTerm" }
                 ]
 
-                function installedTerminals() {
-                    // Quickshell's DesktopEntries exposes suffix-less app IDs
-                    // ("kitty", not "kitty.desktop"), so normalize both sides
-                    // before comparing.
-                    function normId(raw) {
-                        let id = String(raw ?? "").toLowerCase()
-                        if (id.endsWith(".desktop"))
-                            id = id.slice(0, -8)
-                        return id
-                    }
-                    const byId = {}
+                // Full application list (like the rows above): the stored
+                // value stays a launch command, so map desktop IDs to
+                // commands in both directions. Known terminals keep their
+                // flags (e.g. kitty's -1); anything else falls back to the
+                // desktop entry's own command, and free-typed customs keep
+                // working through the field below.
+                function desktopEntryById(desktopFile) {
+                    const want = String(desktopFile ?? "").toLowerCase().replace(/\.desktop$/, "")
                     for (const app of Array.from(DesktopEntries.applications.values)) {
-                        const id = normId(app?.id)
-                        if (id !== "") byId[id] = app
+                        if (String(app?.id ?? "").toLowerCase() === want)
+                            return app
                     }
-                    const options = []
+                    return null
+                }
+
+                function commandForAppId(desktopFile) {
+                    const want = String(desktopFile ?? "").toLowerCase().replace(/\.desktop$/, "")
                     for (const candidate of terminalSection.terminalCandidates) {
-                        for (const raw of candidate.ids) {
-                            const app = byId[normId(raw)]
-                            if (app) {
-                                options.push({
-                                    displayName: String(app?.name ?? "") || candidate.name,
-                                    icon: "terminal",
-                                    value: candidate.command
-                                })
-                                break
-                            }
-                        }
+                        if (candidate.ids.some(id => String(id).toLowerCase().replace(/\.desktop$/, "") === want))
+                            return candidate.command
                     }
-                    return options
+                    const app = terminalSection.desktopEntryById(desktopFile)
+                    const entryCommand = String(app?.command ?? "").trim()
+                    return entryCommand
+                }
+
+                function appIdForCommand(cmd) {
+                    const clean = String(cmd ?? "").trim()
+                    if (clean === "") return ""
+                    for (const candidate of terminalSection.terminalCandidates) {
+                        if (candidate.command === clean)
+                            return candidate.ids[0]
+                    }
+                    const exe = clean.split(/\s+/)[0].split("/").pop()
+                    for (const app of Array.from(DesktopEntries.applications.values)) {
+                        const entryCommand = String(app?.command ?? "").trim()
+                        if (entryCommand === exe || entryCommand.split("/").pop() === exe)
+                            return String(app?.id ?? "")
+                    }
+                    return clean
                 }
 
                 Timer {
@@ -785,17 +795,21 @@ ContentPage {
                 GroupedList {
                     compact: true;
                     visible: page.settingsShow("apps")
-                    ConfigSelectionArray {
+                    ConfigApplicationComboBox {
                         visible: page.settingsShow("apps");
                         objectName: "ServicesConfig.terminal";
-                        icon: "terminal"
+                        buttonIcon: "terminal"
                         text: Translation.tr("Terminal")
-                        currentValue: Config.options.apps.terminal
-                        options: terminalSection.installedTerminals()
+                        description: Translation.tr("Choose from installed desktop applications")
+                        currentValue: terminalSection.appIdForCommand(Config.options.apps.terminal)
+                        valueMode: "appId"
+                        allowEmpty: false
                         onSelected: newValue => {
-                            Config.options.apps.terminal = newValue
-                            customTerminalField.text = newValue
-                            terminalSection.scheduleTerminal(newValue)
+                            const cmd = terminalSection.commandForAppId(newValue)
+                            if (cmd === "") return
+                            Config.options.apps.terminal = cmd
+                            customTerminalField.text = cmd
+                            terminalSection.scheduleTerminal(cmd)
                         }
                     }
                     MaterialTextField {
