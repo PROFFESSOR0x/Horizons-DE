@@ -344,12 +344,26 @@ Item {
     readonly property var restingLayout: Config.options.m3Island?.layouts?.restingLayout ?? ["m3Clock"]
     readonly property var hoverLayout: Config.options.m3Island?.layouts?.hoverLayout ?? ["media", "systemIcons"]
     readonly property var expandedLayout: Config.options.m3Island?.layouts?.expandedLayout ?? ["resources", "batteryIndicator"]
-    readonly property var filteredExpandedLayout: expandedLayout.filter(n => n !== "systemIcons" && n !== "utilButtons")
+    readonly property var expandedTopLayout: Config.options.m3Island?.layouts?.expandedTopLayout ?? ["utilButtons", "m3Clock", "uptime", "systemIcons"]
+    readonly property var expandedBottomLayout: Config.options.m3Island?.layouts?.expandedBottomLayout ?? []
+    readonly property var expandedExtraRows: Config.options.m3Island?.layouts?.expandedExtraRows ?? []
+    // Widgets already shown in the top/bottom/extra rows must not repeat in
+    // the middle row - every expanded row is visible at the same time.
+    // NB: QML list<> has no .flat(), so flatten with reduce+concat.
+    readonly property var expandedSiblingWidgets: [...expandedTopLayout, ...expandedBottomLayout, ...expandedExtraRows.reduce((all, row) => all.concat(row ?? []), [])]
+    readonly property var filteredExpandedLayout: expandedLayout.filter(n => !expandedSiblingWidgets.includes(n))
     // The hover/expanded rows each still draw a clock of their own so the
     // stock layouts look unchanged, but it has to step aside as soon as the
     // user places "m3Clock" in that row themselves.
     readonly property bool hoverLayoutHasClock: hoverLayout.includes("m3Clock")
-    readonly property bool expandedLayoutHasClock: expandedLayout.includes("m3Clock")
+    // Every expanded row is on screen together, so one "m3Clock" anywhere in
+    // the expanded state (top, middle, bottom or any extra row) replaces the
+    // middle row's fallback - otherwise two clocks would show at once. This
+    // is the same single instance the user placed, never an added duplicate.
+    readonly property bool expandedLayoutHasClock: expandedTopLayout.includes("m3Clock")
+        || expandedLayout.includes("m3Clock")
+        || expandedBottomLayout.includes("m3Clock")
+        || expandedExtraRows.some(row => (row ?? []).includes("m3Clock"))
 
     HoverHandler { id: hoverHandler }
     // Debounce hover to avoid flicker when mouse jitters at edge
@@ -728,43 +742,70 @@ Item {
             Behavior on opacity { NumberAnimation { duration: root.animMs(200); easing.type: Easing.OutCubic } }
             Behavior on scale { NumberAnimation { duration: root.animMs(280); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial } }
 
+            // Expanded top - fully customizable like every other row (used to
+            // be hardcoded to util buttons + clock + verbose uptime + system
+            // icons). The default list reproduces that row exactly; the
+            // verbose dividers flank "uptime" wherever it is placed.
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 8
-                // Left: util buttons
-                Rectangle {
-                    implicitWidth: utilLoader.implicitWidth + 10
-                    implicitHeight: 28
-                    radius: Appearance.rounding.full
-                    color: Appearance.colors.colSecondaryContainer
-                    visible: utilLoader.source.toString() !== ""
-                    Loader {
-                        id: utilLoader
-                        anchors.centerIn: parent
-                        source: root.getWidgetUrl("utilButtons")
-                        onLoaded: root.configureM3Widget(item)
-                    }
-                }
-                M3ClockCenter {
-                    visible: !root.expandedLayoutHasClock
-                    clockStyle: Config.options.m3Island.clockStyle
-                    showDate: true
-                    use24Hour: Config.options.m3Island.clockUse24h
-                }
-                Rectangle { visible: Config.options.m3Island.verbose; width: 1; height: 20; color: Appearance.colors.colOutlineVariant; opacity: 0.4 }
-                StyledText { visible: Config.options.m3Island.verbose; text: DateTime.uptime; font.pixelSize: Appearance.font.pixelSize.smallest; color: Appearance.colors.colOnLayer1 }
-                Rectangle { visible: Config.options.m3Island.verbose; width: 1; height: 20; color: Appearance.colors.colOutlineVariant; opacity: 0.4 }
-                // Right: system icons
-                Rectangle {
-                    implicitWidth: sysTopLoader.implicitWidth + 12
-                    implicitHeight: 28
-                    radius: Appearance.rounding.full
-                    color: Appearance.colors.colPrimary
-                    Loader {
-                        id: sysTopLoader
-                        anchors.centerIn: parent
-                        source: root.getWidgetUrl("systemIcons")
-                        onLoaded: root.configureM3Widget(item)
+                visible: root.expandedTopLayout.length > 0
+                Repeater {
+                    model: root.expandedTopLayout
+                    delegate: RowLayout {
+                        required property var modelData
+                        spacing: 8
+                        Rectangle {
+                            visible: Config.options.m3Island.verbose && modelData === "uptime"
+                            width: 1; height: 20; color: Appearance.colors.colOutlineVariant; opacity: 0.4
+                        }
+                        Rectangle {
+                            visible: modelData === "utilButtons"
+                            implicitWidth: utilTopLoader.implicitWidth + 10
+                            implicitHeight: 28
+                            radius: Appearance.rounding.full
+                            color: Appearance.colors.colSecondaryContainer
+                            Loader {
+                                id: utilTopLoader
+                                anchors.centerIn: parent
+                                source: root.getWidgetUrl("utilButtons")
+                                onLoaded: root.configureM3Widget(item)
+                            }
+                        }
+                        Rectangle {
+                            visible: modelData === "systemIcons"
+                            implicitWidth: sysTopLoader.implicitWidth + 12
+                            implicitHeight: 28
+                            radius: Appearance.rounding.full
+                            color: Appearance.colors.colPrimary
+                            Loader {
+                                id: sysTopLoader
+                                anchors.centerIn: parent
+                                source: root.getWidgetUrl("systemIcons")
+                                onLoaded: root.configureM3Widget(item)
+                            }
+                        }
+                        // Compact uptime text, exactly like the old hardcoded
+                        // row (the full bar widget with its icon would make
+                        // this slim row taller).
+                        StyledText {
+                            visible: modelData === "uptime"
+                            text: DateTime.uptime
+                            font.pixelSize: Appearance.font.pixelSize.smallest
+                            color: Appearance.colors.colOnLayer1
+                        }
+                        // Bare loader like the old row: no BarGroup pill or
+                        // entrance animation, so the default list looks
+                        // exactly like the previous hardcoded row.
+                        Loader {
+                            visible: modelData !== "utilButtons" && modelData !== "systemIcons" && modelData !== "uptime"
+                            source: root.getWidgetUrl(modelData)
+                            onLoaded: root.applyWidgetConfig(modelData, item)
+                        }
+                        Rectangle {
+                            visible: Config.options.m3Island.verbose && modelData === "uptime"
+                            width: 1; height: 20; color: Appearance.colors.colOutlineVariant; opacity: 0.4
+                        }
                     }
                 }
             }
@@ -801,6 +842,92 @@ Item {
                             Loader {
                                 source: root.getWidgetUrl(modelData)
                                 onLoaded: root.applyWidgetConfig(modelData, item)
+                            }
+                        }
+                    }
+                }
+            }
+            // Expanded bottom - same widget mechanics as the middle row,
+            // rendered below it. Empty by default.
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: root.islandSpacing
+                visible: root.expandedBottomLayout.length > 0
+                Repeater {
+                    model: root.expandedBottomLayout
+                    delegate: Item {
+                        required property var modelData
+                        required property int index
+                        implicitWidth: barGroupBottom.implicitWidth
+                        implicitHeight: barGroupBottom.implicitHeight
+                        opacity: root.isExpanded ? 1 : 0
+                        scale: root.isExpanded ? 1 : 0.82
+                        Behavior on opacity {
+                            SequentialAnimation {
+                                PauseAnimation { duration: root.isExpanded ? root.animMs(60 + index * 30) : 0 }
+                                NumberAnimation { duration: root.animMs(160); easing.type: Easing.OutCubic }
+                            }
+                        }
+                        Behavior on scale {
+                            SequentialAnimation {
+                                PauseAnimation { duration: root.isExpanded ? root.animMs(60 + index * 30) : 0 }
+                                NumberAnimation { duration: root.animMs(230); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
+                            }
+                        }
+                        Bar.BarGroup {
+                            id: barGroupBottom
+                            anchors.centerIn: parent
+                            currentIndex: index
+                            totalCount: root.expandedBottomLayout.length
+                            Loader {
+                                source: root.getWidgetUrl(modelData)
+                                onLoaded: root.applyWidgetConfig(modelData, item)
+                            }
+                        }
+                    }
+                }
+            }
+            // Extra user rows - any number of additional customizable rows
+            // below the bottom row, same mechanics.
+            Repeater {
+                model: root.expandedExtraRows
+                delegate: RowLayout {
+                    required property var modelData
+                    required property int index
+                    property var rowWidgets: modelData
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: root.islandSpacing
+                    visible: (rowWidgets ?? []).length > 0
+                    Repeater {
+                        model: rowWidgets ?? []
+                        delegate: Item {
+                            required property var modelData
+                            required property int index
+                            implicitWidth: barGroupExtra.implicitWidth
+                            implicitHeight: barGroupExtra.implicitHeight
+                            opacity: root.isExpanded ? 1 : 0
+                            scale: root.isExpanded ? 1 : 0.82
+                            Behavior on opacity {
+                                SequentialAnimation {
+                                    PauseAnimation { duration: root.isExpanded ? root.animMs(60 + index * 30) : 0 }
+                                    NumberAnimation { duration: root.animMs(160); easing.type: Easing.OutCubic }
+                                }
+                            }
+                            Behavior on scale {
+                                SequentialAnimation {
+                                    PauseAnimation { duration: root.isExpanded ? root.animMs(60 + index * 30) : 0 }
+                                    NumberAnimation { duration: root.animMs(230); easing.type: Easing.BezierSpline; easing.bezierCurve: Appearance.animationCurves.expressiveDefaultSpatial }
+                                }
+                            }
+                            Bar.BarGroup {
+                                id: barGroupExtra
+                                anchors.centerIn: parent
+                                currentIndex: index
+                                totalCount: rowWidgets.length
+                                Loader {
+                                    source: root.getWidgetUrl(modelData)
+                                    onLoaded: root.applyWidgetConfig(modelData, item)
+                                }
                             }
                         }
                     }

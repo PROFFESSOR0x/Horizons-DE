@@ -1225,5 +1225,11 @@
   "What tapping Super opens. \"Quickshell\" is this shell's own built-in search/overview and needs nothing extra. The other three are separate apps — install them (and their background service, where needed) *before* switching to one here, or Super will just do nothing:\n": "ما الذي يفتحه الضغط على Super. ‏\"Quickshell\" هو البحث/النظرة العامة المدمج داخل هذا الشِل ولا يحتاج شيئًا إضافيًا. الخيارات الثلاثة الأخرى تطبيقات منفصلة؛ ثبّتها أولًا مع خدمتها الخلفية عند الحاجة قبل اختيارها هنا، وإلا فلن يفعل Super شيئًا:\n",
   "Workspace": "مساحة العمل",
   "Custom command, e.g. kitty -1 (Enter to apply)": "أمر مخصص، مثل kitty -1 (اضغط Enter للتطبيق)",
-  "Applies to the shell's own actions right away and to Hyprland shortcuts (Super+Return, Super+T, Ctrl+Alt+T) after an automatic reload, plus GNOME terminal consumers where available.": "يُطبّق على إجراءات الواجهة فورًا وعلى اختصارات Hyprland (Super+Return وSuper+T وCtrl+Alt+T) بعد إعادة تحميل تلقائية، وعلى مستهلكي طرفية GNOME حيثما توفرت."
+  "Applies to the shell's own actions right away and to Hyprland shortcuts (Super+Return, Super+T, Ctrl+Alt+T) after an automatic reload, plus GNOME terminal consumers where available.": "يُطبّق على إجراءات الواجهة فورًا وعلى اختصارات Hyprland (Super+Return وSuper+T وCtrl+Alt+T) بعد إعادة تحميل تلقائية، وعلى مستهلكي طرفية GNOME حيثما توفرت.",
+  "Expanded top": "الموسّع العلوي",
+  "Expanded bottom": "الموسّع السفلي",
+  "Extra row %1": "صف إضافي %1",
+  "Add row": "إضافة صف",
+  "Remove row": "إزالة الصف",
+  "Need more rows? Add extra expanded rows below - each is its own customizable row.": "تحتاج صفوفًا أكثر؟ أضف صفوفًا موسّعة إضافية بالأسفل — كل منها صف مستقل قابل للتخصيص."
 }

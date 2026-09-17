@@ -91,6 +91,77 @@ Singleton {
             opts.m3Island.scrollActionMigrated = true;
         }
 
+        // The old expandedHeight default (72) padded even a single slim row
+        // into a tall panel. Only remap the untouched default - an explicit
+        // user value is left exactly as they set it.
+        if (opts.m3Island.expandedHeight === 72) {
+            opts.m3Island.expandedHeight = 48;
+        }
+
+        // The island's Media/UtilButtons/Workspaces widgets read their own
+        // m3Island.* preference groups (not the shared bar.* ones), and the
+        // settings pages below edit whichever surface is active. Seed the
+        // complete objects for configs written before these groups existed -
+        // otherwise those widgets (and their settings rows) dereference
+        // undefined on every load. Same JsonObject pattern as
+        // wallpaperBackground above.
+        if (opts.m3Island.media === undefined) {
+            opts.m3Island.media = {
+                preferredPlayer: "", alwaysVisible: false, onlyTitle: false,
+                maxWidth: 220, minWidth: 100,
+            };
+        }
+        if (opts.m3Island.utilButtons === undefined) {
+            opts.m3Island.utilButtons = {
+                showScreenSnip: true, showColorPicker: true, showMicToggle: false,
+                showKeyboardToggle: false, showWallpaperToggle: true,
+                showDarkModeToggle: false, showPerformanceProfileToggle: false,
+                showScreenRecord: false, isRecording: false,
+            };
+        }
+        if (opts.m3Island.workspaces === undefined) {
+            opts.m3Island.workspaces = {
+                monochromeIcons: true, shown: 10, showAppIcons: false,
+                indicatorStyle: "dot", alwaysShowNumbers: true,
+                showNumberDelay: 300, numberMap: ["1", "2"], useNerdFont: false,
+            };
+        }
+        if (opts.m3Island.layouts === undefined) {
+            opts.m3Island.layouts = {
+                restingLayout: ["m3Clock"],
+                hoverLayout: ["media", "systemIcons"],
+                expandedLayout: ["resources", "batteryIndicator"],
+                expandedTopLayout: ["utilButtons", "m3Clock", "uptime", "systemIcons"],
+                expandedBottomLayout: [],
+                expandedExtraRows: [],
+            };
+        }
+
+        // The classic bar clock ("clockWidget") is a tall vertical layout
+        // that cannot load inside the island's horizontal pill rows - any
+        // island row holding it renders an empty slot. Rewrite it to the
+        // island clock ("m3Clock") in place (deduped, order preserved), so
+        // existing configs that picked "Clock" before the picker stopped
+        // offering the bar one actually show their clock. Idempotent: a
+        // no-op once no island row mentions clockWidget.
+        if (opts.m3Island.layouts) {
+            // NB: Array.isArray() is false for QML list<> (even though map /
+            // filter / includes all work on them), so duck-type instead.
+            const fixClockWidget = list => {
+                if (!list || typeof list === "string" || typeof list.includes !== "function" || !list.includes("clockWidget")) return list
+                const fixed = list.map(id => id === "clockWidget" ? "m3Clock" : id)
+                return fixed.filter((id, i) => fixed.indexOf(id) === i)
+            }
+            const layouts = opts.m3Island.layouts
+            layouts.restingLayout = fixClockWidget(layouts.restingLayout)
+            layouts.hoverLayout = fixClockWidget(layouts.hoverLayout)
+            layouts.expandedLayout = fixClockWidget(layouts.expandedLayout)
+            layouts.expandedTopLayout = fixClockWidget(layouts.expandedTopLayout)
+            layouts.expandedBottomLayout = fixClockWidget(layouts.expandedBottomLayout)
+            if (layouts.expandedExtraRows && typeof layouts.expandedExtraRows.map === "function")
+                layouts.expandedExtraRows = layouts.expandedExtraRows.map(row => fixClockWidget(row))
+        }
+
         // Added after the first M3 Island release. JsonObject does not write
         // newly declared defaults into an existing config automatically, so
         // persist this value once or the settings switch resets on reload.
@@ -1405,7 +1476,10 @@ Singleton {
                 // Number of launcher matches visible before its list scrolls.
                 property int launcherMaxResults: 6
                 property bool rightClickMenu: true
-                property int expandedHeight: 72
+                // Minimum expanded-panel height. Content taller than this wins
+                // automatically; this only pads small content (e.g. a single
+                // slim top row) so the pill keeps a sensible body.
+                property int expandedHeight: 48
                 // A value of 0 follows the global notification timeout.
                 property int notificationTimeout: 0
                 property bool showFrame: false
@@ -1445,6 +1519,16 @@ Singleton {
                     property list<string> restingLayout: ["m3Clock"]
                     property list<string> hoverLayout: ["media", "systemIcons"]
                     property list<string> expandedLayout: ["resources", "batteryIndicator"]
+                    // The expanded state's first row used to be hardcoded
+                    // (util buttons + clock + verbose uptime + system icons).
+                    // It is a normal widget list now, like the rest: the
+                    // default below reproduces the old row exactly.
+                    property list<string> expandedTopLayout: ["utilButtons", "m3Clock", "uptime", "systemIcons"]
+                    // Shown below the main expanded content, same mechanics.
+                    property list<string> expandedBottomLayout: []
+                    // Extra user rows below that - each entry is its own
+                    // list<string> row, so any number of rows can be added.
+                    property list<var> expandedExtraRows: []
                 }
                 property JsonObject utilButtons: JsonObject {
                     property bool showScreenSnip: true

@@ -80,12 +80,68 @@ class M3IslandContractTests(unittest.TestCase):
     def test_m3_clock_is_available_per_layout_without_duplicate_rows(self) -> None:
         settings = source("modules/ii/settings/pages/BarConfig.qml")
         content = source("modules/ii/m3Island/M3IslandContent.qml")
+        config = source("modules/common/Config.qml")
 
-        self.assertIn("function availableForM3(currentLayout)", settings)
-        self.assertIn("if (w.id === \"m3Clock\") return !localLayout.includes(w.id)", settings)
-        self.assertIn("availableForM3(Config.options.m3Island.layouts.hoverLayout)", settings)
+        self.assertIn("function availableForM3(currentLayout, expandedFamily)", settings)
+        self.assertIn("if (!expandedFamily) return !localLayout.includes(w.id)", settings)
+        self.assertIn("if (localLayout.includes(w.id)) return true", settings)
+        self.assertIn("if (w.id === \"clockWidget\") return false", settings)
+        self.assertIn("fixClockWidget", config)
+        self.assertIn("availableForM3(Config.options.m3Island.layouts.hoverLayout", settings)
         self.assertIn("hoverLayoutHasClock", content)
         self.assertIn("expandedLayoutHasClock", content)
+
+    def test_m3_expanded_top_bottom_and_extra_rows_are_configurable(self) -> None:
+        config = source("modules/common/Config.qml")
+        settings = source("modules/ii/settings/pages/BarConfig.qml")
+        content = source("modules/ii/m3Island/M3IslandContent.qml")
+
+        for prop in ("expandedTopLayout", "expandedBottomLayout", "expandedExtraRows"):
+            self.assertIn(prop, config)
+            self.assertIn(prop, settings)
+            self.assertIn(prop, content)
+        self.assertIn("Expanded top", settings)
+        self.assertIn("Expanded bottom", settings)
+        self.assertIn("Add row", settings)
+        self.assertIn("expandedSiblingWidgets", content)
+        # One clock across the whole expanded state - never an added duplicate.
+        self.assertIn("expandedExtraRows.some(", content)
+
+    def test_m3_widget_detail_sections_follow_the_active_surface(self) -> None:
+        config = source("modules/common/Config.qml")
+        settings = source("modules/ii/settings/pages/BarConfig.qml")
+        # The island reuses these widgets but owns separate preference groups.
+        for group in ("media", "utilButtons", "workspaces"):
+            self.assertIn(f"opts.m3Island.{group} === undefined", config)
+        # Detail sections are visible in island mode and edit the active
+        # surface's group - never the classic bar's while the island is on.
+        for section in ("Utility Buttons", "Workspaces", "Resources", "Media", "Divider"):
+            chunk = settings.split(f'title: Translation.tr("{section}")', 1)[0].rsplit("ContentSection {", 1)[1]
+            flat = chunk.replace(" ", "")
+            self.assertNotIn('barMode==="classic")', flat)
+            self.assertNotIn('||page.barMode==="mesoBar")', flat)
+        self.assertIn("page.barMode === \"m3Island\" ? Config.options.m3Island.utilButtons", settings)
+        self.assertIn("page.barMode === \"m3Island\" ? Config.options.m3Island.workspaces", settings)
+        self.assertIn("page.barMode === \"m3Island\" ? Config.options.m3Island.media", settings)
+        self.assertNotIn("Config.options.bar.utilButtons.showScreenSnip", settings)
+        self.assertNotIn("Config.options.bar.media.preferredPlayer", settings)
+
+    def test_m3_qml_lists_avoid_missing_array_methods(self) -> None:
+        # QML list<> supports filter/map/includes/some/reduce but NOT
+        # flat/flatMap - calling them throws and the whole picker binding
+        # collapses to "No widgets available".
+        settings = source("modules/ii/settings/pages/BarConfig.qml")
+        content = source("modules/ii/m3Island/M3IslandContent.qml")
+        for banned in (").flat()", "].flat()", ").flatMap(", "].flatMap("):
+            self.assertNotIn(banned, settings)
+            self.assertNotIn(banned, content)
+
+    def test_m3_expanded_height_fits_single_row_content(self) -> None:
+        config = source("modules/common/Config.qml")
+        content = source("modules/ii/m3Island/M3IslandContent.qml")
+        self.assertIn("property int expandedHeight: 48", config)
+        self.assertIn("opts.m3Island.expandedHeight === 72", config)
+        self.assertIn("Config.options.m3Island.expandedHeight, expandedRow.implicitHeight", content)
 
     def test_m3_clock_honors_its_hour_mode_and_shared_format(self) -> None:
         clock = source("modules/ii/m3Island/M3ClockCenter.qml")

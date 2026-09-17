@@ -157,22 +157,43 @@ ContentPage {
             .map(a => ({ id: a.id, name: a.name, icon: "apps" }))
     }
 
-    function availableForM3(currentLayout) {
+    function availableForM3(currentLayout, expandedFamily) {
+        const layouts = Config.options.m3Island.layouts
+        const topLayout = layouts.expandedTopLayout ?? []
+        const midLayout = layouts.expandedLayout ?? []
+        const bottomLayout = layouts.expandedBottomLayout ?? []
+        // NB: QML list<> has no .flat() - reduce+concat is the portable flatten.
+        const extraLayouts = (layouts.expandedExtraRows ?? []).reduce((all, row) => all.concat(row ?? []), [])
         let used = [
             ...Config.options.m3Island.layouts.restingLayout,
             ...Config.options.m3Island.layouts.hoverLayout,
-            ...Config.options.m3Island.layouts.expandedLayout
+            ...midLayout,
+            ...topLayout,
+            ...bottomLayout,
+            ...extraLayouts
         ]
         const localLayout = currentLayout ?? []
         // The clock must be selectable in Hover/Expanded even if it is already
-        // used by Resting. M3IslandContent replaces those rows' fallback clock
-        // when one is explicitly added. It is deliberately allowed only once
-        // *per row*, so repeated clicks cannot create two visible clocks in a
-        // single island state.
+        // used by Resting (those states never show together). But every
+        // expanded row IS visible at once, so within the expanded family the
+        // clock is allowed only once: keep it in its current row, or place it
+        // when no other expanded row has it. Either way there is ever a
+        // single clock instance - never an added duplicate.
         const multipleAllowed = ["visualizer", "divisor"]
         return [...m3OnlyWidgets, ...allWidgets].filter(w => {
             if (w.id === "divisor" && Config.options.m3Island.borderless !== "transparent") return false
-            if (w.id === "m3Clock") return !localLayout.includes(w.id)
+            // The classic bar clock is a tall vertical layout that cannot fit
+            // the island's horizontal pill rows (its loader errors out to an
+            // empty slot), and it shares its "Clock" display name with
+            // m3Clock - offering both makes picking the working one a guess.
+            // The island clock is the only clock offered here.
+            if (w.id === "clockWidget") return false
+            if (w.id === "m3Clock") {
+                if (!expandedFamily) return !localLayout.includes(w.id)
+                if (localLayout.includes(w.id)) return true
+                const familyUsed = [...topLayout, ...midLayout, ...bottomLayout, ...extraLayouts]
+                return !familyUsed.includes(w.id)
+            }
             return !used.includes(w.id) || multipleAllowed.includes(w.id)
         })
     }
@@ -400,16 +421,88 @@ ContentPage {
                 LayoutSection {
                     sectionTitle: Translation.tr("Hover (peek)")
                     layout: Config.options.m3Island.layouts.hoverLayout
-                    availableWidgets: page.availableForM3(Config.options.m3Island.layouts.hoverLayout)
+                    availableWidgets: page.availableForM3(Config.options.m3Island.layouts.hoverLayout, false)
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.m3Island.layouts.hoverLayout = list
                 }
                 LayoutSection {
+                    sectionTitle: Translation.tr("Expanded top")
+                    layout: Config.options.m3Island.layouts.expandedTopLayout ?? []
+                    availableWidgets: page.availableForM3(Config.options.m3Island.layouts.expandedTopLayout ?? [], true)
+                    getWidgetName: page.getWidgetName
+                    onUpdate: list => Config.options.m3Island.layouts.expandedTopLayout = list
+                }
+                LayoutSection {
                     sectionTitle: Translation.tr("Expanded")
                     layout: Config.options.m3Island.layouts.expandedLayout
-                    availableWidgets: page.availableForM3(Config.options.m3Island.layouts.expandedLayout)
+                    availableWidgets: page.availableForM3(Config.options.m3Island.layouts.expandedLayout, true)
                     getWidgetName: page.getWidgetName
                     onUpdate: list => Config.options.m3Island.layouts.expandedLayout = list
+                }
+                LayoutSection {
+                    sectionTitle: Translation.tr("Expanded bottom")
+                    layout: Config.options.m3Island.layouts.expandedBottomLayout ?? []
+                    availableWidgets: page.availableForM3(Config.options.m3Island.layouts.expandedBottomLayout ?? [], true)
+                    getWidgetName: page.getWidgetName
+                    onUpdate: list => Config.options.m3Island.layouts.expandedBottomLayout = list
+                }
+                StyledText {
+                    property bool groupDescription: true;
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    text: Translation.tr("Need more rows? Add extra expanded rows below - each is its own customizable row.")
+                }
+            }
+            // Each extra row gets its own GroupedList card (same look as the
+            // rows above) instead of sharing the one above: GroupedList wires
+            // its direct children once at completion, so Repeater-built rows
+            // added later would miss their padding and background pills.
+            Repeater {
+                model: Config.options.m3Island.layouts.expandedExtraRows ?? []
+                delegate: RowLayout {
+                    required property var modelData
+                    required property int index
+                    property var rowWidgets: modelData
+                    Layout.fillWidth: true
+                    spacing: 8
+                    GroupedList {
+                        Layout.fillWidth: true
+                        compact: true
+                        LayoutSection {
+                            sectionTitle: Translation.tr("Extra row %1").arg(index + 1)
+                            layout: rowWidgets ?? []
+                            availableWidgets: page.availableForM3(rowWidgets ?? [], true)
+                            getWidgetName: page.getWidgetName
+                            onUpdate: list => {
+                                const rows = (Config.options.m3Island.layouts.expandedExtraRows ?? []).map(r => (r ?? []).slice())
+                                rows[index] = list
+                                Config.options.m3Island.layouts.expandedExtraRows = rows
+                            }
+                        }
+                    }
+                    RippleButtonWithIcon {
+                        Layout.alignment: Qt.AlignVCenter
+                        materialIcon: "delete"
+                        mainText: ""
+                        onClicked: {
+                            const rows = (Config.options.m3Island.layouts.expandedExtraRows ?? []).map(r => (r ?? []).slice())
+                            rows.splice(index, 1)
+                            Config.options.m3Island.layouts.expandedExtraRows = rows
+                        }
+                        StyledToolTip { text: Translation.tr("Remove row") }
+                    }
+                }
+            }
+            RippleButtonWithIcon {
+                Layout.alignment: Qt.AlignRight
+                materialIcon: "add"
+                mainText: Translation.tr("Add row")
+                onClicked: {
+                    const rows = (Config.options.m3Island.layouts.expandedExtraRows ?? []).map(r => (r ?? []).slice())
+                    rows.push([])
+                    Config.options.m3Island.layouts.expandedExtraRows = rows
                 }
             }
         }
@@ -1361,11 +1454,11 @@ ContentPage {
             }
         }
 
-        // ── 13. Divider (classic only) ────────────────────────────────────────
+        // ── 13. Divider (shared options) ─────────────────────────────────────────
         ContentSection {
             icon: "vertical_align_center"
             shape: MaterialShape.Shape.Diamond
-            visible: page.settingsShow("panel-details|panels") && (page.barMode === "classic")
+            visible: page.settingsShow("panel-details|panels")
             title: Translation.tr("Divider")
 
             GroupedList {
@@ -1397,12 +1490,16 @@ ContentPage {
             }
         }
 
-        // ── 14. Utility Buttons (classic & mesoBar) ────────────────────────────
+        // ── 14. Utility Buttons (all modes; m3Island owns its own group) ────────
         ContentSection {
             icon: "buttons_alt"
             shape: MaterialShape.Shape.SoftBurst
-            visible: page.settingsShow("panels") && (page.barMode === "classic" || page.barMode === "mesoBar")
+            visible: page.settingsShow("panels")
             title: Translation.tr("Utility Buttons")
+            // The island reuses these widgets but owns a separate preference
+            // group - edit that group while the island is active, otherwise
+            // the changes would silently apply to the classic bar instead.
+            readonly property var opts: page.barMode === "m3Island" ? Config.options.m3Island.utilButtons : Config.options.bar.utilButtons
 
             GroupedList {
                 compact: true;
@@ -1415,16 +1512,16 @@ ContentPage {
                         objectName: "BarConfig.screen-snip";
                         buttonIcon: "screenshot_region"
                         text: Translation.tr("Screen snip")
-                        checked: Config.options.bar.utilButtons.showScreenSnip
-                        onEdited: { Config.options.bar.utilButtons.showScreenSnip = checked }
+                        checked: opts.showScreenSnip
+                        onEdited: { opts.showScreenSnip = checked }
                     }
                     ConfigSwitch {
                         visible: page.settingsShow("panels");
                         objectName: "BarConfig.color-picker";
                         buttonIcon: "colorize"
                         text: Translation.tr("Color picker")
-                        checked: Config.options.bar.utilButtons.showColorPicker
-                        onEdited: { Config.options.bar.utilButtons.showColorPicker = checked }
+                        checked: opts.showColorPicker
+                        onEdited: { opts.showColorPicker = checked }
                     }
                 }
                 ConfigRow {
@@ -1435,16 +1532,16 @@ ContentPage {
                         objectName: "BarConfig.keyboard-toggle";
                         buttonIcon: "keyboard"
                         text: Translation.tr("Keyboard toggle")
-                        checked: Config.options.bar.utilButtons.showKeyboardToggle
-                        onEdited: { Config.options.bar.utilButtons.showKeyboardToggle = checked }
+                        checked: opts.showKeyboardToggle
+                        onEdited: { opts.showKeyboardToggle = checked }
                     }
                     ConfigSwitch {
                         visible: page.settingsShow("panels");
                         objectName: "BarConfig.mic-toggle";
                         buttonIcon: "mic"
                         text: Translation.tr("Mic toggle")
-                        checked: Config.options.bar.utilButtons.showMicToggle
-                        onEdited: { Config.options.bar.utilButtons.showMicToggle = checked }
+                        checked: opts.showMicToggle
+                        onEdited: { opts.showMicToggle = checked }
                     }
                 }
                 ConfigRow {
@@ -1455,16 +1552,16 @@ ContentPage {
                         objectName: "BarConfig.dark-light-toggle";
                         buttonIcon: "dark_mode"
                         text: Translation.tr("Dark/Light toggle")
-                        checked: Config.options.bar.utilButtons.showDarkModeToggle
-                        onEdited: { Config.options.bar.utilButtons.showDarkModeToggle = checked }
+                        checked: opts.showDarkModeToggle
+                        onEdited: { opts.showDarkModeToggle = checked }
                     }
                     ConfigSwitch {
                         visible: page.settingsShow("panels");
                         objectName: "BarConfig.performance-profile";
                         buttonIcon: "speed"
                         text: Translation.tr("Performance Profile")
-                        checked: Config.options.bar.utilButtons.showPerformanceProfileToggle
-                        onEdited: { Config.options.bar.utilButtons.showPerformanceProfileToggle = checked }
+                        checked: opts.showPerformanceProfileToggle
+                        onEdited: { opts.showPerformanceProfileToggle = checked }
                     }
                 }
                 ConfigRow {
@@ -1475,27 +1572,29 @@ ContentPage {
                         objectName: "BarConfig.record-screen";
                         buttonIcon: "screen_record"
                         text: Translation.tr("Record Screen")
-                        checked: Config.options.bar.utilButtons.showScreenRecord
-                        onEdited: { Config.options.bar.utilButtons.showScreenRecord = checked }
+                        checked: opts.showScreenRecord
+                        onEdited: { opts.showScreenRecord = checked }
                     }
                     ConfigSwitch {
                         visible: page.settingsShow("panels");
                         objectName: "BarConfig.wallpapers-toggle";
                         buttonIcon: "imagesmode"
                         text: Translation.tr("Wallpapers Toggle")
-                        checked: Config.options.bar.utilButtons.showWallpaperToggle
-                        onEdited: { Config.options.bar.utilButtons.showWallpaperToggle = checked }
+                        checked: opts.showWallpaperToggle
+                        onEdited: { opts.showWallpaperToggle = checked }
                     }
                 }
             }
         }
 
-        // ── 15. Workspaces (classic & mesoBar) ─────────────────────────────────
+        // ── 15. Workspaces (all modes; m3Island owns its own group) ─────────────
         ContentSection {
             shape: MaterialShape.Shape.Cookie12Sided
             icon: "steppers"
-            visible: page.settingsShow("panels") && (page.barMode === "classic" || page.barMode === "mesoBar")
+            visible: page.settingsShow("panels")
             title: Translation.tr("Workspaces")
+            // Same surface-aware rule as Utility Buttons above.
+            readonly property var opts: page.barMode === "m3Island" ? Config.options.m3Island.workspaces : Config.options.bar.workspaces
 
             GroupedList {
                 compact: true;
@@ -1505,16 +1604,16 @@ ContentPage {
                     objectName: "BarConfig.always-show-numbers";
                     buttonIcon: "counter_1"
                     text: Translation.tr("Always show numbers")
-                    checked: Config.options.bar.workspaces.alwaysShowNumbers
-                    onEdited: { Config.options.bar.workspaces.alwaysShowNumbers = checked }
+                    checked: opts.alwaysShowNumbers
+                    onEdited: { opts.alwaysShowNumbers = checked }
                 }
                 ConfigSelectionArray {
                     visible: page.settingsShow("panels");
                     objectName: "BarConfig.numbers-style";
                     text: Translation.tr("Numbers style")
                     icon: "looks_3"
-                    currentValue: JSON.stringify(Config.options.bar.workspaces.numberMap)
-                    onSelected: newValue => { Config.options.bar.workspaces.numberMap = JSON.parse(newValue) }
+                    currentValue: JSON.stringify(opts.numberMap)
+                    onSelected: newValue => { opts.numberMap = JSON.parse(newValue) }
                     options: [
                         { displayName: Translation.tr("Normal"),    icon: "timer_10",        value: '[]' },
                         { displayName: Translation.tr("Han chars"), icon: "glyphs",          value: '["一","二","三","四","五","六","七","八","九","十","十一","十二","十三","十四","十五","十六","十七","十八","十九","二十"]' },
@@ -1526,17 +1625,17 @@ ContentPage {
                     objectName: "BarConfig.show-app-icons";
                     buttonIcon: "award_star"
                     text: Translation.tr("Show app icons")
-                    checked: Config.options.bar.workspaces.showAppIcons
-                    onEdited: { Config.options.bar.workspaces.showAppIcons = checked }
+                    checked: opts.showAppIcons
+                    onEdited: { opts.showAppIcons = checked }
                 }
                 ConfigSpinBox {
                     visible: page.settingsShow("panels");
                     objectName: "BarConfig.workspaces-shown";
                     icon: "view_column"
                     text: Translation.tr("Workspaces shown")
-                    value: Config.options.bar.workspaces.shown
+                    value: opts.shown
                     from: 1; to: 30
-                    onEdited: { Config.options.bar.workspaces.shown = value }
+                    onEdited: { opts.shown = value }
                 }
                 ConfigSwitch {
                     visible: page.settingsShow("panels");
@@ -1551,8 +1650,8 @@ ContentPage {
                     objectName: "BarConfig.indicator-style";
                     text: Translation.tr("Indicator style")
                     icon: "page_control"
-                    currentValue: Config.options.bar.workspaces.indicatorStyle ?? "icon"
-                    onSelected: newValue => { Config.options.bar.workspaces.indicatorStyle = newValue }
+                    currentValue: opts.indicatorStyle ?? "icon"
+                    onSelected: newValue => { opts.indicatorStyle = newValue }
                     options: [
                         { displayName: Translation.tr("Dots"),  icon: "radio_button_checked", value: "dot" },
                         { displayName: Translation.tr("Icons"), icon: "interests",            value: "icon" },
@@ -1561,11 +1660,11 @@ ContentPage {
             }
         }
 
-        // ── 16. Resources (classic only) ──────────────────────────────────────
+        // ── 16. Resources (shared options) ──────────────────────────────────────
         ContentSection {
             icon: "empty_dashboard"
             shape: MaterialShape.Shape.Burst
-            visible: page.settingsShow("panel-details|panels") && (page.barMode === "classic")
+            visible: page.settingsShow("panel-details|panels")
             title: Translation.tr("Resources")
 
             GroupedList {
@@ -1655,12 +1754,14 @@ ContentPage {
             }
         }
 
-        // ── 17. Media (classic & mesoBar) ──────────────────────────────────────
+        // ── 17. Media (all modes; m3Island owns its own group) ───────────────────
         ContentSection {
             icon: "music_note"
             shape: MaterialShape.Shape.Sunny
-            visible: page.settingsShow("panel-details|panels") && (page.barMode === "classic" || page.barMode === "mesoBar")
+            visible: page.settingsShow("panel-details|panels")
             title: Translation.tr("Media")
+            // Same surface-aware rule as Utility Buttons above.
+            readonly property var opts: page.barMode === "m3Island" ? Config.options.m3Island.media : Config.options.bar.media
 
             GroupedList {
                 compact: true;
@@ -1672,36 +1773,36 @@ ContentPage {
                     buttonIcon: "play_circle"
                     text: Translation.tr("Preferred Player")
                     description: Translation.tr("Choose from installed desktop applications")
-                    currentValue: Config.options.bar.media.preferredPlayer
+                    currentValue: opts.preferredPlayer
                     valueMode: "appId"
                     allowEmpty: true
                     emptyLabel: Translation.tr("Any player")
-                    onSelected: newValue => { Config.options.bar.media.preferredPlayer = newValue }
+                    onSelected: newValue => { opts.preferredPlayer = newValue }
                 }
                 ConfigSwitch {
                     visible: page.settingsShow("panels");
                     objectName: "BarConfig.pin-media-controls";
                     buttonIcon: "keep"
                     text: Translation.tr("Pin media controls")
-                    checked: Config.options.bar.media.alwaysVisible
-                    onEdited: { Config.options.bar.media.alwaysVisible = checked }
+                    checked: opts.alwaysVisible
+                    onEdited: { opts.alwaysVisible = checked }
                 }
                 ConfigSwitch {
                     visible: page.settingsShow("panels");
                     objectName: "BarConfig.show-only-title";
                     buttonIcon: "titlecase"
                     text: Translation.tr("Show only title")
-                    checked: Config.options.bar.media.onlyTitle
-                    onEdited: { Config.options.bar.media.onlyTitle = checked }
+                    checked: opts.onlyTitle
+                    onEdited: { opts.onlyTitle = checked }
                 }
                 ConfigSpinBox {
                     visible: page.settingsShow("panel-details");
                     objectName: "BarConfig.max-media-width";
                     icon: "width"
                     text: Translation.tr("Max media width")
-                    value: Config.options.bar.media.maxWidth
+                    value: opts.maxWidth
                     from: 100; to: 500; stepSize: 10
-                    onEdited: { Config.options.bar.media.maxWidth = value }
+                    onEdited: { opts.maxWidth = value }
                 }
             }
         }
